@@ -1,0 +1,23 @@
+Use this instruction with your coding assistant:
+
+Add the template starter pack to my editor.
+
+The pack contains catalog.json, templates/*.json, and previews/*.svg.
+Create a template adapter that converts the generic-design-template-v1 schema into my existing project/page/item schema.
+
+Mapping rules:
+- canvas.width/height -> page width/height
+- canvas.background -> page background
+- pages[0].elements -> page items
+- element.type "text" -> my text item type
+- element.type "shape" with shape "rectangle" -> my rectangle/shape item type
+- x, y, width, height are absolute pixels
+- preserve element array order as layer order
+- generate valid internal IDs where necessary
+- map fontFamily, fontSize, fontWeight, color, textAlign, rotation, opacity, locked, visible
+- map fill, stroke, strokeWidth, cornerRadius for shapes
+- add the template entries from catalog.json to the Templates panel
+- use the SVG path from thumbnail for preview cards
+- clicking “Use template” should create a new project or replace the current blank page after confirmation
+- do not store the template SVG inside project data
+- run imported data through the existing projectValidator before committing

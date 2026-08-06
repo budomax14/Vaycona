@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect x="0" y="0" width="1280" height="720" rx="0" fill="#0F172A" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="166" height="720" rx="0" fill="#22D3EE" stroke="none" stroke-width="0"/>
+<rect x="230" y="86" width="19" height="547" rx="0" fill="#22D3EE" stroke="none" stroke-width="0"/>
+<text x="640.0" y="255" text-anchor="middle" font-family="Georgia" font-size="83" font-weight="bold" fill="#FFFFFF">
+<tspan x="640.0" dy="0">BUILD YOUR OWN APP</tspan>
+</text>
+<text x="640.0" y="380" text-anchor="middle" font-family="Arial" font-size="35" font-weight="normal" fill="#FFFFFF">
+<tspan x="640.0" dy="0">Step-by-step tutorial</tspan>
+</text>
+<rect x="460" y="424" width="358" height="3" rx="2" fill="#22D3EE" stroke="none" stroke-width="0"/>
+<text x="640.0" y="486" text-anchor="middle" font-family="Arial" font-size="26" font-weight="normal" fill="#FFFFFF">
+<tspan x="640.0" dy="0">SHOP NOW • LEARN MORE • FOLLOW US</tspan>
+</text>
+</svg>

@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-018",
+  "name": "New Year Celebration",
+  "slug": "new-year-party",
+  "category": "Events",
+  "tags": [
+    "events",
+    "new year party"
+  ],
+  "canvas": {
+    "width": 1275,
+    "height": 1650,
+    "unit": "px",
+    "background": "#060606"
+  },
+  "palette": [
+    "#060606",
+    "#F5D76E",
+    "#FFFFFF"
+  ],
+  "thumbnail": "previews/new-year-party.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1275,
+      "height": 1650,
+      "background": "#060606",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1275,
+          "height": 1650,
+          "fill": "#060606",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-left",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 165,
+          "height": 1650,
+          "fill": "#F5D76E",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-line",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 229,
+          "y": 198,
+          "width": 19,
+          "height": 1254,
+          "fill": "#F5D76E",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 102,
+          "y": 462,
+          "width": 1071,
+          "height": 297,
+          "text": "New Year Celebration",
+          "fontFamily": "Georgia",
+          "fontSize": 82,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 102,
+          "y": 792,
+          "width": 1071,
+          "height": 148,
+          "text": "Countdown begins at 9 PM",
+          "fontFamily": "Arial",
+          "fontSize": 35,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 459,
+          "y": 973,
+          "width": 357,
+          "height": 4,
+          "fill": "#F5D76E",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 102,
+          "y": 1056,
+          "width": 1071,
+          "height": 264,
+          "text": "DATE • TIME • LOCATION\nTickets & information available now",
+          "fontFamily": "Arial",
+          "fontSize": 26,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

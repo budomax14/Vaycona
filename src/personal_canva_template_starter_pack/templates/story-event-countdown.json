@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-037",
+  "name": "3 Days to Go",
+  "slug": "story-event-countdown",
+  "category": "Social Media",
+  "tags": [
+    "social media",
+    "story event countdown"
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "unit": "px",
+    "background": "#1E1B4B"
+  },
+  "palette": [
+    "#1E1B4B",
+    "#A78BFA",
+    "#FFFFFF"
+  ],
+  "thumbnail": "previews/story-event-countdown.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1080,
+      "height": 1920,
+      "background": "#1E1B4B",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920,
+          "fill": "#1E1B4B",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-top",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 230,
+          "fill": "#A78BFA",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-bottom",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 1689,
+          "width": 1080,
+          "height": 230,
+          "fill": "#A78BFA",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 86,
+          "y": 537,
+          "width": 908,
+          "height": 345,
+          "text": "3 Days to Go",
+          "fontFamily": "Georgia",
+          "fontSize": 70,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 86,
+          "y": 921,
+          "width": 908,
+          "height": 172,
+          "text": "The celebration starts soon",
+          "fontFamily": "Arial",
+          "fontSize": 30,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 388,
+          "y": 1132,
+          "width": 302,
+          "height": 5,
+          "fill": "#A78BFA",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 86,
+          "y": 1228,
+          "width": 908,
+          "height": 307,
+          "text": "SHOP NOW • LEARN MORE • FOLLOW US",
+          "fontFamily": "Arial",
+          "fontSize": 22,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

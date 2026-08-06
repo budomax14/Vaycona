@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-022",
+  "name": "DumaWeb",
+  "slug": "luxury-business-card",
+  "category": "Business",
+  "tags": [
+    "business",
+    "luxury business card"
+  ],
+  "canvas": {
+    "width": 1050,
+    "height": 600,
+    "unit": "px",
+    "background": "#0A0A0A"
+  },
+  "palette": [
+    "#0A0A0A",
+    "#D4AF37",
+    "#F5F5F5"
+  ],
+  "thumbnail": "previews/luxury-business-card.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1050,
+      "height": 600,
+      "background": "#0A0A0A",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1050,
+          "height": 600,
+          "fill": "#0A0A0A",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-left",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 136,
+          "height": 600,
+          "fill": "#D4AF37",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-line",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 189,
+          "y": 72,
+          "width": 15,
+          "height": 456,
+          "fill": "#D4AF37",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 84,
+          "y": 144,
+          "width": 882,
+          "height": 108,
+          "text": "DumaWeb",
+          "fontFamily": "Georgia",
+          "fontSize": 68,
+          "fontWeight": "bold",
+          "color": "#F5F5F5",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 84,
+          "y": 288,
+          "width": 882,
+          "height": 54,
+          "text": "Fast. Smart. Straight to the point.",
+          "fontFamily": "Arial",
+          "fontSize": 29,
+          "fontWeight": "normal",
+          "color": "#F5F5F5",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 378,
+          "y": 354,
+          "width": 294,
+          "height": 3,
+          "fill": "#D4AF37",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 84,
+          "y": 384,
+          "width": 882,
+          "height": 96,
+          "text": "YOUR BUSINESS NAME\n(000) 000-0000 • hello@example.com",
+          "fontFamily": "Arial",
+          "fontSize": 22,
+          "fontWeight": "normal",
+          "color": "#F5F5F5",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

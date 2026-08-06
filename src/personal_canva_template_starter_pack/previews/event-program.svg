@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1275" height="1650" viewBox="0 0 1275 1650">
+<rect x="0" y="0" width="1275" height="1650" rx="0" fill="#FAFAF9" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="165" height="1650" rx="0" fill="#292524" stroke="none" stroke-width="0"/>
+<rect x="229" y="198" width="19" height="1254" rx="0" fill="#292524" stroke="none" stroke-width="0"/>
+<text x="637.5" y="544" text-anchor="middle" font-family="Georgia" font-size="82" font-weight="bold" fill="#C2410C">
+<tspan x="637.5" dy="0">Event Program</tspan>
+</text>
+<text x="637.5" y="827" text-anchor="middle" font-family="Arial" font-size="35" font-weight="normal" fill="#C2410C">
+<tspan x="637.5" dy="0">Welcome • Schedule • Speakers</tspan>
+</text>
+<rect x="459" y="973" width="357" height="4" rx="2" fill="#292524" stroke="none" stroke-width="0"/>
+<text x="637.5" y="1082" text-anchor="middle" font-family="Arial" font-size="26" font-weight="normal" fill="#C2410C">
+<tspan x="637.5" dy="0">Name • Date • Signature</tspan>
+</text>
+</svg>

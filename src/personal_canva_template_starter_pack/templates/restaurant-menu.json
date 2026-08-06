@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-025",
+  "name": "Signature Menu",
+  "slug": "restaurant-menu",
+  "category": "Business",
+  "tags": [
+    "business",
+    "restaurant menu"
+  ],
+  "canvas": {
+    "width": 1200,
+    "height": 1800,
+    "unit": "px",
+    "background": "#F4EDE4"
+  },
+  "palette": [
+    "#F4EDE4",
+    "#4B2E22",
+    "#B7791F"
+  ],
+  "thumbnail": "previews/restaurant-menu.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1200,
+      "height": 1800,
+      "background": "#F4EDE4",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1200,
+          "height": 1800,
+          "fill": "#F4EDE4",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-top",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1200,
+          "height": 216,
+          "fill": "#4B2E22",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-bottom",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 1584,
+          "width": 1200,
+          "height": 216,
+          "fill": "#4B2E22",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 96,
+          "y": 504,
+          "width": 1008,
+          "height": 324,
+          "text": "Signature Menu",
+          "fontFamily": "Georgia",
+          "fontSize": 78,
+          "fontWeight": "bold",
+          "color": "#B7791F",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 96,
+          "y": 864,
+          "width": 1008,
+          "height": 162,
+          "text": "Fresh ingredients. Bold flavor.",
+          "fontFamily": "Arial",
+          "fontSize": 33,
+          "fontWeight": "normal",
+          "color": "#B7791F",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 432,
+          "y": 1062,
+          "width": 336,
+          "height": 5,
+          "fill": "#4B2E22",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 96,
+          "y": 1152,
+          "width": 1008,
+          "height": 288,
+          "text": "YOUR BUSINESS NAME\n(000) 000-0000 • hello@example.com",
+          "fontFamily": "Arial",
+          "fontSize": 25,
+          "fontWeight": "normal",
+          "color": "#B7791F",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

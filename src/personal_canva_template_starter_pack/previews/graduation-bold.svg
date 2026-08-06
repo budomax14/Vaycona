@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1275" height="1650" viewBox="0 0 1275 1650">
+<rect x="0" y="0" width="1275" height="1650" rx="0" fill="#111827" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="165" height="1650" rx="0" fill="#FBBF24" stroke="none" stroke-width="0"/>
+<rect x="229" y="198" width="19" height="1254" rx="0" fill="#FBBF24" stroke="none" stroke-width="0"/>
+<text x="637.5" y="544" text-anchor="middle" font-family="Georgia" font-size="82" font-weight="bold" fill="#F9FAFB">
+<tspan x="637.5" dy="0">Class of 2027</tspan>
+</text>
+<text x="637.5" y="827" text-anchor="middle" font-family="Arial" font-size="35" font-weight="normal" fill="#F9FAFB">
+<tspan x="637.5" dy="0">Graduation celebration</tspan>
+</text>
+<rect x="459" y="973" width="357" height="4" rx="2" fill="#FBBF24" stroke="none" stroke-width="0"/>
+<text x="637.5" y="1082" text-anchor="middle" font-family="Arial" font-size="26" font-weight="normal" fill="#F9FAFB">
+<tspan x="637.5" dy="0">DATE • TIME • LOCATION</tspan>
+<tspan x="637.5" dy="35.1">Tickets & information available now</tspan>
+</text>
+</svg>

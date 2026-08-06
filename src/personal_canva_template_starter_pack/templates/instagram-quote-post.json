@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-032",
+  "name": "Keep Going",
+  "slug": "instagram-quote-post",
+  "category": "Social Media",
+  "tags": [
+    "social media",
+    "instagram quote post"
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1080,
+    "unit": "px",
+    "background": "#F3F4F6"
+  },
+  "palette": [
+    "#F3F4F6",
+    "#111827",
+    "#6B7280"
+  ],
+  "thumbnail": "previews/instagram-quote-post.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1080,
+      "height": 1080,
+      "background": "#F3F4F6",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1080,
+          "fill": "#F3F4F6",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-1",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 712,
+          "y": 43,
+          "width": 324,
+          "height": 324,
+          "fill": "#111827",
+          "cornerRadius": 162,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-2",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": -108,
+          "y": 799,
+          "width": 367,
+          "height": 367,
+          "fill": "#111827",
+          "cornerRadius": 183,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 86,
+          "y": 302,
+          "width": 908,
+          "height": 194,
+          "text": "Keep Going",
+          "fontFamily": "Georgia",
+          "fontSize": 70,
+          "fontWeight": "bold",
+          "color": "#6B7280",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 86,
+          "y": 518,
+          "width": 908,
+          "height": 97,
+          "text": "Your future is built one step at a time.",
+          "fontFamily": "Arial",
+          "fontSize": 30,
+          "fontWeight": "normal",
+          "color": "#6B7280",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 388,
+          "y": 637,
+          "width": 302,
+          "height": 3,
+          "fill": "#111827",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 86,
+          "y": 691,
+          "width": 908,
+          "height": 172,
+          "text": "SHOP NOW • LEARN MORE • FOLLOW US",
+          "fontFamily": "Arial",
+          "fontSize": 22,
+          "fontWeight": "normal",
+          "color": "#6B7280",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

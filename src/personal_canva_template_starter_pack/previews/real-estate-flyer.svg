@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1275" height="1650" viewBox="0 0 1275 1650">
+<rect x="0" y="0" width="1275" height="1650" rx="0" fill="#F8FAFC" stroke="none" stroke-width="0"/>
+<rect x="102" y="132" width="1071" height="1386" rx="8" fill="none" stroke="#0F172A" stroke-width="5"/>
+<text x="637.5" y="544" text-anchor="middle" font-family="Georgia" font-size="82" font-weight="bold" fill="#22C55E">
+<tspan x="637.5" dy="0">Modern Home for Sale</tspan>
+</text>
+<text x="637.5" y="827" text-anchor="middle" font-family="Arial" font-size="35" font-weight="normal" fill="#22C55E">
+<tspan x="637.5" dy="0">3 Beds • 2 Baths • Pool</tspan>
+</text>
+<rect x="459" y="973" width="357" height="4" rx="2" fill="#0F172A" stroke="none" stroke-width="0"/>
+<text x="637.5" y="1082" text-anchor="middle" font-family="Arial" font-size="26" font-weight="normal" fill="#22C55E">
+<tspan x="637.5" dy="0">YOUR BUSINESS NAME</tspan>
+<tspan x="637.5" dy="35.1">(000) 000-0000 • hello@example.com</tspan>
+</text>
+</svg>

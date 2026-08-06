@@ -1,0 +1,71 @@
+import React from "react";
+import { ArrowDown, ArrowUp, Copy, Lock, Trash2, Unlock } from "lucide-react";
+import { contentToScreen } from "../viewport";
+
+const TOOLBAR_WIDTH = 280;
+const TOOLBAR_HEIGHT = 50;
+// Large enough to clear the Transformer's rotate handle (rotateAnchorOffset
+// is set small and deliberately, in App.jsx, specifically so this toolbar
+// can sit comfortably above it without the two overlapping and fighting
+// over the same clicks).
+const GAP = 40;
+
+function getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize) {
+  const topLeft = contentToScreen({ x: selectionBoundsContent.left, y: selectionBoundsContent.top }, viewport);
+  const bottomRight = contentToScreen(
+    { x: selectionBoundsContent.right, y: selectionBoundsContent.bottom },
+    viewport
+  );
+
+  const desiredTop = topLeft.y - TOOLBAR_HEIGHT - GAP;
+  const flipBelow = desiredTop < 0;
+  const top = flipBelow ? bottomRight.y + GAP : desiredTop;
+  const clampedTop = Math.max(0, Math.min(frameSize.height - TOOLBAR_HEIGHT, top));
+
+  const centerX = (topLeft.x + bottomRight.x) / 2;
+  const left = Math.max(TOOLBAR_WIDTH / 2, Math.min(frameSize.width - TOOLBAR_WIDTH / 2, centerX));
+
+  return { left, top: clampedTop };
+}
+
+export default function SelectionToolbar({
+  selectionBoundsContent,
+  viewport,
+  frameSize,
+  isLocked,
+  onDuplicate,
+  onDelete,
+  onForward,
+  onBackward,
+  onToggleLock,
+}) {
+  if (!selectionBoundsContent) return null;
+  const { left, top } = getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize);
+
+  return (
+    <div
+      className="pointer-events-auto absolute z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg"
+      style={{ left, top }}
+    >
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onDuplicate} title="Duplicate">
+        <Copy size={24} />
+      </button>
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onForward} title="Bring forward">
+        <ArrowUp size={24} />
+      </button>
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onBackward} title="Send backward">
+        <ArrowDown size={24} />
+      </button>
+      <button
+        className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100"
+        onClick={onToggleLock}
+        title={isLocked ? "Unlock" : "Lock"}
+      >
+        {isLocked ? <Lock size={24} /> : <Unlock size={24} />}
+      </button>
+      <button className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={onDelete} title="Delete">
+        <Trash2 size={24} />
+      </button>
+    </div>
+  );
+}

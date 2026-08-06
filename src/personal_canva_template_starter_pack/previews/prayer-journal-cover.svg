@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2560" viewBox="0 0 1600 2560">
+<rect x="0" y="0" width="1600" height="2560" rx="0" fill="#F3E8FF" stroke="none" stroke-width="0"/>
+<rect x="1056" y="102" width="480" height="480" rx="240" fill="#6B21A8" stroke="none" stroke-width="0"/>
+<rect x="-160" y="1894" width="544" height="544" rx="272" fill="#6B21A8" stroke="none" stroke-width="0"/>
+<text x="800.0" y="820" text-anchor="middle" font-family="Georgia" font-size="104" font-weight="bold" fill="#FFFFFF">
+<tspan x="800.0" dy="0">My Prayer Journal</tspan>
+</text>
+<text x="800.0" y="1272" text-anchor="middle" font-family="Arial" font-size="44" font-weight="normal" fill="#FFFFFF">
+<tspan x="800.0" dy="0">Faith • Gratitude • Reflection</tspan>
+</text>
+<rect x="576" y="1510" width="448" height="7" rx="2" fill="#6B21A8" stroke="none" stroke-width="0"/>
+<text x="800.0" y="1671" text-anchor="middle" font-family="Arial" font-size="33" font-weight="normal" fill="#FFFFFF">
+<tspan x="800.0" dy="0">R. MAX DEUS</tspan>
+</text>
+</svg>

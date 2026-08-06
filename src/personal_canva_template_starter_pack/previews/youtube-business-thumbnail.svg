@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect x="0" y="0" width="1280" height="720" rx="0" fill="#111827" stroke="none" stroke-width="0"/>
+<rect x="102" y="57" width="1075" height="604" rx="8" fill="none" stroke="#FBBF24" stroke-width="5"/>
+<text x="640.0" y="255" text-anchor="middle" font-family="Georgia" font-size="83" font-weight="bold" fill="#FFFFFF">
+<tspan x="640.0" dy="0">START A BUSINESS</tspan>
+</text>
+<text x="640.0" y="380" text-anchor="middle" font-family="Arial" font-size="35" font-weight="normal" fill="#FFFFFF">
+<tspan x="640.0" dy="0">What nobody tells you</tspan>
+</text>
+<rect x="460" y="424" width="358" height="3" rx="2" fill="#FBBF24" stroke="none" stroke-width="0"/>
+<text x="640.0" y="486" text-anchor="middle" font-family="Arial" font-size="26" font-weight="normal" fill="#FFFFFF">
+<tspan x="640.0" dy="0">SHOP NOW • LEARN MORE • FOLLOW US</tspan>
+</text>
+</svg>

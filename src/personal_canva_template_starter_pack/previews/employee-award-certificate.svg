@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1400" viewBox="0 0 2000 1400">
+<rect x="0" y="0" width="2000" height="1400" rx="0" fill="#F8FAFC" stroke="none" stroke-width="0"/>
+<rect x="160" y="112" width="1680" height="1176" rx="8" fill="none" stroke="#334155" stroke-width="8"/>
+<text x="1000.0" y="522" text-anchor="middle" font-family="Georgia" font-size="130" font-weight="bold" fill="#0EA5E9">
+<tspan x="1000.0" dy="0">Employee Excellence Award</tspan>
+</text>
+<text x="1000.0" y="728" text-anchor="middle" font-family="Arial" font-size="56" font-weight="normal" fill="#0EA5E9">
+<tspan x="1000.0" dy="0">For outstanding commitment and performance</tspan>
+</text>
+<rect x="720" y="826" width="560" height="4" rx="2" fill="#334155" stroke="none" stroke-width="0"/>
+<text x="1000.0" y="938" text-anchor="middle" font-family="Arial" font-size="42" font-weight="normal" fill="#0EA5E9">
+<tspan x="1000.0" dy="0">Name • Date • Signature</tspan>
+</text>
+</svg>

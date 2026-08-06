@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-002",
+  "name": "Our Wedding Day",
+  "slug": "elegant-white-floral-wedding",
+  "category": "Wedding",
+  "tags": [
+    "wedding",
+    "elegant white floral wedding"
+  ],
+  "canvas": {
+    "width": 1500,
+    "height": 2100,
+    "unit": "px",
+    "background": "#FFFDF9"
+  },
+  "palette": [
+    "#FFFDF9",
+    "#B88A8A",
+    "#5E6B57"
+  ],
+  "thumbnail": "previews/elegant-white-floral-wedding.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1500,
+      "height": 2100,
+      "background": "#FFFDF9",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 2100,
+          "fill": "#FFFDF9",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-left",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 195,
+          "height": 2100,
+          "fill": "#B88A8A",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-line",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 270,
+          "y": 252,
+          "width": 22,
+          "height": 1596,
+          "fill": "#B88A8A",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 120,
+          "y": 588,
+          "width": 1260,
+          "height": 378,
+          "text": "Our Wedding Day",
+          "fontFamily": "Georgia",
+          "fontSize": 97,
+          "fontWeight": "bold",
+          "color": "#5E6B57",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 120,
+          "y": 1008,
+          "width": 1260,
+          "height": 189,
+          "text": "Join us for a beautiful celebration",
+          "fontFamily": "Arial",
+          "fontSize": 42,
+          "fontWeight": "normal",
+          "color": "#5E6B57",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 540,
+          "y": 1239,
+          "width": 420,
+          "height": 6,
+          "fill": "#B88A8A",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 120,
+          "y": 1344,
+          "width": 1260,
+          "height": 336,
+          "text": "SATURDAY • 4:00 PM\n123 CELEBRATION AVENUE\nRSVP: (000) 000-0000",
+          "fontFamily": "Arial",
+          "fontSize": 31,
+          "fontWeight": "normal",
+          "color": "#5E6B57",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

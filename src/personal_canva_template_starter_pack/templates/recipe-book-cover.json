@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-045",
+  "name": "Caribbean Kitchen",
+  "slug": "recipe-book-cover",
+  "category": "Publishing",
+  "tags": [
+    "publishing",
+    "recipe book cover"
+  ],
+  "canvas": {
+    "width": 1600,
+    "height": 2560,
+    "unit": "px",
+    "background": "#FEF3C7"
+  },
+  "palette": [
+    "#FEF3C7",
+    "#92400E",
+    "#FFFFFF"
+  ],
+  "thumbnail": "previews/recipe-book-cover.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1600,
+      "height": 2560,
+      "background": "#FEF3C7",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1600,
+          "height": 2560,
+          "fill": "#FEF3C7",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-top",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1600,
+          "height": 307,
+          "fill": "#92400E",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-bottom",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 2252,
+          "width": 1600,
+          "height": 307,
+          "fill": "#92400E",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 128,
+          "y": 716,
+          "width": 1344,
+          "height": 460,
+          "text": "Caribbean Kitchen",
+          "fontFamily": "Georgia",
+          "fontSize": 104,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 128,
+          "y": 1228,
+          "width": 1344,
+          "height": 230,
+          "text": "Recipes from the heart",
+          "fontFamily": "Arial",
+          "fontSize": 44,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 576,
+          "y": 1510,
+          "width": 448,
+          "height": 7,
+          "fill": "#92400E",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 128,
+          "y": 1638,
+          "width": 1344,
+          "height": 409,
+          "text": "R. MAX DEUS",
+          "fontFamily": "Arial",
+          "fontSize": 33,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

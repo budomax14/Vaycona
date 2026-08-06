@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect x="0" y="0" width="1080" height="1080" rx="0" fill="#ECFEFF" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="1080" height="129" rx="0" fill="#0891B2" stroke="none" stroke-width="0"/>
+<rect x="0" y="950" width="1080" height="129" rx="0" fill="#0891B2" stroke="none" stroke-width="0"/>
+<text x="540.0" y="372" text-anchor="middle" font-family="Georgia" font-size="70" font-weight="bold" fill="#164E63">
+<tspan x="540.0" dy="0">New Product</tspan>
+</text>
+<text x="540.0" y="548" text-anchor="middle" font-family="Arial" font-size="30" font-weight="normal" fill="#164E63">
+<tspan x="540.0" dy="0">Designed for your everyday life</tspan>
+</text>
+<rect x="388" y="637" width="302" height="3" rx="2" fill="#0891B2" stroke="none" stroke-width="0"/>
+<text x="540.0" y="713" text-anchor="middle" font-family="Arial" font-size="22" font-weight="normal" fill="#164E63">
+<tspan x="540.0" dy="0">SHOP NOW • LEARN MORE • FOLLOW US</tspan>
+</text>
+</svg>

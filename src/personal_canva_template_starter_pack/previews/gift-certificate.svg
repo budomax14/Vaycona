@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1400" viewBox="0 0 2000 1400">
+<rect x="0" y="0" width="2000" height="1400" rx="0" fill="#FFFDF7" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="260" height="1400" rx="0" fill="#1F2937" stroke="none" stroke-width="0"/>
+<rect x="360" y="168" width="30" height="1064" rx="0" fill="#1F2937" stroke="none" stroke-width="0"/>
+<text x="1000.0" y="522" text-anchor="middle" font-family="Georgia" font-size="130" font-weight="bold" fill="#D4AF37">
+<tspan x="1000.0" dy="0">Gift Certificate</tspan>
+</text>
+<text x="1000.0" y="728" text-anchor="middle" font-family="Arial" font-size="56" font-weight="normal" fill="#D4AF37">
+<tspan x="1000.0" dy="0">A special gift for someone special</tspan>
+</text>
+<rect x="720" y="826" width="560" height="4" rx="2" fill="#1F2937" stroke="none" stroke-width="0"/>
+<text x="1000.0" y="938" text-anchor="middle" font-family="Arial" font-size="42" font-weight="normal" fill="#D4AF37">
+<tspan x="1000.0" dy="0">YOUR BUSINESS NAME</tspan>
+<tspan x="1000.0" dy="56.7">(000) 000-0000 • hello@example.com</tspan>
+</text>
+</svg>

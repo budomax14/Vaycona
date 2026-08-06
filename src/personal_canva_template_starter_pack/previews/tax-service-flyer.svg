@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1275" height="1650" viewBox="0 0 1275 1650">
+<rect x="0" y="0" width="1275" height="1650" rx="0" fill="#EFF6FF" stroke="none" stroke-width="0"/>
+<rect x="841" y="66" width="382" height="382" rx="191" fill="#1D4ED8" stroke="none" stroke-width="0"/>
+<rect x="-127" y="1221" width="433" height="433" rx="216" fill="#1D4ED8" stroke="none" stroke-width="0"/>
+<text x="637.5" y="544" text-anchor="middle" font-family="Georgia" font-size="82" font-weight="bold" fill="#111827">
+<tspan x="637.5" dy="0">Tax Preparation</tspan>
+</text>
+<text x="637.5" y="827" text-anchor="middle" font-family="Arial" font-size="35" font-weight="normal" fill="#111827">
+<tspan x="637.5" dy="0">Fast, accurate, professional</tspan>
+</text>
+<rect x="459" y="973" width="357" height="4" rx="2" fill="#1D4ED8" stroke="none" stroke-width="0"/>
+<text x="637.5" y="1082" text-anchor="middle" font-family="Arial" font-size="26" font-weight="normal" fill="#111827">
+<tspan x="637.5" dy="0">YOUR BUSINESS NAME</tspan>
+<tspan x="637.5" dy="35.1">(000) 000-0000 • hello@example.com</tspan>
+</text>
+</svg>

@@ -1,0 +1,144 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-035",
+  "name": "Fresh & Delicious",
+  "slug": "instagram-food-promo",
+  "category": "Social Media",
+  "tags": [
+    "social media",
+    "instagram food promo"
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1080,
+    "unit": "px",
+    "background": "#FFF7ED"
+  },
+  "palette": [
+    "#FFF7ED",
+    "#B91C1C",
+    "#F59E0B"
+  ],
+  "thumbnail": "previews/instagram-food-promo.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1080,
+      "height": 1080,
+      "background": "#FFF7ED",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1080,
+          "fill": "#FFF7ED",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-box",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 86,
+          "y": 86,
+          "width": 907,
+          "height": 907,
+          "fill": "transparent",
+          "cornerRadius": 8,
+          "stroke": "#B91C1C",
+          "strokeWidth": 4,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 86,
+          "y": 302,
+          "width": 908,
+          "height": 194,
+          "text": "Fresh & Delicious",
+          "fontFamily": "Georgia",
+          "fontSize": 70,
+          "fontWeight": "bold",
+          "color": "#F59E0B",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 86,
+          "y": 518,
+          "width": 908,
+          "height": 97,
+          "text": "Order today",
+          "fontFamily": "Arial",
+          "fontSize": 30,
+          "fontWeight": "normal",
+          "color": "#F59E0B",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 388,
+          "y": 637,
+          "width": 302,
+          "height": 3,
+          "fill": "#B91C1C",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 86,
+          "y": 691,
+          "width": 908,
+          "height": 172,
+          "text": "SHOP NOW • LEARN MORE • FOLLOW US",
+          "fontFamily": "Arial",
+          "fontSize": 22,
+          "fontWeight": "normal",
+          "color": "#F59E0B",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

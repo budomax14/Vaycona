@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="600" viewBox="0 0 1050 600">
+<rect x="0" y="0" width="1050" height="600" rx="0" fill="#FFFFFF" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="1050" height="72" rx="0" fill="#111827" stroke="none" stroke-width="0"/>
+<rect x="0" y="528" width="1050" height="72" rx="0" fill="#111827" stroke="none" stroke-width="0"/>
+<text x="525.0" y="212" text-anchor="middle" font-family="Georgia" font-size="68" font-weight="bold" fill="#2563EB">
+<tspan x="525.0" dy="0">R. Max Deus</tspan>
+</text>
+<text x="525.0" y="317" text-anchor="middle" font-family="Arial" font-size="29" font-weight="normal" fill="#2563EB">
+<tspan x="525.0" dy="0">Creative Director</tspan>
+</text>
+<rect x="378" y="354" width="294" height="3" rx="2" fill="#111827" stroke="none" stroke-width="0"/>
+<text x="525.0" y="406" text-anchor="middle" font-family="Arial" font-size="22" font-weight="normal" fill="#2563EB">
+<tspan x="525.0" dy="0">YOUR BUSINESS NAME</tspan>
+<tspan x="525.0" dy="29.700000000000003">(000) 000-0000 • hello@example.com</tspan>
+</text>
+</svg>

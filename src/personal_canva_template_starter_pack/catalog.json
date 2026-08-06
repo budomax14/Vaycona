@@ -1,0 +1,756 @@
+{
+  "schema": "template-catalog-v1",
+  "count": 50,
+  "templates": [
+    {
+      "id": "tpl-001",
+      "name": "Together Forever",
+      "slug": "luxury-black-gold-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/luxury-black-gold-wedding.svg",
+      "file": "templates/luxury-black-gold-wedding.json",
+      "palette": [
+        "#0B0B0D",
+        "#D4AF37",
+        "#F7F3EA"
+      ]
+    },
+    {
+      "id": "tpl-002",
+      "name": "Our Wedding Day",
+      "slug": "elegant-white-floral-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/elegant-white-floral-wedding.svg",
+      "file": "templates/elegant-white-floral-wedding.json",
+      "palette": [
+        "#FFFDF9",
+        "#B88A8A",
+        "#5E6B57"
+      ]
+    },
+    {
+      "id": "tpl-003",
+      "name": "Alex & Jordan",
+      "slug": "modern-minimal-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/modern-minimal-wedding.svg",
+      "file": "templates/modern-minimal-wedding.json",
+      "palette": [
+        "#F5F1EA",
+        "#1B1B1B",
+        "#B8A58C"
+      ]
+    },
+    {
+      "id": "tpl-004",
+      "name": "A Night to Remember",
+      "slug": "navy-silver-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/navy-silver-wedding.svg",
+      "file": "templates/navy-silver-wedding.json",
+      "palette": [
+        "#0B1F3A",
+        "#C8CCD3",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-005",
+      "name": "Forever Begins",
+      "slug": "emerald-luxury-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/emerald-luxury-wedding.svg",
+      "file": "templates/emerald-luxury-wedding.json",
+      "palette": [
+        "#0C3B2E",
+        "#D9B65D",
+        "#F9F4E8"
+      ]
+    },
+    {
+      "id": "tpl-006",
+      "name": "Love in Bloom",
+      "slug": "rose-gold-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/rose-gold-wedding.svg",
+      "file": "templates/rose-gold-wedding.json",
+      "palette": [
+        "#F7E7E4",
+        "#B76E79",
+        "#3D2C2E"
+      ]
+    },
+    {
+      "id": "tpl-007",
+      "name": "Made for Each Other",
+      "slug": "rustic-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/rustic-wedding.svg",
+      "file": "templates/rustic-wedding.json",
+      "palette": [
+        "#E9DFC8",
+        "#6E5A43",
+        "#A4B18A"
+      ]
+    },
+    {
+      "id": "tpl-008",
+      "name": "Seaside Vows",
+      "slug": "tropical-beach-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/tropical-beach-wedding.svg",
+      "file": "templates/tropical-beach-wedding.json",
+      "palette": [
+        "#E9FBF8",
+        "#0F8B8D",
+        "#F4A261"
+      ]
+    },
+    {
+      "id": "tpl-009",
+      "name": "A Celebration of Love",
+      "slug": "burgundy-romance-wedding",
+      "category": "Wedding",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/burgundy-romance-wedding.svg",
+      "file": "templates/burgundy-romance-wedding.json",
+      "palette": [
+        "#5B1025",
+        "#E8C7B8",
+        "#F9F2EC"
+      ]
+    },
+    {
+      "id": "tpl-010",
+      "name": "Save the Date",
+      "slug": "save-the-date-classic",
+      "category": "Wedding",
+      "width": 1080,
+      "height": 1080,
+      "thumbnail": "previews/save-the-date-classic.svg",
+      "file": "templates/save-the-date-classic.json",
+      "palette": [
+        "#FAF7F0",
+        "#2D2D2D",
+        "#C5A46D"
+      ]
+    },
+    {
+      "id": "tpl-011",
+      "name": "Birthday Bash",
+      "slug": "birthday-neon-party",
+      "category": "Events",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/birthday-neon-party.svg",
+      "file": "templates/birthday-neon-party.json",
+      "palette": [
+        "#111111",
+        "#FF2DAA",
+        "#00E5FF"
+      ]
+    },
+    {
+      "id": "tpl-012",
+      "name": "You\u2019re Invited!",
+      "slug": "birthday-kids-rainbow",
+      "category": "Events",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/birthday-kids-rainbow.svg",
+      "file": "templates/birthday-kids-rainbow.json",
+      "palette": [
+        "#FFF6D8",
+        "#FF6B6B",
+        "#4D96FF"
+      ]
+    },
+    {
+      "id": "tpl-013",
+      "name": "Sweet Sixteen",
+      "slug": "sweet-sixteen-glam",
+      "category": "Events",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/sweet-sixteen-glam.svg",
+      "file": "templates/sweet-sixteen-glam.json",
+      "palette": [
+        "#F7D7E7",
+        "#8C4A6D",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-014",
+      "name": "Class of 2027",
+      "slug": "graduation-bold",
+      "category": "Events",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/graduation-bold.svg",
+      "file": "templates/graduation-bold.json",
+      "palette": [
+        "#111827",
+        "#FBBF24",
+        "#F9FAFB"
+      ]
+    },
+    {
+      "id": "tpl-015",
+      "name": "Oh Baby!",
+      "slug": "baby-shower-soft",
+      "category": "Events",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/baby-shower-soft.svg",
+      "file": "templates/baby-shower-soft.json",
+      "palette": [
+        "#E8F3FF",
+        "#F7D6E0",
+        "#6C7A89"
+      ]
+    },
+    {
+      "id": "tpl-016",
+      "name": "Bridal Shower",
+      "slug": "bridal-shower-floral",
+      "category": "Events",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/bridal-shower-floral.svg",
+      "file": "templates/bridal-shower-floral.json",
+      "palette": [
+        "#FFF7F5",
+        "#C98C8C",
+        "#738A6E"
+      ]
+    },
+    {
+      "id": "tpl-017",
+      "name": "Celebrating 25 Years",
+      "slug": "anniversary-elegant",
+      "category": "Events",
+      "width": 1500,
+      "height": 2100,
+      "thumbnail": "previews/anniversary-elegant.svg",
+      "file": "templates/anniversary-elegant.json",
+      "palette": [
+        "#1F2937",
+        "#D1B26F",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-018",
+      "name": "New Year Celebration",
+      "slug": "new-year-party",
+      "category": "Events",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/new-year-party.svg",
+      "file": "templates/new-year-party.json",
+      "palette": [
+        "#060606",
+        "#F5D76E",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-019",
+      "name": "Revival Night",
+      "slug": "church-revival",
+      "category": "Events",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/church-revival.svg",
+      "file": "templates/church-revival.json",
+      "palette": [
+        "#1E3A8A",
+        "#FDE68A",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-020",
+      "name": "Haitian Culture Night",
+      "slug": "haitian-culture-night",
+      "category": "Events",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/haitian-culture-night.svg",
+      "file": "templates/haitian-culture-night.json",
+      "palette": [
+        "#0D47A1",
+        "#C62828",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-021",
+      "name": "R. Max Deus",
+      "slug": "modern-business-card",
+      "category": "Business",
+      "width": 1050,
+      "height": 600,
+      "thumbnail": "previews/modern-business-card.svg",
+      "file": "templates/modern-business-card.json",
+      "palette": [
+        "#FFFFFF",
+        "#111827",
+        "#2563EB"
+      ]
+    },
+    {
+      "id": "tpl-022",
+      "name": "DumaWeb",
+      "slug": "luxury-business-card",
+      "category": "Business",
+      "width": 1050,
+      "height": 600,
+      "thumbnail": "previews/luxury-business-card.svg",
+      "file": "templates/luxury-business-card.json",
+      "palette": [
+        "#0A0A0A",
+        "#D4AF37",
+        "#F5F5F5"
+      ]
+    },
+    {
+      "id": "tpl-023",
+      "name": "Modern Home for Sale",
+      "slug": "real-estate-flyer",
+      "category": "Business",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/real-estate-flyer.svg",
+      "file": "templates/real-estate-flyer.json",
+      "palette": [
+        "#F8FAFC",
+        "#0F172A",
+        "#22C55E"
+      ]
+    },
+    {
+      "id": "tpl-024",
+      "name": "Grand Opening",
+      "slug": "grand-opening-flyer",
+      "category": "Business",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/grand-opening-flyer.svg",
+      "file": "templates/grand-opening-flyer.json",
+      "palette": [
+        "#FFF7ED",
+        "#C2410C",
+        "#111827"
+      ]
+    },
+    {
+      "id": "tpl-025",
+      "name": "Signature Menu",
+      "slug": "restaurant-menu",
+      "category": "Business",
+      "width": 1200,
+      "height": 1800,
+      "thumbnail": "previews/restaurant-menu.svg",
+      "file": "templates/restaurant-menu.json",
+      "palette": [
+        "#F4EDE4",
+        "#4B2E22",
+        "#B7791F"
+      ]
+    },
+    {
+      "id": "tpl-026",
+      "name": "Beauty Services",
+      "slug": "beauty-salon-price-list",
+      "category": "Business",
+      "width": 1200,
+      "height": 1800,
+      "thumbnail": "previews/beauty-salon-price-list.svg",
+      "file": "templates/beauty-salon-price-list.json",
+      "palette": [
+        "#FFF0F5",
+        "#9D4E69",
+        "#2B2B2B"
+      ]
+    },
+    {
+      "id": "tpl-027",
+      "name": "Premium Auto Detailing",
+      "slug": "car-detailing-flyer",
+      "category": "Business",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/car-detailing-flyer.svg",
+      "file": "templates/car-detailing-flyer.json",
+      "palette": [
+        "#0F172A",
+        "#38BDF8",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-028",
+      "name": "Tax Preparation",
+      "slug": "tax-service-flyer",
+      "category": "Business",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/tax-service-flyer.svg",
+      "file": "templates/tax-service-flyer.json",
+      "palette": [
+        "#EFF6FF",
+        "#1D4ED8",
+        "#111827"
+      ]
+    },
+    {
+      "id": "tpl-029",
+      "name": "New Hope Ministry",
+      "slug": "church-business-card",
+      "category": "Business",
+      "width": 1050,
+      "height": 600,
+      "thumbnail": "previews/church-business-card.svg",
+      "file": "templates/church-business-card.json",
+      "palette": [
+        "#FFFFFF",
+        "#4C1D95",
+        "#C4B5FD"
+      ]
+    },
+    {
+      "id": "tpl-030",
+      "name": "Gift Certificate",
+      "slug": "gift-certificate",
+      "category": "Business",
+      "width": 2000,
+      "height": 1400,
+      "thumbnail": "previews/gift-certificate.svg",
+      "file": "templates/gift-certificate.json",
+      "palette": [
+        "#FFFDF7",
+        "#1F2937",
+        "#D4AF37"
+      ]
+    },
+    {
+      "id": "tpl-031",
+      "name": "BIG SALE",
+      "slug": "instagram-sale-post",
+      "category": "Social Media",
+      "width": 1080,
+      "height": 1080,
+      "thumbnail": "previews/instagram-sale-post.svg",
+      "file": "templates/instagram-sale-post.json",
+      "palette": [
+        "#FFEDD5",
+        "#EA580C",
+        "#111827"
+      ]
+    },
+    {
+      "id": "tpl-032",
+      "name": "Keep Going",
+      "slug": "instagram-quote-post",
+      "category": "Social Media",
+      "width": 1080,
+      "height": 1080,
+      "thumbnail": "previews/instagram-quote-post.svg",
+      "file": "templates/instagram-quote-post.json",
+      "palette": [
+        "#F3F4F6",
+        "#111827",
+        "#6B7280"
+      ]
+    },
+    {
+      "id": "tpl-033",
+      "name": "New Product",
+      "slug": "instagram-product-launch",
+      "category": "Social Media",
+      "width": 1080,
+      "height": 1080,
+      "thumbnail": "previews/instagram-product-launch.svg",
+      "file": "templates/instagram-product-launch.json",
+      "palette": [
+        "#ECFEFF",
+        "#0891B2",
+        "#164E63"
+      ]
+    },
+    {
+      "id": "tpl-034",
+      "name": "Customer Love",
+      "slug": "instagram-testimonial",
+      "category": "Social Media",
+      "width": 1080,
+      "height": 1080,
+      "thumbnail": "previews/instagram-testimonial.svg",
+      "file": "templates/instagram-testimonial.json",
+      "palette": [
+        "#FAF5FF",
+        "#7E22CE",
+        "#111827"
+      ]
+    },
+    {
+      "id": "tpl-035",
+      "name": "Fresh & Delicious",
+      "slug": "instagram-food-promo",
+      "category": "Social Media",
+      "width": 1080,
+      "height": 1080,
+      "thumbnail": "previews/instagram-food-promo.svg",
+      "file": "templates/instagram-food-promo.json",
+      "palette": [
+        "#FFF7ED",
+        "#B91C1C",
+        "#F59E0B"
+      ]
+    },
+    {
+      "id": "tpl-036",
+      "name": "FLASH SALE",
+      "slug": "story-flash-sale",
+      "category": "Social Media",
+      "width": 1080,
+      "height": 1920,
+      "thumbnail": "previews/story-flash-sale.svg",
+      "file": "templates/story-flash-sale.json",
+      "palette": [
+        "#111827",
+        "#F43F5E",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-037",
+      "name": "3 Days to Go",
+      "slug": "story-event-countdown",
+      "category": "Social Media",
+      "width": 1080,
+      "height": 1920,
+      "thumbnail": "previews/story-event-countdown.svg",
+      "file": "templates/story-event-countdown.json",
+      "palette": [
+        "#1E1B4B",
+        "#A78BFA",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-038",
+      "name": "BUILD YOUR OWN APP",
+      "slug": "youtube-tech-thumbnail",
+      "category": "Social Media",
+      "width": 1280,
+      "height": 720,
+      "thumbnail": "previews/youtube-tech-thumbnail.svg",
+      "file": "templates/youtube-tech-thumbnail.json",
+      "palette": [
+        "#0F172A",
+        "#22D3EE",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-039",
+      "name": "START A BUSINESS",
+      "slug": "youtube-business-thumbnail",
+      "category": "Social Media",
+      "width": 1280,
+      "height": 720,
+      "thumbnail": "previews/youtube-business-thumbnail.svg",
+      "file": "templates/youtube-business-thumbnail.json",
+      "palette": [
+        "#111827",
+        "#FBBF24",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-040",
+      "name": "DumaWeb Creative Studio",
+      "slug": "facebook-business-cover",
+      "category": "Social Media",
+      "width": 1640,
+      "height": 624,
+      "thumbnail": "previews/facebook-business-cover.svg",
+      "file": "templates/facebook-business-cover.json",
+      "palette": [
+        "#EFF6FF",
+        "#1D4ED8",
+        "#0F172A"
+      ]
+    },
+    {
+      "id": "tpl-041",
+      "name": "The Missing Milk",
+      "slug": "children-book-cover",
+      "category": "Publishing",
+      "width": 1600,
+      "height": 2560,
+      "thumbnail": "previews/children-book-cover.svg",
+      "file": "templates/children-book-cover.json",
+      "palette": [
+        "#FFF7D6",
+        "#5B8DEF",
+        "#FF8A65"
+      ]
+    },
+    {
+      "id": "tpl-042",
+      "name": "Until We Meet Again",
+      "slug": "romance-book-cover",
+      "category": "Publishing",
+      "width": 1600,
+      "height": 2560,
+      "thumbnail": "previews/romance-book-cover.svg",
+      "file": "templates/romance-book-cover.json",
+      "palette": [
+        "#4A1527",
+        "#E6B8C5",
+        "#FFF8F1"
+      ]
+    },
+    {
+      "id": "tpl-043",
+      "name": "Build It Yourself",
+      "slug": "business-ebook-cover",
+      "category": "Publishing",
+      "width": 1600,
+      "height": 2560,
+      "thumbnail": "previews/business-ebook-cover.svg",
+      "file": "templates/business-ebook-cover.json",
+      "palette": [
+        "#0F172A",
+        "#38BDF8",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-044",
+      "name": "My Prayer Journal",
+      "slug": "prayer-journal-cover",
+      "category": "Publishing",
+      "width": 1600,
+      "height": 2560,
+      "thumbnail": "previews/prayer-journal-cover.svg",
+      "file": "templates/prayer-journal-cover.json",
+      "palette": [
+        "#F3E8FF",
+        "#6B21A8",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-045",
+      "name": "Caribbean Kitchen",
+      "slug": "recipe-book-cover",
+      "category": "Publishing",
+      "width": 1600,
+      "height": 2560,
+      "thumbnail": "previews/recipe-book-cover.svg",
+      "file": "templates/recipe-book-cover.json",
+      "palette": [
+        "#FEF3C7",
+        "#92400E",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "id": "tpl-046",
+      "name": "Certificate of Achievement",
+      "slug": "achievement-certificate",
+      "category": "Documents",
+      "width": 2000,
+      "height": 1400,
+      "thumbnail": "previews/achievement-certificate.svg",
+      "file": "templates/achievement-certificate.json",
+      "palette": [
+        "#FFFDF5",
+        "#1E3A8A",
+        "#D4AF37"
+      ]
+    },
+    {
+      "id": "tpl-047",
+      "name": "Employee Excellence Award",
+      "slug": "employee-award-certificate",
+      "category": "Documents",
+      "width": 2000,
+      "height": 1400,
+      "thumbnail": "previews/employee-award-certificate.svg",
+      "file": "templates/employee-award-certificate.json",
+      "palette": [
+        "#F8FAFC",
+        "#334155",
+        "#0EA5E9"
+      ]
+    },
+    {
+      "id": "tpl-048",
+      "name": "Professional Resume",
+      "slug": "modern-resume-cover",
+      "category": "Documents",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/modern-resume-cover.svg",
+      "file": "templates/modern-resume-cover.json",
+      "palette": [
+        "#FFFFFF",
+        "#111827",
+        "#2563EB"
+      ]
+    },
+    {
+      "id": "tpl-049",
+      "name": "Weekly Planner",
+      "slug": "weekly-planner",
+      "category": "Documents",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/weekly-planner.svg",
+      "file": "templates/weekly-planner.json",
+      "palette": [
+        "#F9FAFB",
+        "#374151",
+        "#A78BFA"
+      ]
+    },
+    {
+      "id": "tpl-050",
+      "name": "Event Program",
+      "slug": "event-program",
+      "category": "Documents",
+      "width": 1275,
+      "height": 1650,
+      "thumbnail": "previews/event-program.svg",
+      "file": "templates/event-program.json",
+      "palette": [
+        "#FAFAF9",
+        "#292524",
+        "#C2410C"
+      ]
+    }
+  ]
+}

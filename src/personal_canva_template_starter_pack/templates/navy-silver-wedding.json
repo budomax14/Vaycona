@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-004",
+  "name": "A Night to Remember",
+  "slug": "navy-silver-wedding",
+  "category": "Wedding",
+  "tags": [
+    "wedding",
+    "navy silver wedding"
+  ],
+  "canvas": {
+    "width": 1500,
+    "height": 2100,
+    "unit": "px",
+    "background": "#0B1F3A"
+  },
+  "palette": [
+    "#0B1F3A",
+    "#C8CCD3",
+    "#FFFFFF"
+  ],
+  "thumbnail": "previews/navy-silver-wedding.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1500,
+      "height": 2100,
+      "background": "#0B1F3A",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 2100,
+          "fill": "#0B1F3A",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-1",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 990,
+          "y": 84,
+          "width": 450,
+          "height": 450,
+          "fill": "#C8CCD3",
+          "cornerRadius": 225,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-2",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": -150,
+          "y": 1554,
+          "width": 510,
+          "height": 510,
+          "fill": "#C8CCD3",
+          "cornerRadius": 255,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 120,
+          "y": 588,
+          "width": 1260,
+          "height": 378,
+          "text": "A Night to Remember",
+          "fontFamily": "Georgia",
+          "fontSize": 97,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 120,
+          "y": 1008,
+          "width": 1260,
+          "height": 189,
+          "text": "Wedding invitation",
+          "fontFamily": "Arial",
+          "fontSize": 42,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 540,
+          "y": 1239,
+          "width": 420,
+          "height": 6,
+          "fill": "#C8CCD3",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 120,
+          "y": 1344,
+          "width": 1260,
+          "height": 336,
+          "text": "SATURDAY • 4:00 PM\n123 CELEBRATION AVENUE\nRSVP: (000) 000-0000",
+          "fontFamily": "Arial",
+          "fontSize": 31,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

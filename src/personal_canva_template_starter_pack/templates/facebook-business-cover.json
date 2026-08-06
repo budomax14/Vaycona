@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-040",
+  "name": "DumaWeb Creative Studio",
+  "slug": "facebook-business-cover",
+  "category": "Social Media",
+  "tags": [
+    "social media",
+    "facebook business cover"
+  ],
+  "canvas": {
+    "width": 1640,
+    "height": 624,
+    "unit": "px",
+    "background": "#EFF6FF"
+  },
+  "palette": [
+    "#EFF6FF",
+    "#1D4ED8",
+    "#0F172A"
+  ],
+  "thumbnail": "previews/facebook-business-cover.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1640,
+      "height": 624,
+      "background": "#EFF6FF",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1640,
+          "height": 624,
+          "fill": "#EFF6FF",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-1",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 1082,
+          "y": 24,
+          "width": 492,
+          "height": 492,
+          "fill": "#1D4ED8",
+          "cornerRadius": 246,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-2",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": -164,
+          "y": 461,
+          "width": 557,
+          "height": 557,
+          "fill": "#1D4ED8",
+          "cornerRadius": 278,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 131,
+          "y": 149,
+          "width": 1378,
+          "height": 112,
+          "text": "DumaWeb Creative Studio",
+          "fontFamily": "Georgia",
+          "fontSize": 106,
+          "fontWeight": "bold",
+          "color": "#0F172A",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 131,
+          "y": 299,
+          "width": 1378,
+          "height": 56,
+          "text": "Websites • Branding • Design",
+          "fontFamily": "Arial",
+          "fontSize": 45,
+          "fontWeight": "normal",
+          "color": "#0F172A",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 590,
+          "y": 368,
+          "width": 459,
+          "height": 3,
+          "fill": "#1D4ED8",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 131,
+          "y": 399,
+          "width": 1378,
+          "height": 99,
+          "text": "SHOP NOW • LEARN MORE • FOLLOW US",
+          "fontFamily": "Arial",
+          "fontSize": 34,
+          "fontWeight": "normal",
+          "color": "#0F172A",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

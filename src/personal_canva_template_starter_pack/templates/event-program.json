@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-050",
+  "name": "Event Program",
+  "slug": "event-program",
+  "category": "Documents",
+  "tags": [
+    "documents",
+    "event program"
+  ],
+  "canvas": {
+    "width": 1275,
+    "height": 1650,
+    "unit": "px",
+    "background": "#FAFAF9"
+  },
+  "palette": [
+    "#FAFAF9",
+    "#292524",
+    "#C2410C"
+  ],
+  "thumbnail": "previews/event-program.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1275,
+      "height": 1650,
+      "background": "#FAFAF9",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1275,
+          "height": 1650,
+          "fill": "#FAFAF9",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-left",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 165,
+          "height": 1650,
+          "fill": "#292524",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-line",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 229,
+          "y": 198,
+          "width": 19,
+          "height": 1254,
+          "fill": "#292524",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 102,
+          "y": 462,
+          "width": 1071,
+          "height": 297,
+          "text": "Event Program",
+          "fontFamily": "Georgia",
+          "fontSize": 82,
+          "fontWeight": "bold",
+          "color": "#C2410C",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 102,
+          "y": 792,
+          "width": 1071,
+          "height": 148,
+          "text": "Welcome • Schedule • Speakers",
+          "fontFamily": "Arial",
+          "fontSize": 35,
+          "fontWeight": "normal",
+          "color": "#C2410C",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 459,
+          "y": 973,
+          "width": 357,
+          "height": 4,
+          "fill": "#292524",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 102,
+          "y": 1056,
+          "width": 1071,
+          "height": 264,
+          "text": "Name • Date • Signature",
+          "fontFamily": "Arial",
+          "fontSize": 26,
+          "fontWeight": "normal",
+          "color": "#C2410C",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

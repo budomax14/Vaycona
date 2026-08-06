@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="2100" viewBox="0 0 1500 2100">
+<rect x="0" y="0" width="1500" height="2100" rx="0" fill="#0B1F3A" stroke="none" stroke-width="0"/>
+<rect x="990" y="84" width="450" height="450" rx="225" fill="#C8CCD3" stroke="none" stroke-width="0"/>
+<rect x="-150" y="1554" width="510" height="510" rx="255" fill="#C8CCD3" stroke="none" stroke-width="0"/>
+<text x="750.0" y="685" text-anchor="middle" font-family="Georgia" font-size="97" font-weight="bold" fill="#FFFFFF">
+<tspan x="750.0" dy="0">A Night to Remember</tspan>
+</text>
+<text x="750.0" y="1050" text-anchor="middle" font-family="Arial" font-size="42" font-weight="normal" fill="#FFFFFF">
+<tspan x="750.0" dy="0">Wedding invitation</tspan>
+</text>
+<rect x="540" y="1239" width="420" height="6" rx="2" fill="#C8CCD3" stroke="none" stroke-width="0"/>
+<text x="750.0" y="1375" text-anchor="middle" font-family="Arial" font-size="31" font-weight="normal" fill="#FFFFFF">
+<tspan x="750.0" dy="0">SATURDAY • 4:00 PM</tspan>
+<tspan x="750.0" dy="41.85">123 CELEBRATION AVENUE</tspan>
+<tspan x="750.0" dy="41.85">RSVP: (000) 000-0000</tspan>
+</text>
+</svg>

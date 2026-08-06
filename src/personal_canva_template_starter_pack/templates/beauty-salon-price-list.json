@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-026",
+  "name": "Beauty Services",
+  "slug": "beauty-salon-price-list",
+  "category": "Business",
+  "tags": [
+    "business",
+    "beauty salon price list"
+  ],
+  "canvas": {
+    "width": 1200,
+    "height": 1800,
+    "unit": "px",
+    "background": "#FFF0F5"
+  },
+  "palette": [
+    "#FFF0F5",
+    "#9D4E69",
+    "#2B2B2B"
+  ],
+  "thumbnail": "previews/beauty-salon-price-list.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1200,
+      "height": 1800,
+      "background": "#FFF0F5",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1200,
+          "height": 1800,
+          "fill": "#FFF0F5",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-left",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 156,
+          "height": 1800,
+          "fill": "#9D4E69",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-line",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 216,
+          "y": 216,
+          "width": 18,
+          "height": 1368,
+          "fill": "#9D4E69",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 96,
+          "y": 504,
+          "width": 1008,
+          "height": 324,
+          "text": "Beauty Services",
+          "fontFamily": "Georgia",
+          "fontSize": 78,
+          "fontWeight": "bold",
+          "color": "#2B2B2B",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 96,
+          "y": 864,
+          "width": 1008,
+          "height": 162,
+          "text": "Look good. Feel confident.",
+          "fontFamily": "Arial",
+          "fontSize": 33,
+          "fontWeight": "normal",
+          "color": "#2B2B2B",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 432,
+          "y": 1062,
+          "width": 336,
+          "height": 5,
+          "fill": "#9D4E69",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 96,
+          "y": 1152,
+          "width": 1008,
+          "height": 288,
+          "text": "YOUR BUSINESS NAME\n(000) 000-0000 • hello@example.com",
+          "fontFamily": "Arial",
+          "fontSize": 25,
+          "fontWeight": "normal",
+          "color": "#2B2B2B",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-015",
+  "name": "Oh Baby!",
+  "slug": "baby-shower-soft",
+  "category": "Events",
+  "tags": [
+    "events",
+    "baby shower soft"
+  ],
+  "canvas": {
+    "width": 1500,
+    "height": 2100,
+    "unit": "px",
+    "background": "#E8F3FF"
+  },
+  "palette": [
+    "#E8F3FF",
+    "#F7D6E0",
+    "#6C7A89"
+  ],
+  "thumbnail": "previews/baby-shower-soft.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1500,
+      "height": 2100,
+      "background": "#E8F3FF",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 2100,
+          "fill": "#E8F3FF",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-box",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 120,
+          "y": 168,
+          "width": 1260,
+          "height": 1764,
+          "fill": "transparent",
+          "cornerRadius": 8,
+          "stroke": "#F7D6E0",
+          "strokeWidth": 6,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 120,
+          "y": 588,
+          "width": 1260,
+          "height": 378,
+          "text": "Oh Baby!",
+          "fontFamily": "Georgia",
+          "fontSize": 97,
+          "fontWeight": "bold",
+          "color": "#6C7A89",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 120,
+          "y": 1008,
+          "width": 1260,
+          "height": 189,
+          "text": "Join us for a baby shower",
+          "fontFamily": "Arial",
+          "fontSize": 42,
+          "fontWeight": "normal",
+          "color": "#6C7A89",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 540,
+          "y": 1239,
+          "width": 420,
+          "height": 6,
+          "fill": "#F7D6E0",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 120,
+          "y": 1344,
+          "width": 1260,
+          "height": 336,
+          "text": "DATE • TIME • LOCATION\nTickets & information available now",
+          "fontFamily": "Arial",
+          "fontSize": 31,
+          "fontWeight": "normal",
+          "color": "#6C7A89",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

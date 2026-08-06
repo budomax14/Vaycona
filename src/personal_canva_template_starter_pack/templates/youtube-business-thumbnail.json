@@ -1,0 +1,144 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-039",
+  "name": "START A BUSINESS",
+  "slug": "youtube-business-thumbnail",
+  "category": "Social Media",
+  "tags": [
+    "social media",
+    "youtube business thumbnail"
+  ],
+  "canvas": {
+    "width": 1280,
+    "height": 720,
+    "unit": "px",
+    "background": "#111827"
+  },
+  "palette": [
+    "#111827",
+    "#FBBF24",
+    "#FFFFFF"
+  ],
+  "thumbnail": "previews/youtube-business-thumbnail.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1280,
+      "height": 720,
+      "background": "#111827",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 720,
+          "fill": "#111827",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-box",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 102,
+          "y": 57,
+          "width": 1075,
+          "height": 604,
+          "fill": "transparent",
+          "cornerRadius": 8,
+          "stroke": "#FBBF24",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 102,
+          "y": 172,
+          "width": 1076,
+          "height": 129,
+          "text": "START A BUSINESS",
+          "fontFamily": "Georgia",
+          "fontSize": 83,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 102,
+          "y": 345,
+          "width": 1076,
+          "height": 64,
+          "text": "What nobody tells you",
+          "fontFamily": "Arial",
+          "fontSize": 35,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 460,
+          "y": 424,
+          "width": 358,
+          "height": 3,
+          "fill": "#FBBF24",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 102,
+          "y": 460,
+          "width": 1076,
+          "height": 115,
+          "text": "SHOP NOW • LEARN MORE • FOLLOW US",
+          "fontFamily": "Arial",
+          "fontSize": 26,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

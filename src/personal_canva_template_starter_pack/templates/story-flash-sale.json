@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-036",
+  "name": "FLASH SALE",
+  "slug": "story-flash-sale",
+  "category": "Social Media",
+  "tags": [
+    "social media",
+    "story flash sale"
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "unit": "px",
+    "background": "#111827"
+  },
+  "palette": [
+    "#111827",
+    "#F43F5E",
+    "#FFFFFF"
+  ],
+  "thumbnail": "previews/story-flash-sale.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1080,
+      "height": 1920,
+      "background": "#111827",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920,
+          "fill": "#111827",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-1",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 712,
+          "y": 76,
+          "width": 324,
+          "height": 324,
+          "fill": "#F43F5E",
+          "cornerRadius": 162,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-circle-2",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": -108,
+          "y": 1420,
+          "width": 367,
+          "height": 367,
+          "fill": "#F43F5E",
+          "cornerRadius": 183,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 86,
+          "y": 537,
+          "width": 908,
+          "height": 345,
+          "text": "FLASH SALE",
+          "fontFamily": "Georgia",
+          "fontSize": 70,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 86,
+          "y": 921,
+          "width": 908,
+          "height": 172,
+          "text": "Today only",
+          "fontFamily": "Arial",
+          "fontSize": 30,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 388,
+          "y": 1132,
+          "width": 302,
+          "height": 5,
+          "fill": "#F43F5E",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 86,
+          "y": 1228,
+          "width": 908,
+          "height": 307,
+          "text": "SHOP NOW • LEARN MORE • FOLLOW US",
+          "fontFamily": "Arial",
+          "fontSize": 22,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

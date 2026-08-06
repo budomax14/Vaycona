@@ -1,0 +1,161 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-038",
+  "name": "BUILD YOUR OWN APP",
+  "slug": "youtube-tech-thumbnail",
+  "category": "Social Media",
+  "tags": [
+    "social media",
+    "youtube tech thumbnail"
+  ],
+  "canvas": {
+    "width": 1280,
+    "height": 720,
+    "unit": "px",
+    "background": "#0F172A"
+  },
+  "palette": [
+    "#0F172A",
+    "#22D3EE",
+    "#FFFFFF"
+  ],
+  "thumbnail": "previews/youtube-tech-thumbnail.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 1280,
+      "height": 720,
+      "background": "#0F172A",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 720,
+          "fill": "#0F172A",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-left",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 166,
+          "height": 720,
+          "fill": "#22D3EE",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-line",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 230,
+          "y": 86,
+          "width": 19,
+          "height": 547,
+          "fill": "#22D3EE",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 102,
+          "y": 172,
+          "width": 1076,
+          "height": 129,
+          "text": "BUILD YOUR OWN APP",
+          "fontFamily": "Georgia",
+          "fontSize": 83,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 102,
+          "y": 345,
+          "width": 1076,
+          "height": 64,
+          "text": "Step-by-step tutorial",
+          "fontFamily": "Arial",
+          "fontSize": 35,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 460,
+          "y": 424,
+          "width": 358,
+          "height": 3,
+          "fill": "#22D3EE",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 102,
+          "y": 460,
+          "width": 1076,
+          "height": 115,
+          "text": "SHOP NOW • LEARN MORE • FOLLOW US",
+          "fontFamily": "Arial",
+          "fontSize": 26,
+          "fontWeight": "normal",
+          "color": "#FFFFFF",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}

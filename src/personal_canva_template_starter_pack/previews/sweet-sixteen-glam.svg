@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="2100" viewBox="0 0 1500 2100">
+<rect x="0" y="0" width="1500" height="2100" rx="0" fill="#F7D7E7" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="1500" height="252" rx="0" fill="#8C4A6D" stroke="none" stroke-width="0"/>
+<rect x="0" y="1848" width="1500" height="252" rx="0" fill="#8C4A6D" stroke="none" stroke-width="0"/>
+<text x="750.0" y="685" text-anchor="middle" font-family="Georgia" font-size="97" font-weight="bold" fill="#FFFFFF">
+<tspan x="750.0" dy="0">Sweet Sixteen</tspan>
+</text>
+<text x="750.0" y="1050" text-anchor="middle" font-family="Arial" font-size="42" font-weight="normal" fill="#FFFFFF">
+<tspan x="750.0" dy="0">A night to sparkle</tspan>
+</text>
+<rect x="540" y="1239" width="420" height="6" rx="2" fill="#8C4A6D" stroke="none" stroke-width="0"/>
+<text x="750.0" y="1375" text-anchor="middle" font-family="Arial" font-size="31" font-weight="normal" fill="#FFFFFF">
+<tspan x="750.0" dy="0">DATE • TIME • LOCATION</tspan>
+<tspan x="750.0" dy="41.85">Tickets & information available now</tspan>
+</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect x="0" y="0" width="1080" height="1080" rx="0" fill="#FAF7F0" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="140" height="1080" rx="0" fill="#2D2D2D" stroke="none" stroke-width="0"/>
+<rect x="194" y="129" width="16" height="820" rx="0" fill="#2D2D2D" stroke="none" stroke-width="0"/>
+<text x="540.0" y="372" text-anchor="middle" font-family="Georgia" font-size="70" font-weight="bold" fill="#C5A46D">
+<tspan x="540.0" dy="0">Save the Date</tspan>
+</text>
+<text x="540.0" y="548" text-anchor="middle" font-family="Arial" font-size="30" font-weight="normal" fill="#C5A46D">
+<tspan x="540.0" dy="0">June 20, 2027</tspan>
+</text>
+<rect x="388" y="637" width="302" height="3" rx="2" fill="#2D2D2D" stroke="none" stroke-width="0"/>
+<text x="540.0" y="713" text-anchor="middle" font-family="Arial" font-size="22" font-weight="normal" fill="#C5A46D">
+<tspan x="540.0" dy="0">SATURDAY • 4:00 PM</tspan>
+<tspan x="540.0" dy="29.700000000000003">123 CELEBRATION AVENUE</tspan>
+<tspan x="540.0" dy="29.700000000000003">RSVP: (000) 000-0000</tspan>
+</text>
+</svg>

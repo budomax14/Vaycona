@@ -1,0 +1,144 @@
+{
+  "schema": "generic-design-template-v1",
+  "id": "tpl-047",
+  "name": "Employee Excellence Award",
+  "slug": "employee-award-certificate",
+  "category": "Documents",
+  "tags": [
+    "documents",
+    "employee award certificate"
+  ],
+  "canvas": {
+    "width": 2000,
+    "height": 1400,
+    "unit": "px",
+    "background": "#F8FAFC"
+  },
+  "palette": [
+    "#F8FAFC",
+    "#334155",
+    "#0EA5E9"
+  ],
+  "thumbnail": "previews/employee-award-certificate.svg",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "width": 2000,
+      "height": 1400,
+      "background": "#F8FAFC",
+      "elements": [
+        {
+          "id": "bg",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 2000,
+          "height": 1400,
+          "fill": "#F8FAFC",
+          "cornerRadius": 0,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "accent-box",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 160,
+          "y": 112,
+          "width": 1680,
+          "height": 1176,
+          "fill": "transparent",
+          "cornerRadius": 8,
+          "stroke": "#334155",
+          "strokeWidth": 8,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "x": 160,
+          "y": 392,
+          "width": 1680,
+          "height": 252,
+          "text": "Employee Excellence Award",
+          "fontFamily": "Georgia",
+          "fontSize": 130,
+          "fontWeight": "bold",
+          "color": "#0EA5E9",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "x": 160,
+          "y": 672,
+          "width": 1680,
+          "height": 126,
+          "text": "For outstanding commitment and performance",
+          "fontFamily": "Arial",
+          "fontSize": 56,
+          "fontWeight": "normal",
+          "color": "#0EA5E9",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "divider",
+          "type": "shape",
+          "shape": "rectangle",
+          "x": 720,
+          "y": 826,
+          "width": 560,
+          "height": 4,
+          "fill": "#334155",
+          "cornerRadius": 2,
+          "stroke": null,
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "x": 160,
+          "y": 896,
+          "width": 1680,
+          "height": 224,
+          "text": "Name • Date • Signature",
+          "fontFamily": "Arial",
+          "fontSize": 42,
+          "fontWeight": "normal",
+          "color": "#0EA5E9",
+          "textAlign": "center",
+          "rotation": 0,
+          "opacity": 1,
+          "locked": false,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "editable": true,
+    "createdFor": "Personal Canva",
+    "notes": "Map elements to your editor's item schema. All coordinates are absolute pixels."
+  }
+}
