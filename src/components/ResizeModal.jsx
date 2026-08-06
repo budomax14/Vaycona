@@ -94,10 +94,33 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
         </div>
 
         <div className="overflow-y-auto p-5">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Unit</h3>
+            <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
+              {UNITS.map((unitDef) => (
+                <button
+                  key={unitDef.key}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    unit === unitDef.key
+                      ? "bg-amber-100 text-amber-700"
+                      : "text-gray-500 hover:bg-gray-50"
+                  }`}
+                  onClick={() => changeUnit(unitDef.key)}
+                  title={unitDef.label}
+                >
+                  {unitDef.key}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Presets</h3>
           <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {PAGE_SIZE_PRESETS.map((preset) => {
               const active = activePreset?.key === preset.key;
+              const unitDef = getUnit(unit);
+              const displayWidth = round(unitDef.fromPx(preset.width));
+              const displayHeight = round(unitDef.fromPx(preset.height));
               return (
                 <button
                   key={preset.key}
@@ -110,7 +133,7 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
                 >
                   <span className="block text-sm font-semibold">{preset.label}</span>
                   <span className="block text-xs text-gray-400">
-                    {preset.width} × {preset.height} px
+                    {displayWidth} × {displayHeight} {unit}
                   </span>
                 </button>
               );
@@ -148,21 +171,6 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
                 value={heightValue}
                 onChange={(event) => setHeightValue(Number(event.target.value))}
               />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-gray-500">Unit</span>
-              <select
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-400"
-                value={unit}
-                onChange={(event) => changeUnit(event.target.value)}
-              >
-                {UNITS.map((unitDef) => (
-                  <option key={unitDef.key} value={unitDef.key}>
-                    {unitDef.label}
-                  </option>
-                ))}
-              </select>
             </label>
 
             <div className="mb-0.5 flex gap-1 rounded-lg border border-gray-200 p-1">

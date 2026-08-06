@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Download, Home, Loader2, Redo2, Save, Scaling, Share2, Undo2, User } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Download, Home, LogOut, Loader2, Redo2, Save, Scaling, Share2, Undo2, User } from "lucide-react";
+import { useAuth } from "../authContext";
 
 // Short, human labels for the autosave status (spec §3) — internal status
 // names ("saving"/"error"/...) are never shown to the user directly.
@@ -204,7 +205,6 @@ export default function TopNavBar({
   onOpenGuideManager,
   onOpenPrecisionSettings,
   onResetPrecisionView,
-  onOpenAdmin,
 }) {
   // Re-renders periodically just so "Saved Xs/m ago" keeps advancing
   // without needing the parent to re-render on a timer of its own.
@@ -232,11 +232,6 @@ export default function TopNavBar({
       >
         <Home size={18} />
       </button>
-
-      <div className="flex items-center gap-2.5">
-        <img src="/logo.png" alt="Duma Studio" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
-        <span className="hidden text-sm font-semibold text-gray-800 lg:inline">Duma Studio</span>
-      </div>
 
       <nav className="flex items-center gap-0.5 border-l border-gray-200 pl-2 md:pl-3">
         <MenuDropdown label="File">
@@ -342,11 +337,7 @@ export default function TopNavBar({
             </div>
           </div>
           <MenuDivider />
-          <MenuItem label="About Duma Studio" onClick={() => {}} />
-        </MenuDropdown>
-
-        <MenuDropdown label="Admin">
-          <MenuItem label="Template Admin…" onClick={onOpenAdmin} />
+          <MenuItem label="About Vaycona" onClick={() => {}} />
         </MenuDropdown>
       </nav>
 
@@ -418,14 +409,52 @@ export default function TopNavBar({
         >
           <Share2 size={17} />
         </button>
-        <button
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
-          title="Account — coming in a later phase"
-          aria-label="Account (coming in a later phase)"
-        >
-          <User size={16} />
-        </button>
+        <AccountMenu />
       </div>
     </header>
+  );
+}
+
+function AccountMenu() {
+  const { user, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function handleOutside(event) {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
+    }
+    window.addEventListener("mousedown", handleOutside);
+    return () => window.removeEventListener("mousedown", handleOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
+        title={user?.email || "Account"}
+        aria-label="Account menu"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <User size={16} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-30 mt-1 min-w-[220px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
+          <div className="truncate px-3 py-2 text-xs text-gray-500">{user?.email}</div>
+          <div className="my-1 h-px bg-gray-100" />
+          <button
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700"
+            onClick={() => {
+              setOpen(false);
+              signOut();
+            }}
+          >
+            <LogOut size={14} />
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

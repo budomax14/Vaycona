@@ -1,11 +1,22 @@
 import React from "react";
 import { Check, Crop, Maximize2, Minimize2, RotateCcw, StretchHorizontal, X } from "lucide-react";
 import { GroupedSliderField, IconButton, IconToggleButton, ToolbarDivider } from "./toolbarUi";
-import { ASPECT_PRESETS, normalizeCrop } from "../../imageCrop";
+import { normalizeCrop } from "../../imageCrop";
+
+// The specific ratio buttons requested for the crop toolbar — a curated
+// subset of imageCrop.js's full ASPECT_PRESETS list (which stays as-is;
+// nothing else reads this local one), labeled to match exactly.
+const CROP_TOOLBAR_ASPECTS = [
+  { key: "free", label: "Free Crop", ratio: null },
+  { key: "square", label: "Square (1:1)", ratio: 1 },
+  { key: "portrait", label: "Portrait (4:5)", ratio: 4 / 5 },
+  { key: "landscape", label: "Landscape (16:9)", ratio: 16 / 9 },
+  { key: "original", label: "Original Ratio", ratio: "original" },
+];
 
 // Shown in place of the normal per-type properties bar while cropping
 // (App.jsx short-circuits PropertiesToolbar to this component when
-// croppingItemId is set) — Apply/Cancel/fit-mode/aspect-presets/zoom/reset,
+// croppingItemId is set) — Done/Cancel/Reset/fit-mode/aspect-presets/zoom,
 // mirroring how the toolbar already special-cases inline text editing.
 export default function CropModePropertiesBar({
   item,
@@ -17,6 +28,7 @@ export default function CropModePropertiesBar({
   onSetAspect,
   onApply,
   onCancel,
+  onReset,
 }) {
   const crop = normalizeCrop(item.crop);
 
@@ -37,10 +49,10 @@ export default function CropModePropertiesBar({
       <ToolbarDivider />
 
       <div data-crop-toolbar-safe className="flex shrink-0 items-center gap-1 overflow-x-auto">
-        {ASPECT_PRESETS.map((preset) => (
+        {CROP_TOOLBAR_ASPECTS.map((preset) => (
           <button
             key={preset.key}
-            className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-amber-50 hover:text-amber-700"
             onClick={() => onSetAspect(preset.ratio === "original" ? naturalWidth / Math.max(1, naturalHeight) : preset.ratio)}
           >
             {preset.label}
@@ -62,17 +74,12 @@ export default function CropModePropertiesBar({
         />
       </div>
 
-      <IconButton
-        icon={RotateCcw}
-        label="Center"
-        title="Center image"
-        onClick={() => onCropCommit({ ...crop, focalX: 0.5, focalY: 0.5, zoom: 1 })}
-      />
+      <IconButton icon={RotateCcw} label="Reset" title="Reset crop to the original, uncropped image" onClick={onReset} />
 
       <ToolbarDivider />
 
       <IconButton icon={X} label="Cancel" onClick={onCancel} />
-      <IconButton icon={Check} label="Apply" onClick={onApply} />
+      <IconButton icon={Check} label="Done" onClick={onApply} title="Apply crop (Enter)" active />
     </>
   );
 }

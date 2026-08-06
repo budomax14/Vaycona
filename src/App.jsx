@@ -138,7 +138,6 @@ import TemplatePreviewDialog from "./components/TemplatePreviewDialog";
 import SaveAsTemplateDialog from "./components/SaveAsTemplateDialog";
 import AdminTemplateEditorToolbar from "./components/Admin/AdminTemplateEditorToolbar";
 import ConfirmDeleteTemplateDialog from "./components/Admin/ConfirmDeleteTemplateDialog";
-import { navigateTo } from "./adminRoute";
 import { DEFAULT_CROP, legacyInsetsToCrop, normalizeCrop } from "./imageCrop";
 import { normalizeImageFill } from "./imageFill";
 import { DEFAULT_ADJUSTMENTS, normalizeAdjustments } from "./imageEffects";
@@ -272,7 +271,7 @@ const starterItems = [
   {
     id: crypto.randomUUID(),
     type: "text",
-    text: "Your personal Duma Studio",
+    text: "Your personal Vaycona",
     x: 250,
     y: 175,
     width: 400,
@@ -2710,6 +2709,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
     updateItem(itemId, { crop }, false);
   }
 
+  // Live box-resize while dragging one of CropOverlay's 8 corner/edge
+  // handles — non-committing, same shape as liveCropChange (crop's own
+  // fit/focal/zoom don't need adjusting: they're computed live off
+  // whatever the box's current width/height is, box resize or not).
+  function liveCropBoxChange(itemId, patch) {
+    updateItem(itemId, patch, false);
+  }
+
   // Discrete, one-click crop actions (fit/fill toggle, aspect preset,
   // center) commit immediately — each is its own single undo step, exactly
   // like any other toolbar field edit elsewhere in the app.
@@ -2753,8 +2760,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
     );
   }
 
+  // Reads croppingItemIdRef rather than the raw croppingItemId state so
+  // this stays correct even when called from a permanently-mounted effect
+  // with an empty dependency array (the global Enter-to-apply handler
+  // below) whose closures never refresh across renders — same reasoning
+  // as every other ref mirror in this file (itemsRef, selectedIdsRef, …).
   function applyCropMode() {
-    if (!croppingItemId) return false;
+    if (!croppingItemIdRef.current) return false;
     setCroppingItemId(null);
     cropEntrySnapshotRef.current = null;
     return true;
@@ -2770,9 +2782,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function cancelCropMode() {
-    if (!croppingItemId) return false;
+    if (!croppingItemIdRef.current) return false;
     const snapshot = cropEntrySnapshotRef.current;
-    if (snapshot && snapshot.itemId === croppingItemId) {
+    if (snapshot && snapshot.itemId === croppingItemIdRef.current) {
       // Restore the pre-entry crop via a plain (non-history) setItems —
       // there is nothing to undo since nothing was committed yet.
       setItems((prev) => prev.map((it) => (it.id === snapshot.itemId ? { ...it, crop: snapshot.crop } : it)));
@@ -2896,6 +2908,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // radius/shadow to their defaults while preserving object position,
   // dimensions, and rotation (spec §35's recommended behavior) — a single
   // commit, so Undo restores every prior edit in one step.
+  // Crop-only reset (the floating crop toolbar's "Reset" button) — just
+  // the crop/fit/focal/zoom, unlike resetImageEdits below which also clears
+  // filters/flip/corner-radius/shadow for the broader "reset everything"
+  // action available outside crop mode.
+  function resetCropOnly(itemId) {
+    updateItem(itemId, { crop: { ...DEFAULT_CROP } }, true, { type: "crop", label: "Reset crop", itemIds: [itemId] });
+  }
+
   function resetImageEdits(itemId) {
     const item = itemsRef.current.find((it) => it.id === itemId);
     if (!item) return;
@@ -4406,6 +4426,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
         // A text object currently being inline-edited hides its handles too
         // (TextEditOverlay is the only interaction surface while editing).
         if (id === editingTextIdRef.current) return false;
+        // Same for an item in crop mode — CropOverlay's own resize handles
+        // are the only interaction surface while cropping; leaving the
+        // Transformer attached too would double up on resize handles and
+        // (now that the rotate handle is actually visible — see App.jsx's
+        // Transformer anchorStyleFunc) let it peek out above CropOverlay's
+        // bounding box and rotate the whole object out from under a crop
+        // gesture.
+        if (id === croppingItemIdRef.current) return false;
         return getTransforms(it).usesTransformer !== false;
       })
       .map((id) => nodesMapRef.current.get(id))
@@ -4757,6 +4785,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
   useEffect(() => {
     function handleKeyDown(event) {
       if (event.key !== "Enter" || isTypingTarget(document.activeElement)) return;
+      // Crop mode: Enter applies (same as clicking Done/clicking outside),
+      // checked first since croppingItemIdRef takes priority over any
+      // simultaneous selection state.
+      if (croppingItemIdRef.current) {
+        event.preventDefault();
+        applyCropModeAndCommit();
+        return;
+      }
       if (editingTextIdRef.current) return;
       const onlySelected = selectedIdsRef.current;
       if (onlySelected.length !== 1) return;
@@ -4825,7 +4861,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   useEffect(() => {
     syncTransformerNodes();
-  }, [selectedIds, items, editingTextId, syncTransformerNodes]);
+  }, [selectedIds, items, editingTextId, croppingItemId, syncTransformerNodes]);
 
   function handleTransformStart() {
     const anchor = transformerRef.current?.getActiveAnchor();
@@ -5305,8 +5341,35 @@ export default function App({ editorMode = "workspace", templateSession = null }
                         : buildRotationSnaps(precisionPrefs.rotationSnapIncrement)
                   }
                   rotationSnapTolerance={isShiftDown ? 2.5 : 3}
-                  rotateAnchorOffset={16}
+                  // Raw offset was only 16, which put the rotate handle
+                  // just a couple CSS px from the top-center resize handle
+                  // — at typical zoom the two visually fused into what
+                  // looked like one plain square, so there was no
+                  // discoverable "rotate" affordance at all. Deliberately
+                  // NOT compensated by `/scale` (unlike anchorSize below):
+                  // SelectionToolbar's GAP (see SelectionToolbar.jsx) sits
+                  // in this same raw-unit space and scales down at low zoom
+                  // right along with it, so this needs to shrink/grow in
+                  // step with GAP to keep clearing it at every zoom level
+                  // rather than drifting into it the way a zoom-invariant
+                  // offset would.
+                  rotateAnchorOffset={32}
                   anchorSize={8 / scale}
+                  // Give the rotate handle its own look (round + amber)
+                  // instead of the plain white squares every resize handle
+                  // uses, so it actually reads as a distinct control.
+                  anchorStyleFunc={(anchor) => {
+                    if (!anchor.hasName("rotater")) return;
+                    const size = (8 / scale) * 1.3;
+                    anchor.width(size);
+                    anchor.height(size);
+                    anchor.offsetX(size / 2);
+                    anchor.offsetY(size / 2);
+                    anchor.cornerRadius(size / 2);
+                    anchor.fill("#d97706");
+                    anchor.stroke("#ffffff");
+                    anchor.strokeWidth(1.5 / scale);
+                  }}
                   borderStrokeWidth={1.5 / scale}
                   boundBoxFunc={(oldBox, newBox) => {
                     if (newBox.width < 20 || newBox.height < 20) return oldBox;
@@ -5403,6 +5466,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     viewport={KONVA_VIEWPORT}
                     scale={scale}
                     onLiveChange={(crop) => liveCropChange(croppingItemId, crop)}
+                    onBoxLiveChange={(patch) => liveCropBoxChange(croppingItemId, patch)}
                     onRequestExit={applyCropModeAndCommit}
                   />
                 );
@@ -5603,7 +5667,6 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onZoomOut={() => workspaceRef.current?.zoomOut()}
         onResetZoom={handleFitToScreen}
         onOpenResize={() => setIsResizeOpen(true)}
-        onOpenAdmin={() => navigateTo("#/admin")}
       />
       )}
 
@@ -5656,6 +5719,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onSetCropAspect={setCropAspectRatio}
         onApplyCrop={applyCropModeAndCommit}
         onCancelCrop={cancelCropMode}
+        onResetCrop={resetCropOnly}
         onEnterImageFillEditMode={enterImageFillEditMode}
         onExitImageFillEditMode={applyImageFillEditModeAndCommit}
         onLiveAdjustments={liveAdjustmentsChange}

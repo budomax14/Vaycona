@@ -4,11 +4,12 @@ import { contentToScreen } from "../viewport";
 
 const TOOLBAR_WIDTH = 280;
 const TOOLBAR_HEIGHT = 50;
-// Large enough to clear the Transformer's rotate handle (rotateAnchorOffset
-// is set small and deliberately, in App.jsx, specifically so this toolbar
-// can sit comfortably above it without the two overlapping and fighting
-// over the same clicks).
-const GAP = 40;
+// Large enough to clear the Transformer's rotate handle — both this GAP and
+// App.jsx's `rotateAnchorOffset` live in the same raw Konva-unit space
+// (neither is scale-compensated), so they shrink/grow together at every
+// zoom level rather than drifting apart the way they would if only one of
+// the two were zoom-invariant.
+const GAP = 56;
 
 function getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize) {
   const topLeft = contentToScreen({ x: selectionBoundsContent.left, y: selectionBoundsContent.top }, viewport);

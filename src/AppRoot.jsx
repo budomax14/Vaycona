@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import App from "./App";
 import AdminApp from "./AdminApp";
 import EditorErrorBoundary from "./components/EditorErrorBoundary";
@@ -7,6 +8,8 @@ import { getNewestValidSnapshot, requestSkipRecoveryOnNextLoad, requestForceReco
 import { WORKSPACE_STORAGE_KEY } from "./constants";
 import { BrandKitProvider } from "./brandKitContext";
 import { useHashRoute } from "./adminRoute";
+import { AuthProvider, useAuth } from "./authContext";
+import LoginPage from "./components/Auth/LoginPage";
 
 // Wraps the editor in a top-level error boundary (Phase 7C). Kept as its
 // own component (rather than folded into App) specifically so it still
@@ -14,6 +17,35 @@ import { useHashRoute } from "./adminRoute";
 // saved record and a newer recovery snapshot rather than reading App's
 // (possibly-broken) internal state.
 export default function AppRoot() {
+  return (
+    <AuthProvider>
+      <Gate />
+    </AuthProvider>
+  );
+}
+
+// Real per-user login (Firebase Auth) in front of the entire app — both the
+// normal editor and the admin section (which keeps its own separate local
+// passcode wall on top, see adminAuth.js/AdminGate.jsx).
+function Gate() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 text-gray-400">
+        <Loader2 size={24} className="animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+function AuthenticatedApp() {
   const [recoveryInfo, setRecoveryInfo] = useState({ lastSavedAt: null, hasNewerRecovery: false });
   const route = useHashRoute();
 

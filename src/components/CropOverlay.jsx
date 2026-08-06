@@ -5,6 +5,28 @@ import { useImageElement } from "../useImageElement";
 import { computeCropLayout, dragToFocalPoint, normalizeCrop } from "../imageCrop";
 import { FRAME_KINDS } from "../frameKinds";
 
+const MIN_BOX_SIZE = 20;
+
+// The 8 crop-rectangle handles (corners + edge midpoints). Each declares
+// which edge(s) of the object's own box it moves when dragged — corners
+// move two edges, edge-midpoints move one — resolved against the box's
+// LOCAL (unrotated) frame in handleResizePointerMove below, then rotated
+// back into world x/y so this behaves correctly on a rotated image too.
+const RESIZE_HANDLES = [
+  { key: "tl", left: 0, top: 0, cursor: "nwse-resize", moveLeft: true, moveTop: true },
+  { key: "t", left: 0.5, top: 0, cursor: "ns-resize", moveTop: true },
+  { key: "tr", left: 1, top: 0, cursor: "nesw-resize", moveRight: true, moveTop: true },
+  { key: "r", left: 1, top: 0.5, cursor: "ew-resize", moveRight: true },
+  { key: "br", left: 1, top: 1, cursor: "nwse-resize", moveRight: true, moveBottom: true },
+  { key: "b", left: 0.5, top: 1, cursor: "ns-resize", moveBottom: true },
+  { key: "bl", left: 0, top: 1, cursor: "nesw-resize", moveLeft: true, moveBottom: true },
+  { key: "l", left: 0, top: 0.5, cursor: "ew-resize", moveLeft: true },
+];
+
+function distance(pointA, pointB) {
+  return Math.hypot(pointA.clientX - pointB.clientX, pointA.clientY - pointB.clientY);
+}
+
 // Interactive crop-mode DOM overlay — used for both standalone images and
 // frame content. Positioned via the same contentToScreen/viewport math
 // TextEditOverlay.jsx already uses (mounted as a sibling inside the same
@@ -14,7 +36,7 @@ import { FRAME_KINDS } from "../frameKinds";
 // text editing, reused here rather than inventing a new interaction model.
 // Live drag/zoom calls onLiveChange (non-committing, mirrors
 // updateEditingTextLive); the caller commits exactly once on Apply.
-export default function CropOverlay({ item, viewport, scale, onLiveChange, onRequestExit }) {
+export default function CropOverlay({ item, viewport, scale, onLiveChange, onRequestExit, onBoxLiveChange }) {
   const isFrame = item.type === "frame";
   const assetId = isFrame ? item.contentAssetId : item.assetId;
   const { objectUrl } = useAsset(assetId);
@@ -26,6 +48,18 @@ export default function CropOverlay({ item, viewport, scale, onLiveChange, onReq
   const { naturalWidth, naturalHeight } = useImageElement(objectUrl);
   const flipTransform = `scaleX(${item.flipX ? -1 : 1}) scaleY(${item.flipY ? -1 : 1})`;
   const dragRef = useRef(null);
+  const resizeDragRef = useRef(null);
+  // Every active pointer's last-known position (keyed by pointerId), so a
+  // second simultaneous touch can be recognized as a pinch rather than a
+  // second independent pan. Plain ref — read/written only inside these
+  // handlers, no re-render needed, same as dragRef.
+  const activePointersRef = useRef(new Map());
+  const pinchGestureRef = useRef(null);
+  // Only plain image items support resizing the crop box directly here —
+  // frame content sits inside a shape whose own size/inset semantics are
+  // owned by the Transformer outside crop mode, so resize handles are
+  // scoped to `image` to avoid duplicating/fighting that logic.
+  const canResizeBox = !isFrame && typeof onBoxLiveChange === "function";
 
   // Clicking outside the overlay (and outside anything marked
   // toolbar-safe, e.g. CropModePropertiesBar's Apply/Cancel/zoom controls)
@@ -84,12 +118,36 @@ export default function CropOverlay({ item, viewport, scale, onLiveChange, onReq
 
   function handlePointerDown(event) {
     event.preventDefault();
-    dragRef.current = { startX: event.clientX, startY: event.clientY, crop };
     event.currentTarget.setPointerCapture(event.pointerId);
+    activePointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+
+    if (activePointersRef.current.size >= 2) {
+      // Entering (or continuing) a pinch — drop any single-pointer pan in
+      // progress, matching how native photo apps prioritize the two-finger
+      // gesture the instant a second finger lands.
+      dragRef.current = null;
+      const [a, b] = Array.from(activePointersRef.current.values());
+      pinchGestureRef.current = { startDistance: Math.max(1, distance(a, b)), startZoom: crop.zoom };
+      return;
+    }
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, crop };
   }
 
   function handlePointerMove(event) {
-    if (!dragRef.current) return;
+    if (activePointersRef.current.has(event.pointerId)) {
+      activePointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+    }
+
+    if (activePointersRef.current.size >= 2 && pinchGestureRef.current) {
+      if (layout.mode === "stretch") return;
+      const [a, b] = Array.from(activePointersRef.current.values());
+      const ratio = Math.max(1, distance(a, b)) / pinchGestureRef.current.startDistance;
+      const nextZoom = Math.max(1, Math.min(8, pinchGestureRef.current.startZoom * ratio));
+      onLiveChange({ ...crop, zoom: nextZoom });
+      return;
+    }
+
+    if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
     // Stretch mode has no excess to pan around in (the whole image is
     // always fully visible by construction — see computeCropLayout), and
     // dragToFocalPoint doesn't handle a layout with no cropRect.
@@ -109,7 +167,9 @@ export default function CropOverlay({ item, viewport, scale, onLiveChange, onReq
   }
 
   function handlePointerUp(event) {
-    dragRef.current = null;
+    activePointersRef.current.delete(event.pointerId);
+    if (activePointersRef.current.size < 2) pinchGestureRef.current = null;
+    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
   }
 
@@ -119,6 +179,72 @@ export default function CropOverlay({ item, viewport, scale, onLiveChange, onReq
     const delta = event.deltaY > 0 ? -0.05 : 0.05;
     const nextZoom = Math.max(1, Math.min(8, crop.zoom + delta));
     onLiveChange({ ...crop, zoom: nextZoom });
+  }
+
+  // Drag a corner/edge handle to resize the crop rectangle itself (the
+  // object's own box — see the file header: fit/focal/zoom need no
+  // adjustment since they're computed live off whatever the box's current
+  // size is). Delta is rotated into the box's LOCAL (unrotated) frame
+  // before being applied, then the resulting local origin shift is rotated
+  // back to world x/y — same convention objectRegistry.js's own
+  // rotation-aware point math uses — so this resizes correctly even when
+  // the object itself is rotated.
+  function handleResizePointerDown(handleDef, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeDragRef.current = {
+      pointerId: event.pointerId,
+      handleDef,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startBox: { x: item.x, y: item.y, width: item.width, height: item.height },
+    };
+  }
+
+  function handleResizePointerMove(event) {
+    const drag = resizeDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dxWorld = (event.clientX - drag.startClientX) / scale;
+    const dyWorld = (event.clientY - drag.startClientY) / scale;
+    const rad = ((item.rotation || 0) * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const dxLocal = dxWorld * cos + dyWorld * sin;
+    const dyLocal = -dxWorld * sin + dyWorld * cos;
+
+    const { moveLeft, moveRight, moveTop, moveBottom } = drag.handleDef;
+    let width = drag.startBox.width;
+    let height = drag.startBox.height;
+    let originDeltaLocalX = 0;
+    let originDeltaLocalY = 0;
+
+    if (moveLeft) {
+      const clamped = Math.min(dxLocal, drag.startBox.width - MIN_BOX_SIZE);
+      width = drag.startBox.width - clamped;
+      originDeltaLocalX = clamped;
+    } else if (moveRight) {
+      width = Math.max(MIN_BOX_SIZE, drag.startBox.width + dxLocal);
+    }
+    if (moveTop) {
+      const clamped = Math.min(dyLocal, drag.startBox.height - MIN_BOX_SIZE);
+      height = drag.startBox.height - clamped;
+      originDeltaLocalY = clamped;
+    } else if (moveBottom) {
+      height = Math.max(MIN_BOX_SIZE, drag.startBox.height + dyLocal);
+    }
+
+    onBoxLiveChange({
+      x: drag.startBox.x + originDeltaLocalX * cos - originDeltaLocalY * sin,
+      y: drag.startBox.y + originDeltaLocalX * sin + originDeltaLocalY * cos,
+      width,
+      height,
+    });
+  }
+
+  function handleResizePointerUp(event) {
+    if (resizeDragRef.current?.pointerId === event.pointerId) resizeDragRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
   }
 
   return (
@@ -134,6 +260,7 @@ export default function CropOverlay({ item, viewport, scale, onLiveChange, onReq
         transformOrigin: "0 0",
         zIndex: 25,
         cursor: "move",
+        touchAction: "none",
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -184,6 +311,31 @@ export default function CropOverlay({ item, viewport, scale, onLiveChange, onReq
           pointerEvents: "none",
         }}
       />
+
+      {canResizeBox &&
+        RESIZE_HANDLES.map((handleDef) => (
+          <div
+            key={handleDef.key}
+            data-crop-toolbar-safe
+            onPointerDown={(event) => handleResizePointerDown(handleDef, event)}
+            onPointerMove={handleResizePointerMove}
+            onPointerUp={handleResizePointerUp}
+            style={{
+              position: "absolute",
+              left: handleDef.left * boxScreenWidth,
+              top: handleDef.top * boxScreenHeight,
+              transform: "translate(-50%, -50%)",
+              width: 12,
+              height: 12,
+              borderRadius: 3,
+              background: "#ffffff",
+              border: "1.5px solid #d97706",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+              cursor: handleDef.cursor,
+              touchAction: "none",
+            }}
+          />
+        ))}
     </div>
   );
 }

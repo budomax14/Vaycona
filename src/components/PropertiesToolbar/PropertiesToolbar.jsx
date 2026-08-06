@@ -50,6 +50,7 @@ export default function PropertiesToolbar({
   onSetCropAspect,
   onApplyCrop,
   onCancelCrop,
+  onResetCrop,
   onLiveAdjustments,
   onCommitAdjustments,
   onRestoreOriginalRatio,
@@ -99,6 +100,7 @@ export default function PropertiesToolbar({
           onSetAspect={(ratio) => onSetCropAspect(single.id, ratio)}
           onApply={onApplyCrop}
           onCancel={onCancelCrop}
+          onReset={() => onResetCrop(single.id)}
         />
       </div>
     );

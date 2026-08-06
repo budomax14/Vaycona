@@ -26,8 +26,8 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
   return (
     <div className="flex h-screen flex-col overflow-y-auto bg-gray-50 text-gray-900">
       <header className="flex items-center gap-2.5 border-b border-gray-200 bg-white px-6 py-4">
-        <img src="/logo.png" alt="Duma Studio" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
-        <span className="text-sm font-semibold text-gray-800">Duma Studio</span>
+        <img src="/logo.png" alt="Vaycona" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+        <span className="text-sm font-semibold text-gray-800">Vaycona</span>
       </header>
 
       <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
