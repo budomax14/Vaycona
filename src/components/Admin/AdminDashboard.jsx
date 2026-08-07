@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Copy, Edit3, Eye, LayoutTemplate, Lock, LogOut, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { Copy, Edit3, Eye, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import {
   listTemplateSummaries,
   getTemplateById,
@@ -10,7 +10,6 @@ import {
   unpublishTemplate,
 } from "../../templateService";
 import { listAllCategories } from "../../adminTemplateCategories";
-import { lockAdmin } from "../../adminAuth";
 import { exportProjectPackage, downloadBlob } from "../../projectPackage";
 import TemplateMiniPreview from "../TemplateMiniPreview";
 import TemplatePreviewDialog from "../TemplatePreviewDialog";
@@ -146,7 +145,7 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="desktop-only-shell min-h-screen bg-gray-50">
       <header className="flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-4 shadow-sm md:px-6">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-emerald-400 text-white">
           <LayoutTemplate size={18} />
@@ -156,15 +155,6 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
           <p className="text-xs text-gray-400">Create, edit, and publish templates for the design gallery</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <button
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-            onClick={() => {
-              lockAdmin();
-              onExitAdmin();
-            }}
-          >
-            <Lock size={15} /> Lock admin
-          </button>
           <button
             className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
             onClick={onExitAdmin}
@@ -340,11 +330,9 @@ function AdminTemplateCard({ template, onEdit, onPreview, onDuplicate, onPublish
         </div>
 
         <div className="mt-2.5 flex flex-wrap gap-1">
-          {!template.builtIn && (
-            <button className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100" onClick={onEdit}>
-              <Edit3 size={11} /> Edit
-            </button>
-          )}
+          <button className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100" onClick={onEdit}>
+            <Edit3 size={11} /> Edit
+          </button>
           <button className="flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100" onClick={onPreview}>
             <Eye size={11} /> Preview
           </button>

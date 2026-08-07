@@ -147,7 +147,20 @@ function dropShadowFilter(id, { blur = 12, opacity = 0.35, dx = 0, dy = 4, color
   return `<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="${dx}" dy="${dy}" stdDeviation="${blur / 2}" flood-color="${color}" flood-opacity="${opacity}" /></filter>`;
 }
 
-function renderShapeItem(item) {
+// Image-filled shapes (item.fillImage) have no faithful SVG vector
+// equivalent here (Konva's canvas fill-pattern transform — see
+// imageFill.js's computePatternMatrix — has no direct SVG <pattern>
+// translation for rotated/flipped/zoomed fills), so — same call as
+// renderTextItem makes for wrapped/rich text below — fall back to
+// rasterizing just this one item via the shared offscreen render pipeline,
+// clipped to the shape's own outline by construction since that's exactly
+// what the live ShapeNode renderer already draws.
+async function renderShapeItem(item, renderScale) {
+  if (item.fillImage?.assetId) {
+    const dataUrl = await rasterizeItemForSvg(item, renderScale);
+    const inner = `<image href="${dataUrl}" x="0" y="0" width="${item.width}" height="${item.height}" opacity="1" />`;
+    return wrapItem({ ...item, opacity: item.opacity ?? 1 }, inner);
+  }
   const kindDef = SHAPE_KINDS[item.shapeKind] || SHAPE_KINDS.rectangle;
   const d = shapePathD((ctx, node, it) => kindDef.sceneFunc(ctx, node, it), item.width, item.height, item);
   const fill = item.fill || "#8b5cf6";
@@ -376,7 +389,7 @@ async function renderTextItem(item, renderScale) {
 }
 
 async function renderItemToSvg(item, { availableAssetIds, renderScale }) {
-  if (item.type === "shape") return renderShapeItem(item);
+  if (item.type === "shape") return renderShapeItem(item, renderScale);
   if (item.type === "line") return renderLineItem(item);
   if (item.type === "icon") return renderIconItem(item);
   if (item.type === "text") return renderTextItem(item, renderScale);

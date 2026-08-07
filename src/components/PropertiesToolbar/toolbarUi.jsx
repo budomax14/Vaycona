@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link2, Unlink } from "lucide-react";
+import { ChevronDown, ChevronUp, Link2, Unlink } from "lucide-react";
 import { useRecentColors } from "../../recentColorsContext";
 import { useBrandKits } from "../../brandKitContext";
 import { useDocumentColors } from "../../documentColorsContext";
@@ -51,21 +51,101 @@ export function LabeledField({ label, children, width }) {
   );
 }
 
-export function NumberField({ label, value, onChange, min, max, step, width = 56, mixed }) {
+// Local draft + commit-on-blur/Enter, same pattern as ObjectTransformFields'
+// PrecisionField — a plain controlled <input> that calls onChange on every
+// keystroke fights the user the moment the field needs to pass through an
+// out-of-range intermediate state (e.g. clearing "24" to type "8": the
+// empty string briefly parses as 0, upstream clamps it straight back to
+// the field's min, and the input re-renders showing that clamped digit
+// before the next keystroke lands — so the field never actually empties
+// and a smaller value can never be typed). Committing only on blur/Enter
+// lets the draft be anything mid-edit, including empty, without upstream
+// clamping fighting the keystrokes.
+export function NumberField({ label, value, onChange, min, max, step = 1, width = 64, mixed }) {
+  const [draft, setDraft] = useState(() => (mixed ? "" : String(value ?? "")));
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (document.activeElement === inputRef.current) return;
+    setDraft(mixed ? "" : String(value ?? ""));
+  }, [value, mixed]);
+
+  function clamp(n) {
+    let v = n;
+    if (min !== undefined) v = Math.max(min, v);
+    if (max !== undefined) v = Math.min(max, v);
+    return v;
+  }
+
+  function commit() {
+    const n = Number(draft);
+    if (draft.trim() === "" || !Number.isFinite(n)) {
+      setDraft(mixed ? "" : String(value ?? ""));
+      return;
+    }
+    const clamped = clamp(n);
+    setDraft(String(clamped));
+    if (clamped !== value) onChange(clamped);
+  }
+
+  function bump(delta) {
+    const base = draft.trim() !== "" && Number.isFinite(Number(draft)) ? Number(draft) : value ?? 0;
+    const next = clamp(Math.round((base + delta) * 100) / 100);
+    setDraft(String(next));
+    onChange(next);
+  }
+
   return (
     <LabeledField label={label} width={width}>
-      <input
-        type="number"
-        className={`w-full rounded-lg border bg-gray-50 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white ${
-          mixed ? "border-dashed border-gray-300 placeholder:text-gray-400" : "border-gray-200"
+      <div
+        className={`flex items-stretch overflow-hidden rounded-lg border bg-gray-50 focus-within:border-amber-400 focus-within:bg-white ${
+          mixed ? "border-dashed border-gray-300" : "border-gray-200"
         }`}
-        value={value}
-        placeholder={mixed ? "Mixed" : undefined}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
+      >
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="decimal"
+          className="w-full min-w-0 bg-transparent px-2 py-1.5 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+          value={draft}
+          placeholder={mixed ? "Mixed" : undefined}
+          aria-label={label}
+          onChange={(event) => setDraft(event.target.value)}
+          onFocus={(event) => event.currentTarget.select()}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            else if (event.key === "Escape") setDraft(mixed ? "" : String(value ?? ""));
+            else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              bump(step);
+            } else if (event.key === "ArrowDown") {
+              event.preventDefault();
+              bump(-step);
+            }
+          }}
+        />
+        <div className="flex shrink-0 flex-col border-l border-gray-200">
+          <button
+            type="button"
+            tabIndex={-1}
+            className="flex h-1/2 w-4 items-center justify-center text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+            onClick={() => bump(step)}
+            aria-label={`Increase ${label}`}
+          >
+            <ChevronUp size={10} />
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            className="flex h-1/2 w-4 items-center justify-center border-t border-gray-200 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+            onClick={() => bump(-step)}
+            aria-label={`Decrease ${label}`}
+          >
+            <ChevronDown size={10} />
+          </button>
+        </div>
+      </div>
     </LabeledField>
   );
 }

@@ -13,6 +13,14 @@ import { checksumOf } from "./autosaveService";
 import { PROJECT_SCHEMA_VERSION } from "./constants";
 import { BUILT_IN_TEMPLATES } from "./builtinTemplates";
 import { validateProject } from "./projectValidator";
+import { publishTemplateToCloud, removeTemplateFromCloud } from "./firestoreTemplates";
+
+// Published "project" templates additionally mirror to Firestore (see
+// firestoreTemplates.js) so every user's browser sees admin changes live —
+// personal reusable content (page/section kinds, drafts) never does.
+function isCloudSynced(template) {
+  return template?.kind === "project" && !template.builtIn;
+}
 
 const TEMPLATE_DB_NAME = "personal-canva-templates-v1";
 const TEMPLATE_STORE = "templates";
@@ -249,7 +257,7 @@ export async function updateTemplateMetadata(id, patch) {
 // silently grantable through a generic metadata patch.
 export async function updateTemplateSettings(id, { name, description, category, tags, background, thumbnail }) {
   const existing = await getTemplateById(id);
-  if (!existing || existing.builtIn) return null;
+  if (!existing) return null;
   const data =
     background !== undefined && existing.data?.pages?.length
       ? { ...existing.data, pages: existing.data.pages.map((page, i) => (i === 0 ? { ...page, background } : page)) }
@@ -267,6 +275,7 @@ export async function updateTemplateSettings(id, { name, description, category, 
     updatedAt: Date.now(),
   });
   await withStore("readwrite", (store) => store.put(next));
+  if (isCloudSynced(next) && next.status === "published") await publishTemplateToCloud(next);
   return next;
 }
 
@@ -285,7 +294,7 @@ export async function setTemplateFavorite(id, favorite) {
 // ref until this resolves).
 export async function updateTemplatePayload(id, { data, assetIds, pageCount, objectCount, groupCount, thumbnail, pageWidth, pageHeight }) {
   const existing = await getTemplateById(id);
-  if (!existing || existing.builtIn) return null;
+  if (!existing) return null;
   const next = withChecksum({
     ...existing,
     checksum: undefined,
@@ -302,6 +311,7 @@ export async function updateTemplatePayload(id, { data, assetIds, pageCount, obj
     updatedAt: Date.now(),
   });
   await withStore("readwrite", (store) => store.put(next));
+  if (isCloudSynced(next) && next.status === "published") await publishTemplateToCloud(next);
   return next;
 }
 
@@ -337,6 +347,7 @@ export async function publishTemplate(id) {
   if (reason) return { ok: false, error: reason };
   const next = withChecksum({ ...existing, checksum: undefined, status: "published", publishedAt: Date.now() });
   await withStore("readwrite", (store) => store.put(next));
+  if (isCloudSynced(next)) await publishTemplateToCloud(next);
   return { ok: true, template: next };
 }
 
@@ -345,6 +356,7 @@ export async function unpublishTemplate(id) {
   if (!existing || existing.builtIn) return null;
   const next = withChecksum({ ...existing, checksum: undefined, status: "draft", publishedAt: null });
   await withStore("readwrite", (store) => store.put(next));
+  if (isCloudSynced(next)) await removeTemplateFromCloud(id);
   return next;
 }
 
@@ -374,6 +386,7 @@ export async function deleteTemplate(id) {
   if (existing?.builtIn || existing?.protected) return false;
   await withStore("readwrite", (store) => store.delete(id));
   await removeFromRecent(id);
+  if (isCloudSynced(existing) && existing.status === "published") await removeTemplateFromCloud(id);
   return true;
 }
 

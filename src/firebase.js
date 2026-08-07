@@ -1,9 +1,12 @@
-// Firebase app + Auth initialization. This project uses Firebase only for
-// static hosting and (as of this file) real user accounts via Firebase
-// Authentication — there is still no other backend (no Firestore/DB calls
-// anywhere in this app).
+// Firebase app + Auth + Firestore initialization. Auth provides real user
+// accounts; Firestore backs the one piece of shared server state this app
+// has — the admin-published template gallery (see firestoreTemplates.js) —
+// so admin changes there propagate live to every user. Everything else
+// (personal reusable content, drafts, favorites) stays local per-browser
+// via templateService.js's IndexedDB store, unaffected by this.
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD4uDhMqJDEtEd0CzZSqduCUvYjjugOut0",
@@ -16,3 +19,4 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 export const auth = getAuth(firebaseApp);
+export const db = getFirestore(firebaseApp);

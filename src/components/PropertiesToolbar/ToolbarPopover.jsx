@@ -10,8 +10,11 @@ import { createPortal } from "react-dom";
 // to <body> with `position: fixed`, anchored to the trigger's own
 // on-screen rect, so the popover always renders below the trigger
 // regardless of that clipping ancestor.
+const VIEWPORT_MARGIN = 8;
+
 export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "left", children }) {
   const [rect, setRect] = useState(null);
+  const [shift, setShift] = useState(0);
   const popoverRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -21,6 +24,20 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
     }
     setRect(anchorRef.current.getBoundingClientRect());
   }, [isOpen, anchorRef]);
+
+  // Anchors near the edge of a horizontally-scrolled toolbar row (phone
+  // width) can position a fixed-width popover partly off-screen — measure
+  // the rendered panel and nudge it back on-screen. Runs before paint, so
+  // there's no visible jump.
+  useLayoutEffect(() => {
+    setShift(0);
+    if (!rect || !popoverRef.current) return;
+    const panelRect = popoverRef.current.getBoundingClientRect();
+    let adjust = 0;
+    if (panelRect.right > window.innerWidth - VIEWPORT_MARGIN) adjust = window.innerWidth - VIEWPORT_MARGIN - panelRect.right;
+    if (panelRect.left + adjust < VIEWPORT_MARGIN) adjust = VIEWPORT_MARGIN - panelRect.left;
+    setShift(adjust);
+  }, [rect, align]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -75,6 +92,7 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
     position: "fixed",
     top: rect.bottom + 8,
     zIndex: 60,
+    transform: shift ? `translateX(${shift}px)` : undefined,
   };
   if (align === "right") style.right = window.innerWidth - rect.right;
   else style.left = rect.left;

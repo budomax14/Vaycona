@@ -73,25 +73,25 @@ export default function LoginPage() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-gray-50 bg-cover bg-center p-4"
+      className="flex min-h-screen items-center justify-center bg-slate-50 bg-cover bg-center p-4"
       style={{ backgroundImage: "url(/bckground.PNG)" }}
     >
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-gray-950/70 p-6 shadow-xl backdrop-blur-md">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-xl backdrop-blur-md">
         <div className="mb-4 flex items-center gap-2.5">
           <img src="/logo.png" alt="Vaycona" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
-          <span className="text-sm font-semibold text-gray-100">Vaycona</span>
+          <span className="text-sm font-semibold text-slate-100">Vaycona</span>
         </div>
 
         <h1 className="text-lg font-semibold text-white">
           {isSignUp ? "Create an account" : "Log in"}
         </h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <p className="mt-1 text-sm text-slate-400">
           {isSignUp ? "Sign up to start designing." : "Welcome back — sign in to continue."}
         </p>
 
         <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-400">Email</span>
+            <span className="mb-1 block text-xs font-medium text-slate-400">Email</span>
             <input
               autoFocus
               type="email"
@@ -103,7 +103,7 @@ export default function LoginPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-400">Password</span>
+            <span className="mb-1 block text-xs font-medium text-slate-400">Password</span>
             <input
               type="password"
               autoComplete={isSignUp ? "new-password" : "current-password"}
@@ -145,7 +145,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-gray-400">
+        <p className="mt-4 text-center text-xs text-slate-400">
           {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
           <button
             type="button"

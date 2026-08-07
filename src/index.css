@@ -12,15 +12,85 @@
   text-rendering: optimizeLegibility;
 }
 
+/* App-wide dark mode (themeContext.jsx toggles the dark class on html).
+   Tailwind v4 compiles bg-gray-N, text-gray-N, border-gray-N utilities to
+   CSS custom properties, so remapping those properties here re-themes
+   every component using the standard neutral palette with no per-component
+   work. white is deliberately NOT remapped as a variable, since it is
+   shared with text-white (used everywhere for text on colored buttons);
+   instead only the bg-white utility class itself is overridden below,
+   which covers card, panel, and toolbar surfaces without breaking button
+   text. */
+:root.dark {
+  --color-gray-50: oklch(15% 0.012 264);
+  --color-gray-100: oklch(21% 0.014 264);
+  --color-gray-200: oklch(28% 0.014 264);
+  --color-gray-300: oklch(36% 0.016 264);
+  --color-gray-400: oklch(50% 0.014 264);
+  --color-gray-500: oklch(63% 0.012 264);
+  --color-gray-600: oklch(74% 0.01 264);
+  --color-gray-700: oklch(84% 0.008 264);
+  --color-gray-800: oklch(91% 0.005 264);
+  --color-gray-900: oklch(96% 0.002 264);
+  --color-gray-950: oklch(98.5% 0.002 247.839);
+  color: oklch(91% 0.005 264);
+  background: oklch(15% 0.012 264);
+}
+
+.dark .bg-white {
+  background-color: oklch(19% 0.013 264);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  min-width: 768px;
   min-height: 100vh;
   background: #eef1f6;
+}
+
+/* The canvas editor and admin dashboard are desktop-only tools (toolbars,
+   rulers, side panels) — they opt into the 768px floor themselves via
+   .desktop-only-shell instead of forcing it on every screen (which broke
+   the login/homepage on phones and tablets). */
+.desktop-only-shell {
+  min-width: 768px;
+}
+
+:root.dark body {
+  background: oklch(15% 0.012 264);
+}
+
+@keyframes settings-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px 2px rgba(245, 158, 11, 0.55), 0 0 0 0 rgba(245, 158, 11, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 16px 6px rgba(245, 158, 11, 0.85), 0 0 0 4px rgba(245, 158, 11, 0.15);
+  }
+}
+
+.settings-glow {
+  animation: settings-glow-pulse 2.2s ease-in-out infinite;
+}
+
+.settings-glow:hover {
+  animation-play-state: paused;
+  box-shadow: 0 0 20px 7px rgba(245, 158, 11, 0.9);
+}
+
+/* Indeterminate progress sweep for the AI Illustrations panel's Generate
+   button — the backend gives no real progress %, so this is honest
+   "still working" feedback rather than a fake percentage. */
+@keyframes ai-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }
 
 button {
@@ -309,4 +379,55 @@ a:focus-visible {
   height: 1px;
   background: #e5e7eb;
   margin: 4px 2px;
+}
+
+/* Dark mode overrides for chrome that's plain CSS rather than Tailwind
+   utility classes (so the --color-gray-* variable remap above doesn't
+   reach it). Deliberately excludes .canvas-frame and the guide/grid/margin
+   overlay colors above — those belong to the page/design content itself,
+   not surrounding editor chrome, and stay the same in both themes. */
+:root.dark .canvas-area {
+  background-image:
+    linear-gradient(45deg, oklch(24% 0.014 264) 25%, transparent 25%),
+    linear-gradient(-45deg, oklch(24% 0.014 264) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, oklch(24% 0.014 264) 75%),
+    linear-gradient(-45deg, transparent 75%, oklch(24% 0.014 264) 75%);
+}
+
+:root.dark .ruler-corner {
+  background: oklch(19% 0.013 264);
+  border-color: oklch(28% 0.014 264);
+}
+
+:root.dark .ruler-horizontal,
+:root.dark .ruler-vertical,
+:root.dark .ruler-vertical-end {
+  border-color: oklch(28% 0.014 264);
+}
+
+:root.dark .context-menu {
+  background: oklch(21% 0.014 264);
+  border-color: oklch(32% 0.014 264);
+}
+
+:root.dark .context-menu button {
+  color: oklch(84% 0.008 264);
+}
+
+:root.dark .context-menu button:hover:not(:disabled) {
+  background: oklch(28% 0.03 300);
+  color: oklch(85% 0.05 300);
+}
+
+:root.dark .context-menu button.danger:hover:not(:disabled) {
+  background: oklch(28% 0.05 25);
+}
+
+:root.dark .context-menu-divider {
+  background: oklch(32% 0.014 264);
+}
+
+:root.dark .guide-lock-badge {
+  background: oklch(28% 0.014 264);
+  color: oklch(84% 0.008 264);
 }

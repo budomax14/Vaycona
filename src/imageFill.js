@@ -32,14 +32,14 @@ export function normalizeImageFill(fillImage) {
   const clamp01 = (v) => Math.max(0, Math.min(1, typeof v === "number" && Number.isFinite(v) ? v : 0.5));
   return {
     assetId: fillImage.assetId || null,
-    // "fill" (cover, crop excess — the original/default behavior) or
-    // "stretch" (draw the whole image at the box's exact width/height,
-    // independently per axis — may distort aspect ratio). Same two-mode
-    // vocabulary as imageCrop.js's Crop tool, kept deliberately smaller
-    // (no "fit"/letterbox here) since a fill's box is never meant to show
-    // empty space around the image the way a standalone image/frame's
-    // content area can.
-    fit: fillImage.fit === "stretch" ? "stretch" : "fill",
+    // "fill" (cover, crop excess — the original/default behavior), "fit"
+    // (contain — show the whole image, letterboxed inside the shape with
+    // no cropping), or "stretch" (draw the whole image at the box's exact
+    // width/height, independently per axis — may distort aspect ratio).
+    // Same vocabulary as imageCrop.js's Crop tool — computeCropLayout
+    // already implements "fit"'s contain math, computePatternMatrix below
+    // just needs to translate its {mode:"contain"} result into pattern attrs.
+    fit: fillImage.fit === "stretch" ? "stretch" : fillImage.fit === "fit" ? "fit" : "fill",
     zoom: Math.max(1, typeof fillImage.zoom === "number" && Number.isFinite(fillImage.zoom) ? fillImage.zoom : 1),
     offsetX: clamp01(fillImage.offsetX ?? 0.5),
     offsetY: clamp01(fillImage.offsetY ?? 0.5),
@@ -123,6 +123,24 @@ export function getPreparedFillSource(image, naturalWidth, naturalHeight, opacit
 export function computePatternMatrix(fillImage, naturalWidth, naturalHeight, boxWidth, boxHeight) {
   const f = normalizeImageFill(fillImage);
   const layout = computeImageFillLayout(f, naturalWidth, naturalHeight, boxWidth, boxHeight);
+  if (layout.mode === "contain") {
+    // "fit" mode: computeCropLayout already picked a uniform scale + a
+    // clamped top-left (drawWidth/drawHeight/offsetX/offsetY) so the whole
+    // natural image lands somewhere inside the box with no cropping.
+    // Anchor the pattern's own rotation/flip pivot at that drawn image's
+    // center (not the box's center like fill/stretch below) so rotating a
+    // letterboxed image spins it in place rather than around empty space.
+    const { drawWidth, drawHeight, offsetX: boxOffsetX, offsetY: boxOffsetY } = layout;
+    return {
+      offsetX: naturalWidth / 2,
+      offsetY: naturalHeight / 2,
+      scaleX: (drawWidth / naturalWidth) * (f.flipX ? -1 : 1),
+      scaleY: (drawHeight / naturalHeight) * (f.flipY ? -1 : 1),
+      rotation: f.rotation,
+      patternX: boxOffsetX + drawWidth / 2,
+      patternY: boxOffsetY + drawHeight / 2,
+    };
+  }
   const { x, y, width: cw, height: ch } = layout.cropRect || { x: 0, y: 0, width: naturalWidth, height: naturalHeight };
   return {
     offsetX: x + cw / 2,

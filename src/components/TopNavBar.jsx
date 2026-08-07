@@ -1,59 +1,66 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Download, Home, LogOut, Loader2, Redo2, Save, Scaling, Share2, Undo2, User } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Download, Home, LogOut, Loader2, Redo2, Save, Scaling, Settings, Share2, ShieldCheck, Undo2, User } from "lucide-react";
 import { useAuth } from "../authContext";
+import { useTheme } from "../themeContext";
+import { useLanguage } from "../languageContext";
+import { STRINGS } from "../i18n";
+import { navigateTo } from "../adminRoute";
+import ToolbarPopover from "./PropertiesToolbar/ToolbarPopover";
 
 // Short, human labels for the autosave status (spec §3) — internal status
 // names ("saving"/"error"/...) are never shown to the user directly.
-function saveStatusLabel(status, lastSavedAt) {
-  if (status === "saving") return "Saving…";
-  if (status === "error") return "Couldn't save";
-  if (status === "unsaved") return "Unsaved changes";
-  if (lastSavedAt) return `Saved ${relativeTime(lastSavedAt)}`;
-  return "Saved";
+function saveStatusLabel(t, status, lastSavedAt) {
+  if (status === "saving") return t.saving;
+  if (status === "error") return t.couldntSave;
+  if (status === "unsaved") return t.unsavedChanges;
+  if (lastSavedAt) return t.savedAgo(relativeTime(t, lastSavedAt));
+  return t.saved;
 }
 
-function relativeTime(timestamp) {
+function relativeTime(t, timestamp) {
   const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 5) return t.justNow;
+  if (seconds < 60) return t.secondsAgo(seconds);
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t.minutesAgo(minutes);
   const hours = Math.round(minutes / 60);
-  return `${hours}h ago`;
+  return t.hoursAgo(hours);
 }
 
+// Opens via ToolbarPopover (portalled to <body>, fixed-positioned off the
+// trigger's own on-screen rect) rather than an ordinary absolutely-
+// positioned child — the header needs `overflow-x-auto` on phone widths
+// (see TopNavBar below) to reach the icons a 768px-wide bar no longer
+// forces into view, and per the CSS overflow spec, giving an element a
+// non-visible overflow-x forces its overflow-y to compute as `auto` too,
+// which would silently clip an ordinary dropdown to the header's own
+// height. Same fix ToolbarPopover already applies for PropertiesToolbar's
+// row and StatusBar's popovers.
 function MenuDropdown({ label, children }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function handleOutside(event) {
-      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
-    }
-    window.addEventListener("mousedown", handleOutside);
-    return () => window.removeEventListener("mousedown", handleOutside);
-  }, [open]);
+  const anchorRef = useRef(null);
 
   return (
-    <div className="relative" ref={ref}>
-      <button
-        className={`flex items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 ${
-          open ? "bg-gray-100 text-gray-900" : ""
-        }`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {label}
-        <ChevronDown size={14} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
-      </button>
-      {open && (
+    <div className="relative shrink-0">
+      <div ref={anchorRef} className="inline-flex">
+        <button
+          className={`flex items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 ${
+            open ? "bg-gray-100 text-gray-900" : ""
+          }`}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {label}
+          <ChevronDown size={14} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+        </button>
+      </div>
+      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div
-          className="absolute left-0 top-full z-30 mt-1 min-w-[230px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg"
+          className="max-h-[80vh] min-w-[230px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg md:max-h-none md:overflow-visible"
           onClick={() => setOpen(false)}
         >
           {children}
         </div>
-      )}
+      </ToolbarPopover>
     </div>
   );
 }
@@ -64,6 +71,12 @@ function MenuDropdown({ label, children }) {
 // with a trailing arrow (the same affordance every native OS submenu
 // uses). Opens on hover or click; closes on outside click, same pattern
 // as MenuDropdown's own outside-click handling.
+//
+// The panel itself flies out to the right only at md+ — MenuDropdown's
+// panel is portalled (fixed-positioned to the viewport, see MenuDropdown
+// above) so a flyout anchored off *its* right edge has nowhere to go on a
+// phone-width screen; below md it expands inline underneath the trigger
+// instead, same as a standard mobile accordion.
 function MenuSubmenu({ label, children }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -85,20 +98,29 @@ function MenuSubmenu({ label, children }) {
           open ? "bg-amber-50 text-amber-700" : ""
         }`}
         onClick={(event) => {
-          // Stops this toggle from also bubbling into MenuDropdown's own
+          // Stops this from also bubbling into MenuDropdown's own
           // onClick={() => setOpen(false)} — opening a submenu shouldn't
           // close the whole File menu out from under it. A real MenuItem
           // clicked inside the flyout below still bubbles normally, so
           // picking an actual action still closes everything as expected.
+          //
+          // Always opens (never toggles closed) — a tap/click also fires a
+          // synthetic mouseenter first (real on touch devices, since
+          // browsers replay touch as compatibility mouse events; also
+          // reachable on desktop by clicking while already hovering),
+          // which already flips `open` true via onMouseEnter below, so a
+          // toggle here would immediately flip it back closed and the
+          // submenu would never visibly open. Outside-click already closes
+          // it, same as clicking away from any other submenu.
           event.stopPropagation();
-          setOpen((v) => !v);
+          setOpen(true);
         }}
       >
         <span>{label}</span>
         <ChevronRight size={14} className="text-gray-400" />
       </button>
       {open && (
-        <div className="absolute left-full top-0 z-40 ml-1 min-w-[230px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
+        <div className="mt-0.5 space-y-0.5 rounded-lg bg-gray-50 p-1 md:absolute md:left-full md:top-0 md:z-40 md:ml-1 md:mt-0 md:min-w-[230px] md:space-y-0 md:rounded-xl md:border md:border-gray-200 md:bg-white md:p-1.5 md:shadow-lg">
           {children}
         </div>
       )}
@@ -206,6 +228,10 @@ export default function TopNavBar({
   onOpenPrecisionSettings,
   onResetPrecisionView,
 }) {
+  const { language } = useLanguage();
+  const { isAdmin } = useAuth();
+  const t = STRINGS[language].topNav;
+
   // Re-renders periodically just so "Saved Xs/m ago" keeps advancing
   // without needing the parent to re-render on a timer of its own.
   const [, forceTick] = useState(0);
@@ -214,146 +240,146 @@ export default function TopNavBar({
     return () => clearInterval(id);
   }, []);
 
-  const saveLabel = saveStatusLabel(saveStatus, lastSavedAt);
+  const saveLabel = saveStatusLabel(t, saveStatus, lastSavedAt);
   const saveTitle =
     saveStatus === "error"
-      ? `Couldn't save${saveError ? `: ${saveError}` : ""} — click to retry`
+      ? t.couldntSaveWithError(saveError)
       : storageWarning
-        ? `${saveLabel} — local storage is nearly full`
-        : `${saveLabel} (Save now: Ctrl/Cmd+S)`;
+        ? t.storageWarning(saveLabel)
+        : t.saveNowTitle(saveLabel);
 
   return (
-    <header className="flex h-16 items-center gap-2 border-b border-gray-200 bg-white px-3 shadow-sm md:gap-3 md:px-4">
+    <header className="flex h-16 items-center gap-2 overflow-x-auto border-b border-gray-200 bg-white px-3 shadow-sm md:gap-3 md:px-4">
       <button
-        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+        className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100"
         onClick={onOpenHome}
-        title="Back to home"
-        aria-label="Back to home"
+        title={t.backToHome}
+        aria-label={t.backToHome}
       >
         <Home size={18} />
       </button>
 
-      <nav className="flex items-center gap-0.5 border-l border-gray-200 pl-2 md:pl-3">
-        <MenuDropdown label="File">
-          <MenuItem label="New design…" onClick={onOpenTemplateBrowser} />
-          <MenuItem label="Save as template…" onClick={onOpenSaveAsTemplate} />
-          <MenuItem label="Print…" shortcut="Ctrl/Cmd+P" onClick={onPrint} />
-          <MenuSubmenu label="Export as">
-            <MenuItem label="PNG" onClick={onExportPng} />
-            <MenuItem label="JPEG" onClick={onExportJpeg} />
-            <MenuItem label="PDF" onClick={onExportPdf} />
-            <MenuItem label="SVG" onClick={onExportSvg} />
-            <MenuItem label="Animation (GIF / WebM)…" onClick={onOpenExportAnimation} />
+      <nav className="flex shrink-0 items-center gap-0.5 border-l border-gray-200 pl-2 md:pl-3">
+        <MenuDropdown label={t.fileMenu}>
+          <MenuItem label={t.newDesign} onClick={onOpenTemplateBrowser} />
+          <MenuItem label={t.saveAsTemplate} onClick={onOpenSaveAsTemplate} />
+          <MenuItem label={t.print} shortcut="Ctrl/Cmd+P" onClick={onPrint} />
+          <MenuSubmenu label={t.exportAs}>
+            <MenuItem label={t.exportPng} onClick={onExportPng} />
+            <MenuItem label={t.exportJpeg} onClick={onExportJpeg} />
+            <MenuItem label={t.exportPdf} onClick={onExportPdf} />
+            <MenuItem label={t.exportSvg} onClick={onExportSvg} />
+            <MenuItem label={t.exportAnimation} onClick={onOpenExportAnimation} />
           </MenuSubmenu>
-          <MenuItem label="Brand kits…" onClick={onOpenBrandManager} />
-          <MenuSubmenu label="Reusable content">
-            <MenuItem label="Save selection as reusable section" onClick={onSaveSelectionAsSection} disabled={!hasSelection} />
-            <MenuItem label="Save current page as reusable" onClick={onSaveActivePageAsReusable} />
-          </MenuSubmenu>
-          <MenuDivider />
-          <MenuItem label={`Save now (${saveLabel})`} shortcut="Ctrl/Cmd+S" onClick={saveStatus === "error" ? onRetrySave : onSave} />
-          <MenuDivider />
-          <MenuItem label="Export project" onClick={onExportProject} />
-          <MenuItem label="Import project…" onClick={onImportProject} />
-          <MenuDivider />
-          <MenuSubmenu label="Project management">
-            <MenuItem label="Version history" onClick={onOpenVersionHistory} />
-            <MenuItem label="Project recovery" onClick={onOpenRecoveryCenter} />
-            <MenuItem label="Project safety" onClick={onOpenProjectSafety} />
+          <MenuItem label={t.brandKits} onClick={onOpenBrandManager} />
+          <MenuSubmenu label={t.reusableContent}>
+            <MenuItem label={t.saveSelectionAsSection} onClick={onSaveSelectionAsSection} disabled={!hasSelection} />
+            <MenuItem label={t.saveCurrentPageAsReusable} onClick={onSaveActivePageAsReusable} />
           </MenuSubmenu>
           <MenuDivider />
-          <MenuItem label="Download / Export…" shortcut="Ctrl/Cmd+Shift+E" onClick={onOpenExport} />
-          
+          <MenuItem label={t.saveNow(saveLabel)} shortcut="Ctrl/Cmd+S" onClick={saveStatus === "error" ? onRetrySave : onSave} />
+          <MenuDivider />
+          <MenuItem label={t.exportProject} onClick={onExportProject} />
+          <MenuItem label={t.importProject} onClick={onImportProject} />
+          <MenuDivider />
+          <MenuSubmenu label={t.projectManagement}>
+            <MenuItem label={t.versionHistory} onClick={onOpenVersionHistory} />
+            <MenuItem label={t.projectRecovery} onClick={onOpenRecoveryCenter} />
+            <MenuItem label={t.projectSafety} onClick={onOpenProjectSafety} />
+          </MenuSubmenu>
+          <MenuDivider />
+          <MenuItem label={t.downloadExport} shortcut="Ctrl/Cmd+Shift+E" onClick={onOpenExport} />
+
         </MenuDropdown>
 
-        <MenuDropdown label="Edit">
-          <MenuItem label={undoLabel ? `Undo: ${undoLabel}` : "Undo"} shortcut="Ctrl/Cmd+Z" onClick={onUndo} disabled={!canUndo} />
-          <MenuItem label={redoLabel ? `Redo: ${redoLabel}` : "Redo"} shortcut="Ctrl/Cmd+Shift+Z" onClick={onRedo} disabled={!canRedo} />
+        <MenuDropdown label={t.editMenu}>
+          <MenuItem label={undoLabel ? t.undoWithLabel(undoLabel) : t.undo} shortcut="Ctrl/Cmd+Z" onClick={onUndo} disabled={!canUndo} />
+          <MenuItem label={redoLabel ? t.redoWithLabel(redoLabel) : t.redo} shortcut="Ctrl/Cmd+Shift+Z" onClick={onRedo} disabled={!canRedo} />
           <MenuDivider />
-          <MenuItem label="Copy" shortcut="Ctrl/Cmd+C" onClick={onCopy} />
-          <MenuItem label="Paste" shortcut="Ctrl/Cmd+V" onClick={onPaste} />
-          <MenuItem label="Duplicate" shortcut="Ctrl/Cmd+D" onClick={onDuplicate} />
-          <MenuItem label="Delete" shortcut="Delete" onClick={onDelete} />
+          <MenuItem label={t.copy} shortcut="Ctrl/Cmd+C" onClick={onCopy} />
+          <MenuItem label={t.paste} shortcut="Ctrl/Cmd+V" onClick={onPaste} />
+          <MenuItem label={t.duplicate} shortcut="Ctrl/Cmd+D" onClick={onDuplicate} />
+          <MenuItem label={t.delete} shortcut="Delete" onClick={onDelete} />
           <MenuDivider />
-          <MenuItem label="Select All" shortcut="Ctrl/Cmd+A" onClick={onSelectAll} />
+          <MenuItem label={t.selectAll} shortcut="Ctrl/Cmd+A" onClick={onSelectAll} />
         </MenuDropdown>
 
-        <MenuDropdown label="View">
-          <MenuItem label="Zoom in" onClick={onZoomIn} />
-          <MenuItem label="Zoom out" onClick={onZoomOut} />
-          <MenuItem label="Reset zoom" onClick={onResetZoom} />
+        <MenuDropdown label={t.viewMenu}>
+          <MenuItem label={t.zoomIn} onClick={onZoomIn} />
+          <MenuItem label={t.zoomOut} onClick={onZoomOut} />
+          <MenuItem label={t.resetZoom} onClick={onResetZoom} />
           <MenuDivider />
-          <MenuCheckItem label="Show rulers" shortcut="Shift+R" checked={showRulers} onClick={onToggleRulers} />
-          <MenuCheckItem label="Show guides" shortcut="Ctrl/Cmd+;" checked={showGuides} onClick={onToggleGuidesVisible} />
-          <MenuCheckItem label="Lock all guides" checked={guidesLocked} onClick={onToggleLockAllGuides} />
-          <MenuCheckItem label="Show grid" checked={showGrid} onClick={onToggleGrid} />
-          <MenuCheckItem label="Show safe margins" checked={showMargins} onClick={onToggleMargins} />
-          <MenuCheckItem label="Show safe area" checked={showSafeArea} onClick={onToggleSafeArea} />
-          <MenuCheckItem label="Show bleed lines" checked={showBleed} onClick={onToggleBleed} />
-          <MenuCheckItem label="Show layout grid (columns/rows)" checked={showLayoutGrid} onClick={onToggleLayoutGrid} />
+          <MenuCheckItem label={t.showRulers} shortcut="Shift+R" checked={showRulers} onClick={onToggleRulers} />
+          <MenuCheckItem label={t.showGuides} shortcut="Ctrl/Cmd+;" checked={showGuides} onClick={onToggleGuidesVisible} />
+          <MenuCheckItem label={t.lockAllGuides} checked={guidesLocked} onClick={onToggleLockAllGuides} />
+          <MenuCheckItem label={t.showGrid} checked={showGrid} onClick={onToggleGrid} />
+          <MenuCheckItem label={t.showSafeMargins} checked={showMargins} onClick={onToggleMargins} />
+          <MenuCheckItem label={t.showSafeArea} checked={showSafeArea} onClick={onToggleSafeArea} />
+          <MenuCheckItem label={t.showBleedLines} checked={showBleed} onClick={onToggleBleed} />
+          <MenuCheckItem label={t.showLayoutGrid} checked={showLayoutGrid} onClick={onToggleLayoutGrid} />
           <MenuDivider />
-          <MenuCheckItem label="Show smart guides" checked={showSmartGuides} onClick={onToggleSmartGuides} />
-          <MenuCheckItem label="Snap to guides" checked={snapToGuides} onClick={onToggleSnapToGuides} />
-          <MenuCheckItem label="Snapping enabled" checked={snapEnabled} onClick={onToggleSnap} />
-          <MenuItem label="Clear guides" onClick={onClearGuides} />
+          <MenuCheckItem label={t.showSmartGuides} checked={showSmartGuides} onClick={onToggleSmartGuides} />
+          <MenuCheckItem label={t.snapToGuides} checked={snapToGuides} onClick={onToggleSnapToGuides} />
+          <MenuCheckItem label={t.snappingEnabled} checked={snapEnabled} onClick={onToggleSnap} />
+          <MenuItem label={t.clearGuides} onClick={onClearGuides} />
           <MenuDivider />
-          <MenuItem label="Guide Manager…" onClick={onOpenGuideManager} />
-          <MenuItem label="Precision settings…" onClick={onOpenPrecisionSettings} />
-          <MenuItem label="Reset precision view" onClick={onResetPrecisionView} />
+          <MenuItem label={t.guideManager} onClick={onOpenGuideManager} />
+          <MenuItem label={t.precisionSettings} onClick={onOpenPrecisionSettings} />
+          <MenuItem label={t.resetPrecisionView} onClick={onResetPrecisionView} />
         </MenuDropdown>
 
-        <MenuDropdown label="Help">
+        <MenuDropdown label={t.helpMenu}>
           <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Keyboard shortcuts
+            {t.keyboardShortcuts}
           </div>
           <div className="grid gap-1 px-3 pb-2 text-xs text-gray-600">
             <div className="flex justify-between gap-4">
-              <span>Undo / Redo</span>
+              <span>{t.shortcutUndoRedo}</span>
               <span>Ctrl/Cmd+Z / Shift+Z</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span>Copy / Paste</span>
+              <span>{t.shortcutCopyPaste}</span>
               <span>Ctrl/Cmd+C / V</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span>Duplicate</span>
+              <span>{t.shortcutDuplicate}</span>
               <span>Ctrl/Cmd+D</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span>Group / Ungroup</span>
+              <span>{t.shortcutGroupUngroup}</span>
               <span>Ctrl/Cmd+G / Shift+G</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span>Delete</span>
+              <span>{t.shortcutDelete}</span>
               <span>Delete / Backspace</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span>Pan canvas</span>
+              <span>{t.shortcutPanCanvas}</span>
               <span>Hold Space</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span>Zoom</span>
+              <span>{t.shortcutZoom}</span>
               <span>Ctrl/Cmd + Scroll</span>
             </div>
           </div>
           <MenuDivider />
-          <MenuItem label="About Vaycona" onClick={() => {}} />
+          <MenuItem label={t.aboutVaycona} onClick={() => {}} />
         </MenuDropdown>
       </nav>
 
       <input
-        className="ml-1 w-full max-w-30 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 md:ml-2 md:max-w-xs"
+        className="ml-1 w-full max-w-30 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 md:ml-2 md:max-w-xs"
         value={projectName}
         onChange={(event) => onProjectNameChange(event.target.value)}
-        aria-label="Project name"
+        aria-label={t.projectNameLabel}
       />
 
-      <div className="ml-auto flex items-center gap-1 md:gap-1.5">
+      <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-1.5">
         <button
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
           onClick={onOpenResize}
-          title="Resize page"
-          aria-label="Resize page"
+          title={t.resizePage}
+          aria-label={t.resizePage}
         >
           <Scaling size={17} />
         </button>
@@ -361,8 +387,8 @@ export default function TopNavBar({
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
           onClick={onUndo}
           disabled={!canUndo}
-          title={undoLabel ? `Undo: ${undoLabel}` : "Undo"}
-          aria-label={undoLabel ? `Undo: ${undoLabel}` : "Undo"}
+          title={undoLabel ? t.undoWithLabel(undoLabel) : t.undo}
+          aria-label={undoLabel ? t.undoWithLabel(undoLabel) : t.undo}
         >
           <Undo2 size={17} />
         </button>
@@ -370,8 +396,8 @@ export default function TopNavBar({
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
           onClick={onRedo}
           disabled={!canRedo}
-          title={redoLabel ? `Redo: ${redoLabel}` : "Redo"}
-          aria-label={redoLabel ? `Redo: ${redoLabel}` : "Redo"}
+          title={redoLabel ? t.redoWithLabel(redoLabel) : t.redo}
+          aria-label={redoLabel ? t.redoWithLabel(redoLabel) : t.redo}
         >
           <Redo2 size={17} />
         </button>
@@ -391,56 +417,124 @@ export default function TopNavBar({
           ) : (
             <Save size={16} />
           )}
-          <span className="hidden md:inline">{saveStatus === "error" ? "Retry save" : saveLabel}</span>
+          <span className="hidden md:inline">{saveStatus === "error" ? t.retrySave : saveLabel}</span>
         </button>
         <button
           className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-2.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 md:px-3.5"
           onClick={onOpenExport}
-          title="Download / Export design (PNG, JPEG, PDF, SVG)"
-          aria-label="Download or export design"
+          title={t.exportTitle}
+          aria-label={t.exportAriaLabel}
         >
-          <Download size={16} /> <span className="hidden md:inline">Export</span>
+          <Download size={16} /> <span className="hidden md:inline">{t.exportButton}</span>
         </button>
         <button
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
           onClick={onShareDesign}
-          title="Share design"
-          aria-label="Share design"
+          title={t.shareDesign}
+          aria-label={t.shareDesign}
         >
           <Share2 size={17} />
         </button>
+        {isAdmin && (
+          <button
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 md:px-3"
+            onClick={() => navigateTo("#/admin")}
+            title={t.adminPanel}
+            aria-label={t.adminPanel}
+          >
+            <ShieldCheck size={16} /> <span className="hidden md:inline">{t.adminPanel}</span>
+          </button>
+        )}
+        <SettingsMenu />
         <AccountMenu />
       </div>
     </header>
   );
 }
 
-function AccountMenu() {
-  const { user, signOut } = useAuth();
+function SettingsMenu() {
+  const { theme, setTheme } = useTheme();
+  const { language, setLanguage } = useLanguage();
+  const c = STRINGS[language].common;
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function handleOutside(event) {
-      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
-    }
-    window.addEventListener("mousedown", handleOutside);
-    return () => window.removeEventListener("mousedown", handleOutside);
-  }, [open]);
+  const anchorRef = useRef(null);
 
   return (
-    <div className="relative" ref={ref}>
-      <button
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
-        title={user?.email || "Account"}
-        aria-label="Account menu"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <User size={16} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 min-w-[220px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
+    <div className="relative shrink-0">
+      <div ref={anchorRef} className="inline-flex">
+        <button
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+          onClick={() => setOpen((v) => !v)}
+          title={c.settings}
+          aria-label={c.settings}
+        >
+          <Settings size={17} />
+        </button>
+      </div>
+      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
+        <div className="w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+          <span className="mb-1.5 block text-xs font-medium text-gray-500">{c.language}</span>
+          <div className="mb-3 flex gap-1 rounded-lg border border-gray-200 p-1">
+            {[
+              { key: "en", label: "English" },
+              { key: "fr", label: "Français" },
+            ].map((option) => (
+              <button
+                key={option.key}
+                className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium ${
+                  language === option.key ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
+                }`}
+                onClick={() => setLanguage(option.key)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <span className="mb-1.5 block text-xs font-medium text-gray-500">{c.theme}</span>
+          <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
+            {[
+              { key: "light", label: c.light },
+              { key: "dark", label: c.dark },
+            ].map((option) => (
+              <button
+                key={option.key}
+                className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium ${
+                  theme === option.key ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
+                }`}
+                onClick={() => setTheme(option.key)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </ToolbarPopover>
+    </div>
+  );
+}
+
+function AccountMenu() {
+  const { user, signOut } = useAuth();
+  const { language } = useLanguage();
+  const t = STRINGS[language].topNav;
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef(null);
+
+  return (
+    <div className="relative shrink-0">
+      <div ref={anchorRef} className="inline-flex">
+        <button
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
+          title={user?.email || "Account"}
+          aria-label={t.accountMenu}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <User size={16} />
+        </button>
+      </div>
+      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
+        <div className="min-w-[220px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
           <div className="truncate px-3 py-2 text-xs text-gray-500">{user?.email}</div>
           <div className="my-1 h-px bg-gray-100" />
           <button
@@ -451,10 +545,10 @@ function AccountMenu() {
             }}
           >
             <LogOut size={14} />
-            Log out
+            {t.logOut}
           </button>
         </div>
-      )}
+      </ToolbarPopover>
     </div>
   );
 }

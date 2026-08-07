@@ -14,6 +14,7 @@ import ShapesPanel from "./components/LeftSidebar/panels/ShapesPanel";
 import BackgroundsPanel from "./components/LeftSidebar/panels/BackgroundsPanel";
 import ElementsPanel from "./components/LeftSidebar/panels/ElementsPanel";
 import IconsPanel from "./components/LeftSidebar/panels/IconsPanel";
+import IllustrationsPanel from "./components/LeftSidebar/panels/IllustrationsPanel";
 import LayersPanel from "./components/LeftSidebar/panels/LayersPanel";
 import PagesPanel from "./components/LeftSidebar/panels/PagesPanel";
 import ComingSoonPanel from "./components/LeftSidebar/panels/ComingSoonPanel";
@@ -131,6 +132,7 @@ import {
   updateTemplatePayload,
   publishTemplate,
 } from "./templateService";
+import { subscribeToPublishedTemplates, getPublishedTemplateFromCloud } from "./firestoreTemplates";
 import { cloneWorkspaceDataWithNewIds, cloneItemsForInsertion, cloneGuidesForPage, recenterItems } from "./idRemap";
 import TemplateBrowser from "./components/TemplateBrowser";
 import HomePage from "./components/HomePage";
@@ -703,7 +705,18 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // history/recovery (spec: templates never carry undo/redo, recovery
   // snapshots, or version records).
   const [isTemplateBrowserOpen, setIsTemplateBrowserOpen] = useState(false);
-  const [templateSummaries, setTemplateSummaries] = useState([]);
+  // Local (IndexedDB, this browser only) published "project" templates,
+  // plus the live Firestore mirror of every admin-published template from
+  // ANY browser (see firestoreTemplates.js) — merged below into the one
+  // list every consumer (HomePage, TemplateBrowser) reads, so an admin's
+  // publish/edit/unpublish shows up here automatically, no refresh needed.
+  const [localTemplateSummaries, setLocalTemplateSummaries] = useState([]);
+  const [cloudTemplateSummaries, setCloudTemplateSummaries] = useState([]);
+  const templateSummaries = useMemo(() => {
+    const merged = new Map(cloudTemplateSummaries.map((t) => [t.id, t]));
+    localTemplateSummaries.forEach((t) => merged.set(t.id, t)); // local wins on id collision (this browser's own freshest copy)
+    return Array.from(merged.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [localTemplateSummaries, cloudTemplateSummaries]);
   const [reusablePages, setReusablePages] = useState([]);
   const [reusableSections, setReusableSections] = useState([]);
   const [previewTemplate, setPreviewTemplate] = useState(null);
@@ -721,6 +734,21 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (editorMode === "workspace") refreshTemplateLists();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Live admin-published template gallery (workspace mode only — the admin's
+  // own template-editing session, editorMode:"template", has no use for it).
+  // Strips `data`/`checksum` to match listTemplateSummaries()'s summary
+  // shape; handleSelectTemplate fetches the full cloud record on demand.
+  useEffect(() => {
+    if (editorMode !== "workspace") return undefined;
+    const unsubscribe = subscribeToPublishedTemplates(
+      (cloudTemplates) => {
+        setCloudTemplateSummaries(cloudTemplates.map(({ data, checksum, ...meta }) => meta));
+      },
+      (error) => console.error("Live template sync failed:", error)
+    );
+    return unsubscribe;
+  }, [editorMode]);
 
   const [pages, setPages] = useState(initialWorkspace.pages);
   const [activePageId, setActivePageId] = useState(initialWorkspace.activePageId);
@@ -822,6 +850,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // one history entry.
   const [imageFillEditItemId, setImageFillEditItemId] = useState(null);
   const imageFillEntrySnapshotRef = useRef(null);
+
+  // One-way "please open" signal for the Shape fill panel (ShapePropertiesBar
+  // owns isColorPanelOpen locally, toggled by its own swatch button) — the
+  // floating SelectionToolbar's "Shape fill" button lives outside that
+  // component, so rather than lifting the panel's full open/closed state
+  // here, it just bumps this counter; ShapePropertiesBar watches it and
+  // opens the panel whenever it changes. Starts at 0 (falsy) so the effect
+  // never fires on mount, only on a real click.
+  const [shapeFillOpenRequest, setShapeFillOpenRequest] = useState(0);
 
   // Tracks the async remove-background job (triggered from the right-click
   // context menu) so the menu can show a busy state and a stray second
@@ -1322,7 +1359,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // published templates. Existing records with no `status` field yet
     // (pre-dating this feature) default to published, matching their prior
     // behavior exactly (see templateService.createTemplate's default).
-    setTemplateSummaries(projects.filter((t) => (t.status || "published") === "published"));
+    setLocalTemplateSummaries(projects.filter((t) => (t.status || "published") === "published"));
     setReusablePages(pageTemplates);
     setReusableSections(sectionTemplates);
   }
@@ -1332,8 +1369,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setIsTemplateBrowserOpen(true);
   }
 
+  // Local first (this browser's own copy, if any) — falls back to the
+  // Firestore mirror for templates that only exist because some OTHER
+  // user's admin session published them (this browser's IndexedDB never
+  // had them to begin with).
   async function handleSelectTemplate(id) {
-    const full = await getTemplateById(id);
+    const full = (await getTemplateById(id)) || (await getPublishedTemplateFromCloud(id));
     setPreviewTemplate(full);
   }
 
@@ -1424,7 +1465,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   async function useTemplate(templateId) {
-    const template = await getTemplateById(templateId);
+    const template = (await getTemplateById(templateId)) || (await getPublishedTemplateFromCloud(templateId));
     if (!template || !isTemplateShapeValid(template)) {
       setStatus("That template could not be validated and was skipped.");
       window.setTimeout(() => setStatus(""), 3000);
@@ -1551,7 +1592,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
   async function handleTemplateSaveAndPublish() {
     setIsPublishing(true);
     await commitTemplateDraft();
-    const result = await publishTemplate(templateSession.templateId);
+    // Built-ins are always published already (templateService.js's
+    // publishTemplate rejects them outright) — "Save & Publish" on one just
+    // means "save," there's no draft/published transition to make.
+    const result = templateSession.builtIn ? { ok: true } : await publishTemplate(templateSession.templateId);
     setIsPublishing(false);
     templateSession.onPublish?.(result);
   }
@@ -2641,6 +2685,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (item?.type === "text" && !isEffectivelyLocked(item, itemsById)) enterTextEdit(itemId, clientX, clientY);
     else if (item?.type === "image" && !isEffectivelyLocked(item, itemsById)) enterCropMode(itemId);
     else if (item?.type === "frame" && item.contentAssetId && !isEffectivelyLocked(item, itemsById)) enterCropMode(itemId);
+    else if (item?.type === "shape" && item.fillImage?.assetId && !isEffectivelyLocked(item, itemsById)) enterImageFillEditMode(itemId);
   }
 
   // --- Inline text editing (Phase 4) ---
@@ -3036,8 +3081,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Registers a file as a library asset only — does not add anything to
   // the page. Returns the putAsset result so the Uploads panel can show
   // progress/error/retry state per attempt (spec §1/§3).
-  async function uploadFileToLibrary(file) {
-    const result = await putAsset(file);
+  async function uploadFileToLibrary(file, options) {
+    const result = await putAsset(file, options);
     if (result.status === "error") setStatus(result.errorMessage);
     return result;
   }
@@ -5416,6 +5461,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 onForward={() => reorderSelection("forward")}
                 onBackward={() => reorderSelection("backward")}
                 onToggleLock={toggleLockSelection}
+                onOpenShapeFill={
+                  selectedItems.length === 1 && selectedItems[0].type === "shape"
+                    ? () => setShapeFillOpenRequest((n) => n + 1)
+                    : undefined
+                }
               />
             )}
 
@@ -5722,6 +5772,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onResetCrop={resetCropOnly}
         onEnterImageFillEditMode={enterImageFillEditMode}
         onExitImageFillEditMode={applyImageFillEditModeAndCommit}
+        shapeFillOpenRequest={shapeFillOpenRequest}
         onLiveAdjustments={liveAdjustmentsChange}
         onCommitAdjustments={commitAdjustmentsGesture}
         onRestoreOriginalRatio={restoreOriginalAspectRatio}
@@ -5767,6 +5818,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
             <ElementsPanel onAddShape={addShape} onAddLine={addLine} onAddFrame={addFrame} />
           )}
           {activeSidebarSection === "icons" && <IconsPanel onAddIcon={addIcon} />}
+          {activeSidebarSection === "illustrations" && (
+            <IllustrationsPanel
+              onRegisterAsset={(file, options) => uploadFileToLibrary(file, options)}
+              onAddToCanvas={(assetId) => addImageItem(assetId)}
+              onStatus={(message) => {
+                setStatus(message);
+                window.setTimeout(() => setStatus(""), 3000);
+              }}
+            />
+          )}
           {activeSidebarSection === "backgrounds" && (
             <BackgroundsPanel
               background={background}
@@ -5863,7 +5924,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
             />
           )}
           {activeSidebarSection &&
-            !["uploads", "text", "shapes", "elements", "icons", "backgrounds", "layers", "pages", "brand"].includes(
+            !["uploads", "text", "shapes", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand"].includes(
               activeSidebarSection
             ) && <ComingSoonPanel title={SECTIONS.find((section) => section.key === activeSidebarSection)?.label} />}
         </LeftSidebar>

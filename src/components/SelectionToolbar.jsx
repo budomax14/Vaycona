@@ -1,8 +1,8 @@
 import React from "react";
-import { ArrowDown, ArrowUp, Copy, Lock, Trash2, Unlock } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, ImagePlus, Lock, Trash2, Unlock } from "lucide-react";
 import { contentToScreen } from "../viewport";
 
-const TOOLBAR_WIDTH = 280;
+const TOOLBAR_WIDTH = 328;
 const TOOLBAR_HEIGHT = 50;
 // Large enough to clear the Transformer's rotate handle — both this GAP and
 // App.jsx's `rotateAnchorOffset` live in the same raw Konva-unit space
@@ -39,6 +39,7 @@ export default function SelectionToolbar({
   onForward,
   onBackward,
   onToggleLock,
+  onOpenShapeFill,
 }) {
   if (!selectionBoundsContent) return null;
   const { left, top } = getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize);
@@ -48,6 +49,11 @@ export default function SelectionToolbar({
       className="pointer-events-auto absolute z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg"
       style={{ left, top }}
     >
+      {onOpenShapeFill && (
+        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenShapeFill} title="Shape fill">
+          <ImagePlus size={24} />
+        </button>
+      )}
       <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onDuplicate} title="Duplicate">
         <Copy size={24} />
       </button>

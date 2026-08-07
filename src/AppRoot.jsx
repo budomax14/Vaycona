@@ -9,6 +9,8 @@ import { WORKSPACE_STORAGE_KEY } from "./constants";
 import { BrandKitProvider } from "./brandKitContext";
 import { useHashRoute } from "./adminRoute";
 import { AuthProvider, useAuth } from "./authContext";
+import { ThemeProvider } from "./themeContext";
+import { LanguageProvider } from "./languageContext";
 import LoginPage from "./components/Auth/LoginPage";
 
 // Wraps the editor in a top-level error boundary (Phase 7C). Kept as its
@@ -18,15 +20,19 @@ import LoginPage from "./components/Auth/LoginPage";
 // (possibly-broken) internal state.
 export default function AppRoot() {
   return (
-    <AuthProvider>
-      <Gate />
-    </AuthProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }
 
 // Real per-user login (Firebase Auth) in front of the entire app — both the
-// normal editor and the admin section (which keeps its own separate local
-// passcode wall on top, see adminAuth.js/AdminGate.jsx).
+// normal editor and the admin section, which is gated by identity
+// (authContext.jsx's isAdmin) rather than a second, separate wall.
 function Gate() {
   const { user, loading } = useAuth();
 

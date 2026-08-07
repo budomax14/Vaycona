@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { ShieldAlert } from "lucide-react";
 import App from "./App";
 import { useHashRoute, navigateTo } from "./adminRoute";
-import { isAdminUnlocked } from "./adminAuth";
+import { useAuth } from "./authContext";
 import {
   getTemplateById,
   createTemplate,
@@ -10,28 +11,39 @@ import {
   unpublishTemplate,
   templatePublishBlockedReason,
 } from "./templateService";
-import AdminGate from "./components/Admin/AdminGate";
 import AdminDashboard from "./components/Admin/AdminDashboard";
 import AdminTemplateFormDialog from "./components/Admin/AdminTemplateFormDialog";
 
-// Owns everything under the #/admin* hash routes: the passcode gate, the
-// dashboard, the "create new template" flow, and the template editor
-// (a real <App/> instance running in editorMode="template" — see App.jsx).
-// Mounted by AppRoot.jsx as a sibling of the normal <App/> instance, never
-// both at once, so there's exactly one editor mounted (and therefore one
+// Owns everything under the #/admin* hash routes: the dashboard, the
+// "create new template" flow, and the template editor (a real <App/>
+// instance running in editorMode="template" — see App.jsx). Mounted by
+// AppRoot.jsx as a sibling of the normal <App/> instance, never both at
+// once, so there's exactly one editor mounted (and therefore one
 // autosave/history/etc. instance) at any time.
+//
+// Access is gated by Firebase Auth identity (authContext.jsx's isAdmin —
+// the logged-in account's email matching ADMIN_EMAIL), the same login form
+// every user goes through. There is no separate admin passcode anymore.
 export default function AdminApp() {
   const route = useHashRoute();
-  const [unlocked, setUnlocked] = useState(isAdminUnlocked());
+  const { isAdmin } = useAuth();
 
-  // Re-check on every route change (spec: deep links to a specific
-  // template must never bypass the gate).
-  useEffect(() => {
-    setUnlocked(isAdminUnlocked());
-  }, [route.page, route.templateId]);
-
-  if (!unlocked) {
-    return <AdminGate onUnlocked={() => setUnlocked(true)} onExit={() => navigateTo("")} />;
+  if (!isAdmin) {
+    return (
+      <div className="desktop-only-shell flex min-h-screen flex-col items-center justify-center gap-3 bg-gray-50 p-4 text-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-600">
+          <ShieldAlert size={22} />
+        </div>
+        <h1 className="text-lg font-semibold text-gray-900">Admin access only</h1>
+        <p className="max-w-sm text-sm text-gray-500">Your account isn't authorized to manage templates.</p>
+        <button
+          className="mt-1 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+          onClick={() => navigateTo("")}
+        >
+          Back to editor
+        </button>
+      </div>
+    );
   }
 
   if (route.page === "admin-new") {
@@ -81,7 +93,7 @@ function AdminCreateTemplateScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="desktop-only-shell min-h-screen bg-gray-50">
       <AdminTemplateFormDialog
         isOpen
         mode="create"
@@ -114,11 +126,11 @@ function AdminTemplateEditorRoute({ templateId }) {
   }
 
   if (template === undefined) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-gray-400">Loading template…</div>;
+    return <div className="desktop-only-shell flex min-h-screen items-center justify-center text-sm text-gray-400">Loading template…</div>;
   }
   if (template === null) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-gray-500">
+      <div className="desktop-only-shell flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-gray-500">
         <p>This template couldn't be found — it may have been deleted.</p>
         <button className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={() => navigateTo("#/admin")}>
           Back to dashboard
@@ -126,17 +138,6 @@ function AdminTemplateEditorRoute({ templateId }) {
       </div>
     );
   }
-  if (template.builtIn) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-gray-500">
-        <p>Built-in templates are read-only here — duplicate it from the dashboard to edit a copy.</p>
-        <button className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={() => navigateTo("#/admin")}>
-          Back to dashboard
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
       <App
@@ -146,13 +147,14 @@ function AdminTemplateEditorRoute({ templateId }) {
           templateId,
           initialData: template.data,
           templateName: template.name,
+          builtIn: template.builtIn,
           onNameChange: async (name) => {
             await updateTemplateSettings(templateId, { name });
           },
           onSaveDraft: () => showToast("Draft saved."),
           onPublish: (result) => {
             if (result?.ok) {
-              showToast("Published — now visible in the template gallery.");
+              showToast(template.builtIn ? "Saved." : "Published — now visible in the template gallery.");
               navigateTo("#/admin");
             } else {
               showToast(result?.error || "Could not publish this template.");
@@ -211,7 +213,10 @@ function AdminTemplateSettingsOverlay({ isOpen, templateId, onClose, onSaved }) 
     await updateTemplateSettings(templateId, { name, description, category, tags, background, thumbnail });
     let publishChanged = false;
     let publishMessage = "Settings saved.";
-    if (status !== (record.status || "draft")) {
+    if (status !== (record.status || "draft") && record.builtIn) {
+      publishChanged = true;
+      publishMessage = "Built-in templates are always published and can't be unpublished.";
+    } else if (status !== (record.status || "draft")) {
       if (status === "published") {
         const result = await publishTemplate(templateId);
         publishChanged = true;

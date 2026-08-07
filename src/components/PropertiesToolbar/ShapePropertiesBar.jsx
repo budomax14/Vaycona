@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ColorField, IconToggleButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
 import { Ban, Sparkles } from "lucide-react";
-import ObjectTransformMenu from "./ObjectTransformMenu";
+import ObjectMoreMenu from "./ObjectMoreMenu";
 import ObjectStylePicker from "./ObjectStylePicker";
 import TextColorPanel from "./TextColorPanel";
 import { getControls } from "../../objectRegistry";
@@ -23,9 +23,17 @@ export default function ShapePropertiesBar({
   onAlignToPage,
   onEnterImageFillEditMode,
   onExitImageFillEditMode,
+  shapeFillOpenRequest,
   brand,
 }) {
   const [isColorPanelOpen, setIsColorPanelOpen] = useState(false);
+
+  // SelectionToolbar's "Shape fill" button lives outside this component, so
+  // it can't call setIsColorPanelOpen directly — it bumps shapeFillOpenRequest
+  // instead, and this just opens the panel whenever that counter changes.
+  useEffect(() => {
+    if (shapeFillOpenRequest) setIsColorPanelOpen(true);
+  }, [shapeFillOpenRequest]);
   const isLine = item.type === "line";
   const controls = getControls(item);
   const supportsFill = controls.includes("fill");
@@ -36,21 +44,6 @@ export default function ShapePropertiesBar({
 
   return (
     <>
-      <ObjectTransformMenu
-        item={item}
-        unit={unit}
-        onChange={onChange}
-        onDuplicate={onDuplicate}
-        onDelete={onDelete}
-        onForward={onForward}
-        onBackward={onBackward}
-        onToggleLock={onToggleLock}
-        onToggleHidden={onToggleHidden}
-        onAlignToPage={onAlignToPage}
-      />
-
-      <ToolbarDivider />
-
       {supportsFill && (
         <div className="relative shrink-0" data-text-toolbar-safe>
           <button
@@ -183,6 +176,21 @@ export default function ShapePropertiesBar({
           )}
         </>
       )}
+
+      <ToolbarDivider />
+
+      <ObjectMoreMenu
+        item={item}
+        unit={unit}
+        onChange={onChange}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onForward={onForward}
+        onBackward={onBackward}
+        onToggleLock={onToggleLock}
+        onToggleHidden={onToggleHidden}
+        onAlignToPage={onAlignToPage}
+      />
 
       {supportsFill && (
         <TextColorPanel

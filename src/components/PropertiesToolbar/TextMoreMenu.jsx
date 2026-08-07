@@ -6,7 +6,11 @@ import {
   ClipboardCopy,
   ClipboardPaste,
   Eraser,
+  FlipHorizontal,
+  FlipVertical,
   MoreHorizontal,
+  RotateCcw,
+  RotateCw,
   Sparkles,
   Strikethrough,
 } from "lucide-react";
@@ -19,6 +23,7 @@ import {
   ToolbarDivider,
 } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
+import ObjectTransformFields from "./ObjectTransformFields";
 import { DEFAULT_PROJECT_TEXT_STYLES } from "../../textStyles";
 import { useBrandKits } from "../../brandKitContext";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
@@ -38,6 +43,7 @@ function Section({ title, children }) {
 // align) stay directly on the bar; everything here is used less often.
 export default function TextMoreMenu({
   item,
+  unit,
   onChange,
   onApplyFormat,
   onCopyTextStyle,
@@ -45,6 +51,13 @@ export default function TextMoreMenu({
   hasCopiedTextStyle,
   onClearTextFormatting,
   onApplyProjectTextStyle,
+  onDuplicate,
+  onDelete,
+  onForward,
+  onBackward,
+  onToggleLock,
+  onToggleHidden,
+  onAlignToPage,
   brand,
 }) {
   const [open, setOpen] = useState(false);
@@ -61,6 +74,38 @@ export default function TextMoreMenu({
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
         <div className="flex max-h-[70vh] w-80 flex-col gap-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
+          <Section title="Arrange">
+            <ObjectTransformFields
+              item={item}
+              unit={unit}
+              onChange={onChange}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onForward={onForward}
+              onBackward={onBackward}
+              onToggleLock={onToggleLock}
+              onToggleHidden={onToggleHidden}
+              onAlignToPage={onAlignToPage}
+            />
+          </Section>
+
+          <Section title="Transform">
+            <IconToggleButton icon={FlipHorizontal} active={!!item.flipX} onClick={() => onChange({ flipX: !item.flipX })} title="Flip horizontal" />
+            <IconToggleButton icon={FlipVertical} active={!!item.flipY} onClick={() => onChange({ flipY: !item.flipY })} title="Flip vertical" />
+            <IconButton
+              icon={RotateCcw}
+              onClick={() => onChange({ rotation: (((item.rotation || 0) - 90) % 360 + 360) % 360 })}
+              title="Rotate left 90°"
+              aria-label="Rotate left 90 degrees"
+            />
+            <IconButton
+              icon={RotateCw}
+              onClick={() => onChange({ rotation: (((item.rotation || 0) + 90) % 360 + 360) % 360 })}
+              title="Rotate right 90°"
+              aria-label="Rotate right 90 degrees"
+            />
+          </Section>
+
           <Section title="Style">
             <IconToggleButton icon={Strikethrough} active={!!item.strikethrough} onClick={() => onApplyFormat("strikethrough")} title="Strikethrough" />
           </Section>

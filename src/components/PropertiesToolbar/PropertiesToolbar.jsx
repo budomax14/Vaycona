@@ -1,8 +1,8 @@
 import React from "react";
-import { Sparkles } from "lucide-react";
 import CanvasPropertiesBar from "./CanvasPropertiesBar";
 import MultiSelectPropertiesBar from "./MultiSelectPropertiesBar";
 import CropModePropertiesBar from "./CropModePropertiesBar";
+import SelectionMoreMenu from "./SelectionMoreMenu";
 import { getPropertiesBar } from "../../objectRegistry";
 
 export default function PropertiesToolbar({
@@ -62,6 +62,7 @@ export default function PropertiesToolbar({
   // crop mode's shape (see App.jsx's imageFillEditItemId block).
   onEnterImageFillEditMode,
   onExitImageFillEditMode,
+  shapeFillOpenRequest,
   // Phase 11 — brand color/style linking (all optional; see App.jsx's
   // buildBrandBarProps). Bundled into one `brand` prop per selected item
   // rather than a dozen more individual props threaded through every Bar.
@@ -194,6 +195,7 @@ export default function PropertiesToolbar({
             single.type === "text" || single.type === "shape" ? () => onEnterImageFillEditMode(single.id) : undefined
           }
           onExitImageFillEditMode={single.type === "text" || single.type === "shape" ? onExitImageFillEditMode : undefined}
+          shapeFillOpenRequest={single.type === "shape" ? shapeFillOpenRequest : undefined}
           onUngroup={single.type === "group" ? onUngroup : undefined}
           onMoveBy={single.type === "group" ? (dx, dy) => onMoveGroupBy(single.id, dx, dy) : undefined}
           onSetGroupOpacity={single.type === "group" ? (value) => onSetGroupOpacity(single.id, value) : undefined}
@@ -222,22 +224,11 @@ export default function PropertiesToolbar({
       )}
 
       {selectedItems.length >= 1 && (
-        <button
-          type="button"
-          onClick={onToggleAnimationPanel}
-          className={`ml-auto flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-medium transition-colors ${
-            animationPanelOpen
-              ? "border-amber-300 bg-amber-50 text-amber-700"
-              : hasAnimations
-                ? "border-amber-200 bg-white text-amber-600 hover:bg-amber-50"
-                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-          }`}
-          title="Animate"
-          aria-pressed={animationPanelOpen}
-        >
-          <Sparkles size={15} />
-          Animate
-        </button>
+        <SelectionMoreMenu
+          animationPanelOpen={animationPanelOpen}
+          onToggleAnimationPanel={onToggleAnimationPanel}
+          hasAnimations={hasAnimations}
+        />
       )}
     </div>
   );

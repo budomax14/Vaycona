@@ -1,0 +1,12 @@
+{
+  "name": "functions",
+  "description": "Backend for DUMA STUDIO's AI Illustration generation — the only place that ever sees the OpenAI API key.",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-functions": "^5.1.1"
+  }
+}

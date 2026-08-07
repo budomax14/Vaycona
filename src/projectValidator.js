@@ -150,10 +150,10 @@ export function validateProject(data, { assetIndex } = {}) {
         pushFinding(info, "info", "missing-asset", `${item.type === "frame" ? "Frame" : "Image"} "${item.id}" references a missing image asset.`, item.id);
       }
     }
-    if (item.type === "text" && item.fillImage?.assetId && assetIndex) {
+    if ((item.type === "text" || item.type === "shape") && item.fillImage?.assetId && assetIndex) {
       const assetId = item.fillImage.assetId;
       if (!assetIndex.has?.(assetId) && !(assetId in (assetIndex || {}))) {
-        pushFinding(info, "info", "missing-asset", `Text "${item.id}" references a missing image fill asset.`, item.id);
+        pushFinding(info, "info", "missing-asset", `${item.type === "shape" ? "Shape" : "Text"} "${item.id}" references a missing image fill asset.`, item.id);
       }
     }
 

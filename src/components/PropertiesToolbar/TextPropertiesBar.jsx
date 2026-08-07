@@ -1,20 +1,9 @@
 import React, { useState } from "react";
-import {
-  AlignCenter,
-  AlignJustify,
-  AlignLeft,
-  AlignRight,
-  Bold,
-  Check,
-  Italic,
-  Type,
-  Underline,
-} from "lucide-react";
+import { Bold, Check, Italic, Type, Underline } from "lucide-react";
 import { IconButton, IconToggleButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
-import ObjectTransformMenu from "./ObjectTransformMenu";
-import TransformMenu from "./TransformMenu";
 import FontFamilyPicker from "./FontFamilyPicker";
 import TextColorPanel from "./TextColorPanel";
+import TextAlignMenu from "./TextAlignMenu";
 import TextListMenu from "./TextListMenu";
 import TextEffectsMenu from "./TextEffectsMenu";
 import TextCurveMenu from "./TextCurveMenu";
@@ -25,11 +14,9 @@ import { useAsset } from "../../useAsset";
 // Trimmed to the controls used on nearly every edit — font, size, bold/
 // italic/underline, color, alignment, opacity, list, effects — everything
 // else (strikethrough, vertical align, spacing, case, text box sizing,
-// background/border, brand typography, format painter) still lives one
-// click away in TextMoreMenu, just not cluttering the main row anymore.
-// Position/size/rotate/lock/order/delete (ObjectTransformFields) are collapsed
-// into the single "Arrange" button (ObjectTransformMenu) ahead of Edit text,
-// rather than sitting exposed at the front of the bar.
+// background/border, brand typography, format painter, arrange, transform)
+// still lives one click away in TextMoreMenu, just not cluttering the main
+// row anymore.
 export default function TextPropertiesBar({
   item,
   unit,
@@ -60,21 +47,6 @@ export default function TextPropertiesBar({
 
   return (
     <>
-      <ObjectTransformMenu
-        item={item}
-        unit={unit}
-        onChange={onChange}
-        onDuplicate={onDuplicate}
-        onDelete={onDelete}
-        onForward={onForward}
-        onBackward={onBackward}
-        onToggleLock={onToggleLock}
-        onToggleHidden={onToggleHidden}
-        onAlignToPage={onAlignToPage}
-      />
-
-      <ToolbarDivider />
-
       <IconToggleButton
         icon={isEditingText ? Check : Type}
         active={isEditingText}
@@ -91,7 +63,7 @@ export default function TextPropertiesBar({
         value={item.fontSize || 24}
         min={1}
         max={800}
-        onChange={(value) => onApplyFormat("fontSize", Math.max(1, value))}
+        onChange={(value) => onApplyFormat("fontSize", value)}
       />
 
       <ToolbarDivider />
@@ -129,14 +101,7 @@ export default function TextPropertiesBar({
 
       <ToolbarDivider />
 
-      <IconToggleButton icon={AlignLeft} active={(item.align || "left") === "left"} onClick={() => onChange({ align: "left" })} title="Align left" />
-      <IconToggleButton icon={AlignCenter} active={item.align === "center"} onClick={() => onChange({ align: "center" })} title="Align center" />
-      <IconToggleButton icon={AlignRight} active={item.align === "right"} onClick={() => onChange({ align: "right" })} title="Align right" />
-      <IconToggleButton icon={AlignJustify} active={item.align === "justify"} onClick={() => onChange({ align: "justify" })} title="Justify" />
-
-      <ToolbarDivider />
-
-      <TransformMenu item={item} onChange={onChange} />
+      <TextAlignMenu item={item} onChange={onChange} />
 
       <ToolbarDivider />
 
@@ -152,6 +117,7 @@ export default function TextPropertiesBar({
 
       <TextMoreMenu
         item={item}
+        unit={unit}
         onChange={onChange}
         onApplyFormat={onApplyFormat}
         onCopyTextStyle={onCopyTextStyle}
@@ -159,6 +125,13 @@ export default function TextPropertiesBar({
         hasCopiedTextStyle={hasCopiedTextStyle}
         onClearTextFormatting={onClearTextFormatting}
         onApplyProjectTextStyle={onApplyProjectTextStyle}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onForward={onForward}
+        onBackward={onBackward}
+        onToggleLock={onToggleLock}
+        onToggleHidden={onToggleHidden}
+        onAlignToPage={onAlignToPage}
         brand={brand}
       />
 

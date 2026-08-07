@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { Crop, FlipHorizontal, FlipVertical, ImageOff, Replace, RotateCcw } from "lucide-react";
 import { IconButton, IconToggleButton, LabeledField, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
-import ObjectTransformMenu from "./ObjectTransformMenu";
+import ObjectMoreMenu from "./ObjectMoreMenu";
 import FiltersPopover from "./FiltersPopover";
 import { useAsset } from "../../useAsset";
 import { FRAME_KIND_ORDER, FRAME_KINDS } from "../../frameKinds";
@@ -30,21 +30,6 @@ export default function FramePropertiesBar({
 
   return (
     <>
-      <ObjectTransformMenu
-        item={item}
-        unit={unit}
-        onChange={onChange}
-        onDuplicate={onDuplicate}
-        onDelete={onDelete}
-        onForward={onForward}
-        onBackward={onBackward}
-        onToggleLock={onToggleLock}
-        onToggleHidden={onToggleHidden}
-        onAlignToPage={onAlignToPage}
-      />
-
-      <ToolbarDivider />
-
       <LabeledField label="Frame shape">
         <select
           className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
@@ -101,6 +86,21 @@ export default function FramePropertiesBar({
           <IconButton icon={RotateCcw} label="Reset edits" title="Reset image edits" onClick={onResetImageEdits} />
         </>
       )}
+
+      <ToolbarDivider />
+
+      <ObjectMoreMenu
+        item={item}
+        unit={unit}
+        onChange={onChange}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onForward={onForward}
+        onBackward={onBackward}
+        onToggleLock={onToggleLock}
+        onToggleHidden={onToggleHidden}
+        onAlignToPage={onAlignToPage}
+      />
     </>
   );
 }

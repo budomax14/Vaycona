@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link2, Maximize2, Minus, Plus, StretchHorizontal, Unlink, X } from "lucide-react";
+import { Link2, Maximize2, Minimize2, Minus, Plus, StretchHorizontal, Unlink, X } from "lucide-react";
 import { useRecentColors } from "../../recentColorsContext";
 import { useBrandKits } from "../../brandKitContext";
 import { useDocumentColors } from "../../documentColorsContext";
@@ -84,6 +84,16 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
             title="Fill — cover the whole box, crop excess"
           >
             <Maximize2 size={12} /> Fill
+          </button>
+          <button
+            type="button"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
+              imageValue.fit === "fit" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
+            }`}
+            onClick={() => onChangeImage({ fit: "fit" })}
+            title="Fit — show the whole image inside the box, no cropping (may leave empty space)"
+          >
+            <Minimize2 size={12} /> Fit
           </button>
           <button
             type="button"
@@ -277,9 +287,23 @@ export default function TextColorPanel({
       : null;
   // "stretch" always exactly fills the box on both axes by construction —
   // there's no excess to pan around in, so both are false rather than
-  // reading a cropRect that mode never has (see imageFill.js).
-  const canPanX = isStretch ? false : !imageFillLayout || imageFillLayout.cropRect.width < imageNaturalWidth - 0.5;
-  const canPanY = isStretch ? false : !imageFillLayout || imageFillLayout.cropRect.height < imageNaturalHeight - 0.5;
+  // reading a cropRect that mode never has (see imageFill.js). "fit"
+  // (contain) has no cropRect either — it's pannable only once zoom has
+  // grown the drawn image past the box on that axis.
+  const canPanX = isStretch
+    ? false
+    : !imageFillLayout
+    ? true
+    : imageFillLayout.mode === "contain"
+    ? imageFillLayout.drawWidth > (imageBoxWidth || 1) + 0.5
+    : imageFillLayout.cropRect.width < imageNaturalWidth - 0.5;
+  const canPanY = isStretch
+    ? false
+    : !imageFillLayout
+    ? true
+    : imageFillLayout.mode === "contain"
+    ? imageFillLayout.drawHeight > (imageBoxHeight || 1) + 0.5
+    : imageFillLayout.cropRect.height < imageNaturalHeight - 0.5;
 
   useEffect(() => {
     if (isOpen) {
@@ -296,10 +320,25 @@ export default function TextColorPanel({
   // (ImageFillOverlay.jsx) — that mode must be explicitly scoped to this
   // tab being open, otherwise it would fight with normal object-move
   // dragging every time image-fill text is simply selected.
+  //
+  // onImageTabActiveChange is an inline closure re-created on every parent
+  // render (ShapePropertiesBar/TextPropertiesBar don't memoize it), so it
+  // must NOT be a dependency here — with it in the deps array, any
+  // unrelated parent re-render (e.g. the fill-swatch asset preview
+  // resolving) tears the effect down and immediately fires its cleanup
+  // (onImageTabActiveChange(false)), which forces an exit out of image-fill
+  // edit mode a moment after entering it. Mirroring it through a ref (same
+  // itemsRef-style idiom App.jsx uses elsewhere) keeps the callback fresh
+  // without making it a dependency, so this only actually fires when
+  // isOpen/tab truly change.
+  const onImageTabActiveChangeRef = useRef(onImageTabActiveChange);
   useEffect(() => {
-    onImageTabActiveChange?.(isOpen && tab === "image");
-    return () => onImageTabActiveChange?.(false);
-  }, [isOpen, tab, onImageTabActiveChange]);
+    onImageTabActiveChangeRef.current = onImageTabActiveChange;
+  });
+  useEffect(() => {
+    onImageTabActiveChangeRef.current?.(isOpen && tab === "image");
+    return () => onImageTabActiveChangeRef.current?.(false);
+  }, [isOpen, tab]);
 
   useEffect(() => {
     if (!isOpen) return undefined;

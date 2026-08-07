@@ -2,8 +2,9 @@ import React, { useEffect, useRef } from "react";
 import { computeRulerSteps } from "./viewport";
 import { pxToDisplay } from "./measurement";
 import { RULER_THICKNESS as THICKNESS } from "./constants";
+import { useTheme } from "./themeContext";
 
-function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unitKey, selectionExtent) {
+function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unitKey, selectionExtent, isDark) {
   const dpr = window.devicePixelRatio || 1;
   const width = orientation === "horizontal" ? length : THICKNESS;
   const height = orientation === "horizontal" ? THICKNESS : length;
@@ -16,7 +17,7 @@ function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unit
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#f9fafb";
+  ctx.fillStyle = isDark ? "#171d2b" : "#f9fafb";
   ctx.fillRect(0, 0, width, height);
 
   const offset = orientation === "horizontal" ? viewport.x : viewport.y;
@@ -31,8 +32,8 @@ function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unit
     else ctx.fillRect(0, startPos, THICKNESS, endPos - startPos);
   }
 
-  ctx.strokeStyle = "#9ca3af";
-  ctx.fillStyle = "#4b5563";
+  ctx.strokeStyle = isDark ? "#4b5563" : "#9ca3af";
+  ctx.fillStyle = isDark ? "#d1d5db" : "#4b5563";
   ctx.font = "10px Inter, ui-sans-serif, sans-serif";
   ctx.lineWidth = 1;
 
@@ -96,12 +97,13 @@ function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unit
 
 export default function Ruler({ orientation, viewport, viewportLength, cursorContentPos, onGuideDragStart, unit = "px", selectionExtent = null, className = "" }) {
   const canvasRef = useRef(null);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     if (canvasRef.current) {
-      drawRuler(canvasRef.current, viewportLength, orientation, viewport, cursorContentPos, unit, selectionExtent);
+      drawRuler(canvasRef.current, viewportLength, orientation, viewport, cursorContentPos, unit, selectionExtent, isDark);
     }
-  }, [orientation, viewport, viewportLength, cursorContentPos, unit, selectionExtent]);
+  }, [orientation, viewport, viewportLength, cursorContentPos, unit, selectionExtent, isDark]);
 
   return (
     <canvas

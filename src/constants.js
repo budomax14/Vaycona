@@ -97,13 +97,12 @@ export const IMPORT_MAX_GROUP_DEPTH = 30;
 // compressed size is treated as a likely archive bomb and rejected.
 export const IMPORT_MAX_COMPRESSION_RATIO = 200;
 
-// Template Management Admin — local-only passcode gate (no server, no real
-// user accounts; see adminAuth.js) plus the per-template draft-autosave key
-// prefix used ONLY by the admin template editor, kept entirely separate
-// from WORKSPACE_STORAGE_KEY so editing a template can never touch the
-// user's live personal project.
-export const ADMIN_PASSCODE_HASH_KEY = "personal-canva-admin-passcode-v1";
-export const ADMIN_UNLOCKED_KEY = "personal-canva-admin-unlocked-v1";
+// Template Management Admin — access is gated by Firebase Auth identity
+// (see authContext.jsx's isAdmin), not a local passcode. Plus the
+// per-template draft-autosave key prefix used ONLY by the admin template
+// editor, kept entirely separate from WORKSPACE_STORAGE_KEY so editing a
+// template can never touch the user's live personal project.
+export const ADMIN_EMAIL = "budomax1995@gmail.com";
 export const ADMIN_TEMPLATE_DRAFT_STORAGE_KEY_PREFIX = "personal-canva-admin-template-draft-v1";
 export const ADMIN_CUSTOM_CATEGORIES_KEY = "personal-canva-admin-custom-categories-v1";
 

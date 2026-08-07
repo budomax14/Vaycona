@@ -1,8 +1,7 @@
 import React, { useRef } from "react";
 import { Crop, Maximize, Replace, Undo2 } from "lucide-react";
 import { IconButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
-import ObjectTransformMenu from "./ObjectTransformMenu";
-import TransformMenu from "./TransformMenu";
+import ObjectMoreMenu from "./ObjectMoreMenu";
 import FiltersPopover from "./FiltersPopover";
 import ImageStylePicker from "./ImageStylePicker";
 import { useAsset } from "../../useAsset";
@@ -31,21 +30,6 @@ export default function ImagePropertiesBar({
 
   return (
     <>
-      <ObjectTransformMenu
-        item={item}
-        unit={unit}
-        onChange={onChange}
-        onDuplicate={onDuplicate}
-        onDelete={onDelete}
-        onForward={onForward}
-        onBackward={onBackward}
-        onToggleLock={onToggleLock}
-        onToggleHidden={onToggleHidden}
-        onAlignToPage={onAlignToPage}
-      />
-
-      <ToolbarDivider />
-
       <IconButton icon={Crop} label="Crop" onClick={onEnterCropMode} disabled={!item.assetId} />
 
       <IconButton icon={Replace} label="Replace" onClick={() => fileInputRef.current?.click()} />
@@ -80,10 +64,6 @@ export default function ImagePropertiesBar({
 
       <ToolbarDivider />
 
-      <TransformMenu item={item} onChange={onChange} />
-
-      <ToolbarDivider />
-
       <FiltersPopover
         adjustments={item.adjustments}
         previewSrc={objectUrl}
@@ -98,6 +78,22 @@ export default function ImagePropertiesBar({
 
       <IconButton icon={Maximize} label="Restore ratio" title="Restore original aspect ratio" onClick={onRestoreOriginalRatio} />
       <IconButton icon={Undo2} label="Reset edits" title="Reset image edits" onClick={onResetImageEdits} />
+
+      <ToolbarDivider />
+
+      <ObjectMoreMenu
+        showTransform
+        item={item}
+        unit={unit}
+        onChange={onChange}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onForward={onForward}
+        onBackward={onBackward}
+        onToggleLock={onToggleLock}
+        onToggleHidden={onToggleHidden}
+        onAlignToPage={onAlignToPage}
+      />
     </>
   );
 }

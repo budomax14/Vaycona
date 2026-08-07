@@ -1,6 +1,6 @@
 import React from "react";
 import { ColorField, SliderField, ToolbarDivider } from "./toolbarUi";
-import ObjectTransformMenu from "./ObjectTransformMenu";
+import ObjectMoreMenu from "./ObjectMoreMenu";
 import ObjectStylePicker from "./ObjectStylePicker";
 
 export default function IconPropertiesBar({
@@ -18,21 +18,6 @@ export default function IconPropertiesBar({
 }) {
   return (
     <>
-      <ObjectTransformMenu
-        item={item}
-        unit={unit}
-        onChange={onChange}
-        onDuplicate={onDuplicate}
-        onDelete={onDelete}
-        onForward={onForward}
-        onBackward={onBackward}
-        onToggleLock={onToggleLock}
-        onToggleHidden={onToggleHidden}
-        onAlignToPage={onAlignToPage}
-      />
-
-      <ToolbarDivider />
-
       <ColorField
         label="Color"
         value={item.fill || "#111827"}
@@ -50,6 +35,21 @@ export default function IconPropertiesBar({
         min={0.1}
         max={1}
         onChange={(value) => onChange({ opacity: value })}
+      />
+
+      <ToolbarDivider />
+
+      <ObjectMoreMenu
+        item={item}
+        unit={unit}
+        onChange={onChange}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onForward={onForward}
+        onBackward={onBackward}
+        onToggleLock={onToggleLock}
+        onToggleHidden={onToggleHidden}
+        onAlignToPage={onAlignToPage}
       />
     </>
   );
