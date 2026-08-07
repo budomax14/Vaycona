@@ -25,6 +25,7 @@ import { getAssetBlob, getAssetMeta } from "../assetStore";
 import { createSvgPathContext } from "./svgPathContext";
 import { ExportCancelledError, renderPageToCanvas } from "./offscreenRenderer";
 import { borderDashProps } from "../borderStyles";
+import { computeTableLayout, resolveCellStyle } from "../tableUtils";
 
 function escapeXml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -378,6 +379,20 @@ async function rasterizeItemForSvg(item, renderScale) {
   return dataUrl;
 }
 
+// Charts are Recharts-rendered SVG/DOM content with no faithful
+// translation into this exporter's own hand-built SVG primitives (same
+// class of problem as image-fill patterns/rich text above), so this
+// reuses the identical rasterize-and-embed idiom: render just this one
+// item through the shared offscreen Konva pipeline (which already
+// produces the exact same KonvaImage a live/PNG export would show, per
+// ChartNode.jsx/useChartImage.jsx) and embed the result as a raster
+// <image>.
+async function renderChartItem(item, renderScale) {
+  const dataUrl = await rasterizeItemForSvg(item, renderScale);
+  const inner = `<image href="${dataUrl}" x="0" y="0" width="${item.width}" height="${item.height}" opacity="1" />`;
+  return wrapItem({ ...item, opacity: item.opacity ?? 1 }, inner);
+}
+
 async function renderTextItem(item, renderScale) {
   if (isVectorSafeText(item)) return renderVectorTextItem(item);
   const dataUrl = await rasterizeItemForSvg(item, renderScale);
@@ -388,6 +403,100 @@ async function renderTextItem(item, renderScale) {
   return wrapItem({ ...item, opacity: item.opacity ?? 1 }, inner);
 }
 
+// Unlike chart (Recharts DOM/SVG with no faithful translation, so it always
+// rasterizes), a table's content is simple rectilinear vector geometry — the
+// exact same grid/fill/border math TableNode.jsx uses for the live canvas
+// (tableUtils.computeTableLayout/resolveCellStyle), so this builds real
+// <rect>/<line>/<text> instead of embedding a raster image. Keeps exported
+// borders and text crisp at any zoom, and text stays real/selectable SVG
+// text rather than a bitmap.
+function renderTableItem(item) {
+  const layout = computeTableLayout(item);
+  const { colOffsets, rowOffsets, totalWidth, totalHeight, mergeMap } = layout;
+  const border = item.styles?.border || {};
+  const show = border.show || {};
+  const padding = item.styles?.padding ?? 8;
+  const cornerRadius = item.styles?.cornerRadius || 0;
+  const strokeColor = border.color || "#d1d5db";
+  const strokeWidth = border.width ?? 1;
+  const { dash } = borderDashProps(border.style, strokeWidth);
+  const dashAttr = dash ? ` stroke-dasharray="${dash.join(",")}"` : "";
+
+  let clipDefs = "";
+  let clipAttr = "";
+  if (cornerRadius > 0) {
+    const clipId = nextClipId();
+    clipDefs = `<clipPath id="${clipId}"><rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" rx="${cornerRadius}" /></clipPath>`;
+    clipAttr = ` clip-path="url(#${clipId})"`;
+  }
+
+  let cells = "";
+  for (let r = 0; r < item.rows; r += 1) {
+    for (let c = 0; c < item.columns; c += 1) {
+      const merge = mergeMap.get(`${r},${c}`);
+      if (merge && !merge.isAnchor) continue;
+      const rect = layout.cellRect(r, c);
+      const style = resolveCellStyle(item, r, c);
+      if (style.fill && style.fill !== "transparent") {
+        cells += `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" fill="${style.fill}" />`;
+      }
+      const text = item.cells?.[r]?.[c]?.text || "";
+      if (text) {
+        const anchor = style.align === "center" ? "middle" : style.align === "right" ? "end" : "start";
+        const textX = style.align === "center" ? rect.x + rect.width / 2 : style.align === "right" ? rect.x + rect.width - padding : rect.x + padding;
+        const fontSize = style.fontSize || 14;
+        const textY =
+          style.valign === "top"
+            ? rect.y + padding + fontSize * 0.8
+            : style.valign === "bottom"
+              ? rect.y + rect.height - padding
+              : rect.y + rect.height / 2 + fontSize * 0.3;
+        const weight = style.bold ? "bold" : "normal";
+        const fontStyleAttr = style.italic ? "italic" : "normal";
+        const decoration = style.underline ? ' text-decoration="underline"' : "";
+        cells += `<text x="${textX}" y="${textY}" text-anchor="${anchor}" font-family="${escapeXml(style.fontFamily || "Arial")}" font-size="${fontSize}" font-weight="${weight}" font-style="${fontStyleAttr}"${decoration} fill="${style.color || "#111827"}">${escapeXml(text)}</text>`;
+      }
+    }
+  }
+
+  let gridLines = "";
+  if (show.insideV) {
+    for (let i = 1; i < item.columns; i += 1) {
+      for (let r = 0; r < item.rows; r += 1) {
+        const left = mergeMap.get(`${r},${i - 1}`);
+        const right = mergeMap.get(`${r},${i}`);
+        if (left && right && left.anchorRow === right.anchorRow && left.anchorCol === right.anchorCol) continue;
+        gridLines += `<line x1="${colOffsets[i]}" y1="${rowOffsets[r]}" x2="${colOffsets[i]}" y2="${rowOffsets[r + 1]}" stroke="${strokeColor}" stroke-width="${strokeWidth}"${dashAttr} />`;
+      }
+    }
+  }
+  if (show.insideH) {
+    for (let j = 1; j < item.rows; j += 1) {
+      for (let c = 0; c < item.columns; c += 1) {
+        const top = mergeMap.get(`${j - 1},${c}`);
+        const bottom = mergeMap.get(`${j},${c}`);
+        if (top && bottom && top.anchorRow === bottom.anchorRow && top.anchorCol === bottom.anchorCol) continue;
+        gridLines += `<line x1="${colOffsets[c]}" y1="${rowOffsets[j]}" x2="${colOffsets[c + 1]}" y2="${rowOffsets[j]}" stroke="${strokeColor}" stroke-width="${strokeWidth}"${dashAttr} />`;
+      }
+    }
+  }
+
+  let outerBorder = "";
+  if (cornerRadius > 0) {
+    if (show.top || show.bottom || show.left || show.right) {
+      outerBorder = `<rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" rx="${cornerRadius}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}"${dashAttr} />`;
+    }
+  } else {
+    if (show.top) outerBorder += `<line x1="0" y1="0" x2="${totalWidth}" y2="0" stroke="${strokeColor}" stroke-width="${strokeWidth}"${dashAttr} />`;
+    if (show.bottom) outerBorder += `<line x1="0" y1="${totalHeight}" x2="${totalWidth}" y2="${totalHeight}" stroke="${strokeColor}" stroke-width="${strokeWidth}"${dashAttr} />`;
+    if (show.left) outerBorder += `<line x1="0" y1="0" x2="0" y2="${totalHeight}" stroke="${strokeColor}" stroke-width="${strokeWidth}"${dashAttr} />`;
+    if (show.right) outerBorder += `<line x1="${totalWidth}" y1="0" x2="${totalWidth}" y2="${totalHeight}" stroke="${strokeColor}" stroke-width="${strokeWidth}"${dashAttr} />`;
+  }
+
+  const inner = `<g${clipAttr}>${cells}${gridLines}</g>${outerBorder}`;
+  return wrapItem(item, inner, { extraDefs: clipDefs });
+}
+
 async function renderItemToSvg(item, { availableAssetIds, renderScale }) {
   if (item.type === "shape") return renderShapeItem(item, renderScale);
   if (item.type === "line") return renderLineItem(item);
@@ -395,6 +504,8 @@ async function renderItemToSvg(item, { availableAssetIds, renderScale }) {
   if (item.type === "text") return renderTextItem(item, renderScale);
   if (item.type === "frame") return renderFrameItem(item, availableAssetIds);
   if (item.type === "image") return renderImageItem(item, availableAssetIds);
+  if (item.type === "chart") return renderChartItem(item, renderScale);
+  if (item.type === "table") return renderTableItem(item);
   return "";
 }
 

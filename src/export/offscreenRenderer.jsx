@@ -94,6 +94,11 @@ function countExpectedImageNodes(page, items, availableAssetIds) {
     if (item.pageId !== page.id || isEffectivelyHidden(item, itemsById)) return false;
     if (item.type === "image") return !!item.assetId && availableAssetIds.has(item.assetId);
     if (item.type === "frame") return !!item.contentAssetId && availableAssetIds.has(item.contentAssetId);
+    // ChartNode always eventually mounts a KonvaImage — useChartImage.jsx
+    // rasterizes an explicit "No chart data" placeholder SVG even when
+    // data/series are empty, so unlike image/frame there's no asset-
+    // availability precondition to check here.
+    if (item.type === "chart") return true;
     return false;
   }).length;
 }

@@ -1,18 +1,24 @@
 import { SHAPE_KINDS } from "./shapeKinds";
 import { LINE_KINDS } from "./lineKinds";
 import { FRAME_KINDS } from "./frameKinds";
+import { CHART_KINDS, createChart } from "./chartKinds";
 import ShapeNode from "./nodes/ShapeNode";
 import LineNode from "./nodes/LineNode";
 import IconNode from "./nodes/IconNode";
 import FrameNode from "./nodes/FrameNode";
 import TextNode from "./nodes/TextNode";
 import ImageNode from "./nodes/ImageNode";
+import ChartNode from "./nodes/ChartNode";
+import TableNode from "./nodes/TableNode";
 import ShapePropertiesBar from "./components/PropertiesToolbar/ShapePropertiesBar";
 import TextPropertiesBar from "./components/PropertiesToolbar/TextPropertiesBar";
 import ImagePropertiesBar from "./components/PropertiesToolbar/ImagePropertiesBar";
 import IconPropertiesBar from "./components/PropertiesToolbar/IconPropertiesBar";
 import FramePropertiesBar from "./components/PropertiesToolbar/FramePropertiesBar";
 import GroupPropertiesBar from "./components/PropertiesToolbar/GroupPropertiesBar";
+import ChartPropertiesBar from "./components/PropertiesToolbar/ChartPropertiesBar";
+import TablePropertiesBar from "./components/PropertiesToolbar/TablePropertiesBar";
+import { createTableData } from "./tableUtils";
 import { defaultTextEffects } from "./textEffects";
 import { DEFAULT_CROP } from "./imageCrop";
 import { DEFAULT_ADJUSTMENTS } from "./imageEffects";
@@ -188,6 +194,28 @@ export const REGISTRY = {
       usesTransformer: true,
       ...(FRAME_KINDS[item.frameKind]?.transformsOverride ?? {}),
     }),
+  },
+
+  chart: {
+    displayName: "Chart",
+    kinds: CHART_KINDS,
+    renderer: ChartNode,
+    propertiesBar: ChartPropertiesBar,
+    defaultProps: (chartKind = "bar") => {
+      const { type, ...rest } = createChart({ chartKind });
+      return rest;
+    },
+    controls: () => ["opacity"],
+    transforms: { resizable: true, rotatable: true, usesTransformer: true },
+  },
+
+  table: {
+    displayName: "Table",
+    renderer: TableNode,
+    propertiesBar: TablePropertiesBar,
+    defaultProps: ({ rows, columns, data } = {}) => createTableData({ rows, columns, data }),
+    controls: () => ["opacity"],
+    transforms: { resizable: true, rotatable: true, usesTransformer: true },
   },
 
   group: {

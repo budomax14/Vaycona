@@ -1,6 +1,7 @@
 import React from "react";
 import {
   AppWindow,
+  BarChart3,
   Blocks,
   Camera,
   Files,
@@ -10,25 +11,25 @@ import {
   LayoutDashboard,
   LayoutTemplate,
   Palette,
-  Shapes,
   Sparkles,
   Sticker,
+  Table2,
   Type,
   Upload,
   X,
 } from "lucide-react";
 
 export const SECTIONS = [
-  { key: "design", label: "Design", icon: LayoutDashboard },
   { key: "templates", label: "Templates", icon: LayoutTemplate },
+  { key: "design", label: "Design", icon: LayoutDashboard },
   { key: "elements", label: "Elements", icon: Blocks },
   { key: "text", label: "Text", icon: Type },
   { key: "uploads", label: "Uploads", icon: Upload },
   { key: "photos", label: "Photos", icon: Camera },
-  { key: "shapes", label: "Shapes", icon: Shapes },
+  { key: "chart", label: "Chart", icon: BarChart3 },
+  { key: "table", label: "Table", icon: Table2 },
   { key: "icons", label: "Icons", icon: Sticker },
   { key: "illustrations", label: "Illustrations", icon: Images },
-  { key: "backgrounds", label: "Backgrounds", icon: Palette },
   { key: "layers", label: "Layers", icon: LayersIcon },
   { key: "pages", label: "Pages", icon: Files },
   { key: "brand", label: "Brand Assets", icon: Sparkles },

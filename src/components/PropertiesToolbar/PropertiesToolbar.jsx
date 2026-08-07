@@ -33,6 +33,8 @@ export default function PropertiesToolbar({
   editingTextId,
   onEditText,
   onExitTextEdit,
+  onEditChartData,
+  tableEdit,
   onApplyFormat,
   onApplyListFormat,
   onCopyTextStyle,
@@ -190,6 +192,8 @@ export default function PropertiesToolbar({
           onPasteTextStyle={single.type === "text" ? () => onPasteTextStyle(single.id) : undefined}
           hasCopiedTextStyle={hasCopiedTextStyle}
           onClearTextFormatting={single.type === "text" ? () => onClearTextFormatting(single.id) : undefined}
+          onEditChartData={single.type === "chart" ? () => onEditChartData(single.id) : undefined}
+          tableEdit={single.type === "table" ? tableEdit : undefined}
           onApplyProjectTextStyle={single.type === "text" ? (style) => onApplyProjectTextStyle(single.id, style) : undefined}
           onEnterImageFillEditMode={
             single.type === "text" || single.type === "shape" ? () => onEnterImageFillEditMode(single.id) : undefined

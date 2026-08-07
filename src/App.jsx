@@ -10,7 +10,8 @@ import PropertiesToolbar from "./components/PropertiesToolbar/PropertiesToolbar"
 import LeftSidebar, { SECTIONS } from "./components/LeftSidebar/LeftSidebar";
 import UploadsPanel from "./components/LeftSidebar/panels/UploadsPanel";
 import TextPanel from "./components/LeftSidebar/panels/TextPanel";
-import ShapesPanel from "./components/LeftSidebar/panels/ShapesPanel";
+import ChartPanel from "./components/LeftSidebar/panels/ChartPanel";
+import TablePanel from "./components/LeftSidebar/panels/TablePanel";
 import BackgroundsPanel from "./components/LeftSidebar/panels/BackgroundsPanel";
 import ElementsPanel from "./components/LeftSidebar/panels/ElementsPanel";
 import IconsPanel from "./components/LeftSidebar/panels/IconsPanel";
@@ -21,6 +22,7 @@ import ComingSoonPanel from "./components/LeftSidebar/panels/ComingSoonPanel";
 import StatusBar from "./components/StatusBar/StatusBar";
 import Workspace from "./components/Workspace/Workspace";
 import ResizeModal from "./components/ResizeModal";
+import ChartDataEditor from "./components/ChartDataEditor";
 import { RecentColorsProvider } from "./recentColorsContext";
 import {
   createHistory,
@@ -32,7 +34,32 @@ import {
   HISTORY_LIMIT,
 } from "./history";
 import LineEndpointHandles, { getLineEndpointsContent } from "./components/LineEndpointHandles";
+import TableEditChrome from "./components/TableEditChrome";
+import TableCellEditOverlay from "./components/TableCellEditOverlay";
 import { getApplyMatrix, getDefaultProps, getTransforms } from "./objectRegistry";
+import {
+  computeTableLayout,
+  cloneTableData,
+  insertRow as insertTableRow,
+  deleteRow as deleteTableRow,
+  insertColumn as insertTableColumn,
+  deleteColumn as deleteTableColumn,
+  mergeCellRange,
+  unmergeCell,
+  canMergeRange,
+  setColumnWidth as setTableColumnWidth,
+  setRowHeight as setTableRowHeight,
+  setCellsStyle,
+  setCellText,
+  clearCellsRange,
+  resizeTableToFit,
+  applyPastedGrid,
+  normalizeRange,
+  getMergeMap,
+  resolveCellStyle,
+  MAX_TABLE_DIM,
+} from "./tableUtils";
+import { parseDelimitedText } from "./tableParse";
 import {
   expandToLeafIds,
   getAncestorChain,
@@ -48,6 +75,7 @@ import { SHAPE_KIND_ORDER } from "./shapeKinds";
 import { LINE_KIND_ORDER } from "./lineKinds";
 import { findIconByName } from "./iconCatalog";
 import { FRAME_KIND_ORDER } from "./frameKinds";
+import { CHART_KINDS } from "./chartKinds";
 import TextEditOverlay from "./components/TextEditOverlay";
 import CropOverlay from "./components/CropOverlay";
 import ImageFillOverlay from "./components/ImageFillOverlay";
@@ -756,6 +784,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [hasManualZoomOrPan, setHasManualZoomOrPan] = useState(initialWorkspace.hasManualZoomOrPan);
   const [isResizeOpen, setIsResizeOpen] = useState(false);
   const [isExportAnimationOpen, setIsExportAnimationOpen] = useState(false);
+  const [editingChartId, setEditingChartId] = useState(null);
+
+  // Table cell-edit mode — parallel in shape to editingTextId/croppingItemId
+  // above: the table stays selected (selectedIds still holds its id) while
+  // editingTableId is set, and a separate cell-range selection layer opens
+  // up on top (spec §5/§43). activeTableCell tracks which single cell (if
+  // any) currently has its DOM contentEditable overlay mounted for typing.
+  const [editingTableId, setEditingTableId] = useState(null);
+  const [tableCellSelection, setTableCellSelection] = useState(null);
+  const [activeTableCell, setActiveTableCell] = useState(null);
+  const tableCellClipboardRef = useRef(null);
 
   const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [isShiftDown, setIsShiftDown] = useState(false);
@@ -889,6 +928,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const enteredGroupIdRef = useRef(enteredGroupId);
   const croppingItemIdRef = useRef(croppingItemId);
   const imageFillEditItemIdRef = useRef(imageFillEditItemId);
+  const editingTableIdRef = useRef(editingTableId);
+  const tableCellSelectionRef = useRef(tableCellSelection);
   const interactionModeRef = useRef(interactionMode);
   // Mirrors historyState, but also updated SYNCHRONOUSLY by commit/
   // commitPages/commitBoth/undo/redo (not just after render, like the
@@ -912,6 +953,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   enteredGroupIdRef.current = enteredGroupId;
   croppingItemIdRef.current = croppingItemId;
   imageFillEditItemIdRef.current = imageFillEditItemId;
+  editingTableIdRef.current = editingTableId;
+  tableCellSelectionRef.current = tableCellSelection;
   interactionModeRef.current = interactionMode;
 
   // Phase 10 — application-level precision prefs persist to their own
@@ -1071,6 +1114,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // side effect would be a surprising, unrequested edit (spec §14).
   function saveNow() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     autosaveRef.current.saveNow();
     checkStorageQuota().then((estimate) => {
       if (estimate && estimate.percentUsed > 0.9) setStorageWarning(estimate);
@@ -1169,6 +1213,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   async function handleCreateManualVersion(name, note) {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     autosaveRef.current.flush();
     const data = buildCurrentProjectData();
     const assetIds = usedAssetIdsFrom(data.items);
@@ -1200,6 +1245,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (!confirmed) return;
 
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     autosaveRef.current.flush();
     await createRecoverySnapshotNow("before-replacement", true);
     await createAutoMilestone("before-version-restore");
@@ -1504,6 +1550,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function openSaveAsTemplateDialog() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     setSaveTemplateError(null);
     setIsSaveAsTemplateOpen(true);
   }
@@ -1561,6 +1608,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   async function commitTemplateDraft() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     autosaveRef.current.flush(); // local per-template draft safety net
     const data = buildCurrentProjectData();
     const report = validateProject(data);
@@ -1602,6 +1650,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function handleTemplateCancel() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     autosaveRef.current.flush();
     templateSession.onCancel?.();
   }
@@ -1611,6 +1660,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // (no `id`) built from the live in-editor data, never persisted.
   function handleTemplatePreview() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     const data = buildCurrentProjectData();
     setPreviewTemplate({
       name: templateSession.templateName,
@@ -1861,7 +1911,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // --- Phase 7D: editable project file export ---
 
   async function exportProject() {
-    if (editingTextIdRef.current) exitTextEdit(); // commit any active compatible edit (spec §6)
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode(); // commit any active compatible edit (spec §6)
     autosaveRef.current.flush();
     await createRecoverySnapshotNow("manual-safety", true); // export prep can't alter state here, but cheap insurance
 
@@ -2122,6 +2173,37 @@ export default function App({ editorMode = "workspace", templateSession = null }
   );
   const hasGroupedSelection = selectedItems.some((item) => item.type === "group");
   const itemsById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
+
+  // Bundled cell-editing controls handed to TablePropertiesBar (spec §44) —
+  // built here rather than inside PropertiesToolbar since it needs direct
+  // access to tableCellSelection/editingTableId, not just the selected item.
+  const editingTableItem = selectedItems.length === 1 && selectedItems[0].type === "table" ? selectedItems[0] : null;
+  const tableEdit =
+    editingTableItem && editingTableId === editingTableItem.id
+      ? (() => {
+          const sel = tableCellSelection;
+          const anchorStyle = sel ? resolveCellStyle(editingTableItem, sel.endRow, sel.endCol) : {};
+          const mergeMap = getMergeMap(editingTableItem);
+          const anchorMerge = sel ? mergeMap.get(`${sel.endRow},${sel.endCol}`) : null;
+          return {
+            isEditing: true,
+            hasSelection: !!sel,
+            style: anchorStyle,
+            canMerge: !!sel && canMergeRange(editingTableItem, sel),
+            canUnmerge: !!anchorMerge,
+            onApplyCellStyle: applyTableCellStyle,
+            onSetCellFill: setTableCellFill,
+            onMerge: mergeTableSelection,
+            onUnmerge: unmergeTableSelection,
+            onInsertRowAbove: () => insertTableRowAdjacent("above"),
+            onInsertRowBelow: () => insertTableRowAdjacent("below"),
+            onDeleteRow: deleteTableRowAtSelection,
+            onInsertColLeft: () => insertTableColumnAdjacent("left"),
+            onInsertColRight: () => insertTableColumnAdjacent("right"),
+            onDeleteColumn: deleteTableColumnAtSelection,
+          };
+        })()
+      : { isEditing: false };
 
   // Phase 12 — while the Timeline is open (scrubbing) or page preview is
   // actively playing, the CANVAS renders the ANIMATED frame at
@@ -2540,6 +2622,36 @@ export default function App({ editorMode = "workspace", templateSession = null }
     );
   }
 
+  function addChart(chartKind = "bar") {
+    const width = 400;
+    const height = 300;
+    addItem(
+      {
+        type: "chart",
+        ...centerPositionFor(width, height),
+        width,
+        height,
+        ...getDefaultProps("chart", chartKind),
+      },
+      `Add ${CHART_KINDS[chartKind]?.label || "chart"}`
+    );
+  }
+
+  function addTable(rows = 3, columns = 3) {
+    const defaultProps = getDefaultProps("table", { rows, columns });
+    const { totalWidth, totalHeight } = computeTableLayout(defaultProps);
+    addItem(
+      {
+        type: "table",
+        ...centerPositionFor(totalWidth, totalHeight),
+        width: totalWidth,
+        height: totalHeight,
+        ...defaultProps,
+      },
+      "Add table"
+    );
+  }
+
   // Adds an already-uploaded asset to the active page — used by clicking/
   // dragging an Uploads panel thumbnail, dropping a file, and pasting.
   // `centerPosition` (if given) is the point the image's CENTER should
@@ -2686,6 +2798,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     else if (item?.type === "image" && !isEffectivelyLocked(item, itemsById)) enterCropMode(itemId);
     else if (item?.type === "frame" && item.contentAssetId && !isEffectivelyLocked(item, itemsById)) enterCropMode(itemId);
     else if (item?.type === "shape" && item.fillImage?.assetId && !isEffectivelyLocked(item, itemsById)) enterImageFillEditMode(itemId);
+    else if (item?.type === "table" && !isEffectivelyLocked(item, itemsById)) enterTableEditMode(itemId);
   }
 
   // --- Inline text editing (Phase 4) ---
@@ -2731,6 +2844,203 @@ export default function App({ editorMode = "workspace", templateSession = null }
     commit((prevItems) => prevItems, { type: "move", label: "Move object", itemIds: editingTextIdRef.current ? [editingTextIdRef.current] : [] });
   }
 
+  // --- Table cell-edit mode (spec §5/§43) — parallel in shape to crop
+  // mode/image-fill mode above: entering doesn't touch history; each
+  // discrete cell/row/column mutation below commits exactly once via
+  // updateItem's default commitChange=true, so every one of them is its
+  // own undo step for free. ---
+
+  function enterTableEditMode(itemId) {
+    const item = itemsRef.current.find((it) => it.id === itemId);
+    if (!item || isEffectivelyLocked(item, itemsById)) return;
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
+    setSelectedIds([itemId]);
+    setEditingTableId(itemId);
+    setTableCellSelection({ startRow: 0, startCol: 0, endRow: 0, endCol: 0 });
+    setActiveTableCell(null);
+  }
+
+  function exitCellTextEdit() {
+    // No-op unless a cell is actively being typed into — matches
+    // exitTextEdit's early-return shape.
+    setActiveTableCell(null);
+  }
+
+  function exitTableEditMode() {
+    if (!editingTableIdRef.current) return;
+    exitCellTextEdit();
+    setEditingTableId(null);
+    setTableCellSelection(null);
+  }
+
+  function getTable(itemId = editingTableIdRef.current) {
+    return itemsRef.current.find((it) => it.id === itemId && it.type === "table") || null;
+  }
+
+  function updateTable(itemId, updater, meta) {
+    const table = getTable(itemId);
+    if (!table) return;
+    const next = updater(table);
+    if (next === table) return;
+    updateItem(itemId, next, true, meta || { type: "edit-table", label: "Edit table", itemIds: [itemId] });
+  }
+
+  function selectTableCell(row, col, { additive = false } = {}) {
+    if (!editingTableIdRef.current) return;
+    if (activeTableCell) exitCellTextEdit();
+    setTableCellSelection((prev) =>
+      additive && prev ? { ...prev, endRow: row, endCol: col } : { startRow: row, startCol: col, endRow: row, endCol: col }
+    );
+  }
+
+  function beginEditingTableCell(row, col) {
+    if (!editingTableIdRef.current) return;
+    setTableCellSelection({ startRow: row, startCol: col, endRow: row, endCol: col });
+    setActiveTableCell({ row, col });
+  }
+
+  function commitTableCellText(row, col, text) {
+    updateTable(
+      editingTableIdRef.current,
+      (table) => setCellText(table, row, col, text),
+      { type: "table-edit-text", label: "Edit cell text", itemIds: [editingTableIdRef.current] }
+    );
+  }
+
+  function moveTableCellSelection(dRow, dCol, { additive = false } = {}) {
+    const table = getTable();
+    const sel = tableCellSelectionRef.current;
+    if (!table || !sel) return;
+    const nextRow = Math.max(0, Math.min(table.rows - 1, sel.endRow + dRow));
+    const nextCol = Math.max(0, Math.min(table.columns - 1, sel.endCol + dCol));
+    setTableCellSelection(additive ? { ...sel, endRow: nextRow, endCol: nextCol } : { startRow: nextRow, startCol: nextCol, endRow: nextRow, endCol: nextCol });
+  }
+
+  function insertTableRowAdjacent(offset) {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    const { startRow, endRow } = normalizeRange(sel);
+    const index = offset === "above" ? startRow : endRow + 1;
+    updateTable(editingTableIdRef.current, (table) => insertTableRow(table, index), { type: "table-insert-row", label: "Insert row" });
+  }
+
+  function deleteTableRowAtSelection() {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    const { startRow } = normalizeRange(sel);
+    updateTable(editingTableIdRef.current, (table) => deleteTableRow(table, startRow), { type: "table-delete-row", label: "Delete row" });
+    setTableCellSelection({ startRow: 0, startCol: 0, endRow: 0, endCol: 0 });
+  }
+
+  function insertTableColumnAdjacent(offset) {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    const { startCol, endCol } = normalizeRange(sel);
+    const index = offset === "left" ? startCol : endCol + 1;
+    updateTable(editingTableIdRef.current, (table) => insertTableColumn(table, index), { type: "table-insert-col", label: "Insert column" });
+  }
+
+  function deleteTableColumnAtSelection() {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    const { startCol } = normalizeRange(sel);
+    updateTable(editingTableIdRef.current, (table) => deleteTableColumn(table, startCol), { type: "table-delete-col", label: "Delete column" });
+    setTableCellSelection({ startRow: 0, startCol: 0, endRow: 0, endCol: 0 });
+  }
+
+  function mergeTableSelection() {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    updateTable(editingTableIdRef.current, (table) => mergeCellRange(table, sel), { type: "table-merge", label: "Merge cells" });
+  }
+
+  function unmergeTableSelection() {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    updateTable(editingTableIdRef.current, (table) => unmergeCell(table, sel.startRow, sel.startCol), {
+      type: "table-unmerge",
+      label: "Unmerge cells",
+    });
+  }
+
+  function applyTableCellStyle(styleChanges) {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    updateTable(editingTableIdRef.current, (table) => setCellsStyle(table, sel, styleChanges), {
+      type: "table-cell-style",
+      label: "Edit cell style",
+    });
+  }
+
+  function setTableCellFill(color) {
+    applyTableCellStyle({ fill: color });
+  }
+
+  function clearTableSelectionCells() {
+    const sel = tableCellSelectionRef.current;
+    if (!sel) return;
+    updateTable(editingTableIdRef.current, (table) => clearCellsRange(table, sel), {
+      type: "table-clear-cells",
+      label: "Clear cells",
+    });
+  }
+
+  // Live (non-committing) drag update for row/column resize — commits once
+  // on release via commitTableColumnWidth/commitTableRowHeight below,
+  // matching the drag/transform continuous-gesture pattern used everywhere
+  // else (spec §33: "capture starting state, update live, commit once").
+  function liveTableColumnWidth(itemId, index, width) {
+    const table = getTable(itemId);
+    if (!table) return;
+    updateItem(itemId, setTableColumnWidth(table, index, width), false);
+  }
+  function commitTableColumnWidth() {
+    commit((prevItems) => prevItems, { type: "table-resize-col", label: "Resize column", itemIds: editingTableIdRef.current ? [editingTableIdRef.current] : [] });
+  }
+  function liveTableRowHeight(itemId, index, height) {
+    const table = getTable(itemId);
+    if (!table) return;
+    updateItem(itemId, setTableRowHeight(table, index, height), false);
+  }
+  function commitTableRowHeight() {
+    commit((prevItems) => prevItems, { type: "table-resize-row", label: "Resize row", itemIds: editingTableIdRef.current ? [editingTableIdRef.current] : [] });
+  }
+
+  function copyTableCellSelection() {
+    const table = getTable();
+    const sel = tableCellSelectionRef.current;
+    if (!table || !sel) return;
+    const { startRow, startCol, endRow, endCol } = normalizeRange(sel);
+    const grid = [];
+    for (let r = startRow; r <= endRow; r += 1) {
+      const row = [];
+      for (let c = startCol; c <= endCol; c += 1) row.push(table.cells[r]?.[c]?.text || "");
+      grid.push(row);
+    }
+    tableCellClipboardRef.current = grid;
+    const tsv = grid.map((row) => row.join("\t")).join("\n");
+    navigator.clipboard?.writeText?.(tsv).catch(() => {});
+  }
+
+  function pasteIntoTableSelection(grid) {
+    const sel = tableCellSelectionRef.current;
+    if (!sel || !grid) return;
+    const { startRow, startCol } = normalizeRange(sel);
+    updateTable(
+      editingTableIdRef.current,
+      (table) => {
+        const { table: next, truncated } = applyPastedGrid(table, startRow, startCol, grid);
+        if (truncated) {
+          setStatus(`Pasted data was larger than the ${MAX_TABLE_DIM}×${MAX_TABLE_DIM} table limit — extra rows/columns were trimmed.`);
+          window.setTimeout(() => setStatus(""), 4000);
+        }
+        return next;
+      },
+      { type: "table-paste", label: "Paste into table" }
+    );
+  }
+
   // --- Crop mode (Phase 6) — parallel in shape to inline text editing
   // above: entry snapshots the pre-gesture crop so Cancel can restore it
   // without an undo step; live drag/zoom calls updateItem(...,false) (the
@@ -2743,6 +3053,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const hasContent = item.type === "frame" ? !!item.contentAssetId : !!item.assetId;
     if (!hasContent) return;
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     cropEntrySnapshotRef.current = { itemId, crop: { ...normalizeCrop(item.crop) } };
     setSelectedIds([itemId]);
     setCroppingItemId(itemId);
@@ -2850,6 +3161,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const item = itemsRef.current.find((it) => it.id === itemId);
     if (!item || (item.type !== "text" && item.type !== "shape") || !item.fillImage?.assetId || isEffectivelyLocked(item, itemsById)) return;
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     if (croppingItemIdRef.current) cancelCropMode();
     imageFillEntrySnapshotRef.current = { itemId, fillImage: { ...normalizeImageFill(item.fillImage) } };
     setImageFillEditItemId(itemId);
@@ -3441,6 +3753,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function removeSelection() {
+    // Inside table cell-edit mode, Delete clears the selected cells' text
+    // rather than deleting the whole table object (spec §42) — the table
+    // element itself is still "selected" (selectedIds holds its id) the
+    // entire time cells are being edited, so this must be checked first.
+    if (editingTableIdRef.current) {
+      clearTableSelectionCells();
+      return;
+    }
     if (selectedIds.length === 0) return;
     const deletableTopLevel = selectedItems.filter((item) => !isEffectivelyLocked(item, itemsById));
     if (deletableTopLevel.length === 0) return;
@@ -3513,11 +3833,38 @@ export default function App({ editorMode = "workspace", templateSession = null }
       y: item.y + offset,
       createdAt: now,
       updatedAt: now,
+      // The spread above only copies top-level field references — a
+      // chart's data/series/sliceColors/settings are nested
+      // arrays/objects that must not be shared between original and
+      // clone (editing the duplicate's data would otherwise silently
+      // mutate the original's, since both would point at the same
+      // array). Every field here is plain JSON-safe data (required by
+      // history/autosave anyway), so JSON round-tripping is a safe deep
+      // clone.
+      ...(item.type === "chart"
+        ? {
+            data: JSON.parse(JSON.stringify(item.data)),
+            series: JSON.parse(JSON.stringify(item.series)),
+            sliceColors: JSON.parse(JSON.stringify(item.sliceColors || [])),
+            settings: JSON.parse(JSON.stringify(item.settings)),
+          }
+        : {}),
+      // Same reasoning as chart above — cells/columnWidths/rowHeights/
+      // mergedCells/styles are nested arrays/objects that must not be
+      // shared between a table and its duplicate (spec §29).
+      ...(item.type === "table" ? cloneTableData(item) : {}),
     }));
     return { cloned, idMap };
   }
 
   function copySelection() {
+    // Disambiguates "copying the table element" from "copying selected
+    // cells inside it" (spec §20) — while editing cells, Cmd+C/X never
+    // touch the whole-object clipboard at all.
+    if (editingTableIdRef.current) {
+      copyTableCellSelection();
+      return;
+    }
     if (selectedIds.length === 0) return;
     clipboardRef.current = getExpandedSelectionItems(selectedItems).map((item) => ({ ...item }));
   }
@@ -3528,6 +3875,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function pasteClipboard() {
+    // While editing table cells, Cmd+V is handled exclusively by
+    // handleWindowPaste below (which has access to the real system
+    // clipboard text — needed for both internal cell-to-cell paste, since
+    // copyTableCellSelection writes TSV to the system clipboard too, and
+    // for genuine Excel/Sheets paste) — this keydown-level path stays a
+    // no-op so it can't also paste a stray whole-object duplicate.
+    if (editingTableIdRef.current) return;
     if (clipboardRef.current.length === 0) return;
     // Pasting always assigns every pasted object (and any nested children)
     // to the currently active page, even if copied from a different one —
@@ -3877,7 +4231,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // still inside an active text edit, see useKeyboardShortcuts wiring below
   // — sees the entry that flush just pushed rather than a stale index.
   function undo() {
-    if (editingTextIdRef.current) exitTextEdit(); // flushes pending typing into its own entry first
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode(); // flushes pending typing into its own entry first
     if (croppingItemIdRef.current) cancelCropMode(); // uncommitted crop gesture — revert, don't fold into undo
     if (imageFillEditItemIdRef.current) cancelImageFillEditMode(); // uncommitted image-fill gesture — same reasoning
     const current = historyStateRef.current;
@@ -3902,6 +4257,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function redo() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     if (croppingItemIdRef.current) cancelCropMode();
     if (imageFillEditItemIdRef.current) cancelImageFillEditMode();
     const current = historyStateRef.current;
@@ -3956,6 +4312,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // doesn't support sharing files (e.g. desktop Firefox).
   async function shareDesign() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName };
     const { request, errors } = buildExportRequest(
       { format: "png", pageSelection: "current", filenameBase: projectName },
@@ -4002,6 +4359,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // fallback the user can click themselves.
   async function handlePrint() {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     // Opened synchronously, before any `await`, so it stays tied to this
     // click's user-gesture — otherwise the browser treats the later
     // `.location` assignment as a script-initiated popup and silently
@@ -4071,6 +4429,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setContextMenu(null);
     if (isSpaceDown || event.evt.button === 1) return;
     if (!isEmptyClickTarget(event)) return;
+    if (editingTableIdRef.current) exitTableEditMode();
 
     const additive = event.evt.shiftKey || event.evt.metaKey || event.evt.ctrlKey;
     if (!additive) setSelectedIds([]);
@@ -4421,6 +4780,21 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // placing it on the page.
   function handleWindowPaste(event) {
     if (isTypingTarget(document.activeElement) || editingTextIdRef.current) return;
+    // Table cell-edit mode with a cell range selected (not actively typing
+    // into one cell — that case already returned above via isTypingTarget,
+    // since the cell overlay is itself a contentEditable): reads the real
+    // system clipboard text so both genuine Excel/Sheets/Numbers paste
+    // (spec §21) and Vaycona's own cell-to-cell copy (which also writes
+    // TSV to the system clipboard, see copyTableCellSelection) go through
+    // this single path. Falls back to the in-app cell clipboard ref if the
+    // system clipboard has no usable text (e.g. permissions blocked).
+    if (editingTableIdRef.current) {
+      event.preventDefault();
+      const text = event.clipboardData?.getData("text/plain") || "";
+      const grid = parseDelimitedText(text) || tableCellClipboardRef.current;
+      if (grid) pasteIntoTableSelection(grid);
+      return;
+    }
     const files = Array.from(event.clipboardData?.files || []).filter((f) => f.type.startsWith("image/"));
     if (files.length === 0) return;
     event.preventDefault();
@@ -4479,6 +4853,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
         // bounding box and rotate the whole object out from under a crop
         // gesture.
         if (id === croppingItemIdRef.current) return false;
+        // A table in cell-edit mode hides the whole-element resize handles
+        // too — TableEditChrome's own row/column resize handles are the
+        // only interaction surface while editing cells (spec §10B).
+        if (id === editingTableIdRef.current) return false;
         return getTransforms(it).usesTransformer !== false;
       })
       .map((id) => nodesMapRef.current.get(id))
@@ -4514,6 +4892,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
       ctrlKey,
       enteredGroupId: enteredGroupIdRef.current,
     });
+    // Selecting a different object while a table is in cell-edit mode
+    // exits that mode first (clicking cells within the same table never
+    // reaches this handler at all — TableEditChrome's DOM overlay
+    // intercepts those clicks before they reach the underlying Konva
+    // Stage — so any call here with a different id is a genuine "clicked
+    // away" gesture).
+    if (editingTableIdRef.current && resolved !== editingTableIdRef.current) {
+      exitTableEditMode();
+    }
     setSelectedIds((prev) => {
       if (additive) {
         if (prev.includes(resolved)) return prev.filter((pid) => pid !== resolved);
@@ -4804,7 +5191,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
     },
     onGroup: groupSelection,
     onUngroup: ungroupSelection,
-    onNudge: croppingItemId ? nudgeCropFocalPoint : imageFillEditItemId ? nudgeImageFillPosition : nudgeSelection,
+    onNudge: croppingItemId
+      ? nudgeCropFocalPoint
+      : imageFillEditItemId
+        ? nudgeImageFillPosition
+        : editingTableId
+          ? (dirX, dirY, size) => moveTableCellSelection(dirY, dirX, { additive: size === "large" })
+          : nudgeSelection,
     onExitTextEdit: exitTextEdit,
     onBringForward: () => reorderSelection("forward"),
     onSendBackward: () => reorderSelection("backward"),
@@ -4814,6 +5207,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (!enteredGroupId) return false;
       const currentGroup = items.find((it) => it.id === enteredGroupId);
       setEnteredGroupId(currentGroup?.parentId ?? null);
+      return true;
+    },
+    onExitTableEditMode: () => {
+      if (!editingTableIdRef.current) return false;
+      exitTableEditMode();
       return true;
     },
     onCancelCrop: () => cancelImageFillEditMode() || cancelCropMode(),
@@ -4839,6 +5237,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
         return;
       }
       if (editingTextIdRef.current) return;
+      // Table cell-edit mode: Enter starts editing whichever cell the
+      // selection currently ends on (spec §41 "Enter → edit").
+      if (editingTableIdRef.current) {
+        const sel = tableCellSelectionRef.current;
+        if (sel) {
+          event.preventDefault();
+          beginEditingTableCell(sel.endRow, sel.endCol);
+        }
+        return;
+      }
       const onlySelected = selectedIdsRef.current;
       if (onlySelected.length !== 1) return;
       const item = itemsRef.current.find((it) => it.id === onlySelected[0]);
@@ -4906,7 +5314,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   useEffect(() => {
     syncTransformerNodes();
-  }, [selectedIds, items, editingTextId, croppingItemId, syncTransformerNodes]);
+  }, [selectedIds, items, editingTextId, croppingItemId, editingTableId, syncTransformerNodes]);
 
   function handleTransformStart() {
     const anchor = transformerRef.current?.getActiveAnchor();
@@ -4958,6 +5366,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
         // whether the text is resized alone or as part of a group.
         const geometricScale = Math.sqrt(Math.abs(scaleX * scaleY));
         update.fontSize = Math.max(1, (sourceItem.fontSize || 24) * geometricScale);
+      } else if (sourceItem?.type === "table") {
+        // Redistributes column widths/row heights proportionally instead of
+        // leaving a Konva scale baked in — keeps text crisp (never a
+        // raster/CSS stretch) while still landing on the new box size
+        // (spec §10A: "preserve its layout intelligently").
+        const resized = resizeTableToFit(sourceItem, update.width, update.height);
+        update.columnWidths = resized.columnWidths;
+        update.rowHeights = resized.rowHeights;
       }
       updates.set(node.id(), update);
     });
@@ -5009,6 +5425,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // behavior, unchanged).
   function activatePage(id) {
     if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
     // A running page preview is scoped to the page it started on — switch
     // pages out from under it and it'd not only look wrong, it would keep
     // the NEW page's canvas locked/uneditable until the old timer runs out
@@ -5484,6 +5901,64 @@ export default function App({ editorMode = "workspace", templateSession = null }
               />
             )}
 
+            {editingTableId &&
+              (() => {
+                const tableItem = items.find((it) => it.id === editingTableId);
+                if (!tableItem) return null;
+                return (
+                  <TableEditChrome
+                    key={editingTableId}
+                    item={tableItem}
+                    viewport={KONVA_VIEWPORT}
+                    cellSelection={tableCellSelection}
+                    onCellSelect={selectTableCell}
+                    onCellDblClick={beginEditingTableCell}
+                    onColumnResizeLive={(index, width) => liveTableColumnWidth(tableItem.id, index, width)}
+                    onColumnResizeCommit={commitTableColumnWidth}
+                    onRowResizeLive={(index, height) => liveTableRowHeight(tableItem.id, index, height)}
+                    onRowResizeCommit={commitTableRowHeight}
+                    onAddRow={(index) => updateTable(tableItem.id, (table) => insertTableRow(table, index), { type: "table-insert-row", label: "Insert row" })}
+                    onAddColumn={(index) => updateTable(tableItem.id, (table) => insertTableColumn(table, index), { type: "table-insert-col", label: "Insert column" })}
+                  />
+                );
+              })()}
+
+            {editingTableId &&
+              activeTableCell &&
+              (() => {
+                const tableItem = items.find((it) => it.id === editingTableId);
+                if (!tableItem) return null;
+                return (
+                  <TableCellEditOverlay
+                    key={`${editingTableId}-${activeTableCell.row}-${activeTableCell.col}`}
+                    item={tableItem}
+                    row={activeTableCell.row}
+                    col={activeTableCell.col}
+                    viewport={KONVA_VIEWPORT}
+                    onCommit={(text) => commitTableCellText(activeTableCell.row, activeTableCell.col, text)}
+                    onRequestExit={exitCellTextEdit}
+                    onTabNext={(direction) => {
+                      const nextCol = activeTableCell.col + direction;
+                      if (nextCol >= 0 && nextCol < tableItem.columns) {
+                        beginEditingTableCell(activeTableCell.row, nextCol);
+                      } else {
+                        const nextRow = activeTableCell.row + (direction > 0 ? 1 : -1);
+                        if (nextRow >= 0 && nextRow < tableItem.rows) {
+                          beginEditingTableCell(nextRow, direction > 0 ? 0 : tableItem.columns - 1);
+                        } else {
+                          exitCellTextEdit();
+                        }
+                      }
+                    }}
+                    onEnterNext={() => {
+                      const nextRow = activeTableCell.row + 1;
+                      if (nextRow < tableItem.rows) beginEditingTableCell(nextRow, activeTableCell.col);
+                      else exitCellTextEdit();
+                    }}
+                  />
+                );
+              })()}
+
             {editingTextId &&
               (() => {
                 const editingItem = items.find((it) => it.id === editingTextId);
@@ -5746,6 +6221,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         editingTextId={editingTextId}
         onEditText={enterTextEdit}
         onExitTextEdit={exitTextEdit}
+        onEditChartData={setEditingChartId}
+        tableEdit={tableEdit}
         onApplyFormat={applyTextFormat}
         onApplyListFormat={applyTextListFormat}
         onCopyTextStyle={copyTextStyle}
@@ -5813,9 +6290,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
             />
           )}
           {activeSidebarSection === "text" && <TextPanel onAddPreset={(key) => addText(key)} />}
-          {activeSidebarSection === "shapes" && <ShapesPanel onAddShape={addShape} onAddLine={addLine} />}
+          {activeSidebarSection === "chart" && <ChartPanel onAddChart={addChart} />}
+          {activeSidebarSection === "table" && <TablePanel onAddTable={addTable} />}
           {activeSidebarSection === "elements" && (
-            <ElementsPanel onAddShape={addShape} onAddLine={addLine} onAddFrame={addFrame} />
+            <ElementsPanel onAddShape={addShape} onAddLine={addLine} onAddFrame={addFrame} onAddChart={addChart} onAddTable={addTable} />
           )}
           {activeSidebarSection === "icons" && <IconsPanel onAddIcon={addIcon} />}
           {activeSidebarSection === "illustrations" && (
@@ -5924,7 +6402,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
             />
           )}
           {activeSidebarSection &&
-            !["uploads", "text", "shapes", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand"].includes(
+            !["uploads", "text", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand"].includes(
               activeSidebarSection
             ) && <ComingSoonPanel title={SECTIONS.find((section) => section.key === activeSidebarSection)?.label} />}
         </LeftSidebar>
@@ -6097,6 +6575,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onApply={resizeActivePage}
       />
 
+      <ChartDataEditor
+        isOpen={!!editingChartId}
+        item={items.find((it) => it.id === editingChartId) || null}
+        onClose={() => setEditingChartId(null)}
+        onChange={(changes) => updateItem(editingChartId, changes)}
+      />
+
       <GuideManagerDialog
         isOpen={isGuideManagerOpen}
         onClose={() => setIsGuideManagerOpen(false)}
@@ -6167,6 +6652,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         initialFormat={exportDialogFormat}
         onFlushBeforeExport={() => {
           if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
           autosaveRef.current.flush();
         }}
         onCreateVersionBeforeExport={() => createAutoMilestone("before-export")}

@@ -33,6 +33,7 @@ export function useKeyboardShortcuts({
   onBringToFront,
   onSendToBack,
   onExitGroupEntry,
+  onExitTableEditMode,
   onCancelCrop,
   onToggleRulers,
   onToggleGuidesVisible,
@@ -55,6 +56,12 @@ export function useKeyboardShortcuts({
           onExitTextEdit();
           return;
         }
+        // A cell was selected but not actively being typed into (that case
+        // is caught by the isContentEditable branch above, whose own
+        // onKeyDown already exited cell-text-edit on the first Escape) —
+        // this is the "Escape again" step: exit table edit mode entirely,
+        // landing back on the normal whole-table selection (spec §43).
+        if (onExitTableEditMode?.()) return;
         // Escape backs out of a drilled-into group one level at a time
         // before falling back to clearing the whole selection (matches
         // "Escape returns to the parent group selection").
@@ -196,6 +203,7 @@ export function useKeyboardShortcuts({
     onBringToFront,
     onSendToBack,
     onExitGroupEntry,
+    onExitTableEditMode,
     onCancelCrop,
     onToggleRulers,
     onToggleGuidesVisible,
