@@ -73,6 +73,7 @@ export default function ExportDialog({
   onFlushBeforeExport,
   onCreateVersionBeforeExport,
   initialFormat,
+  watermark = false,
 }) {
   const remembered = useMemo(() => (isOpen ? loadRememberedSettings() : {}), [isOpen]);
   const [format, setFormat] = useState("png");
@@ -209,6 +210,7 @@ export default function ExportDialog({
       cropMarks,
       filenameBase,
       createVersionBeforeExport,
+      watermark,
     };
   }
 
@@ -340,6 +342,12 @@ export default function ExportDialog({
                 {formErrors.map((e, i) => (
                   <div key={i}>{e}</div>
                 ))}
+              </div>
+            )}
+
+            {watermark && (
+              <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Free plan exports include a small watermark. Upgrade to Pro or Business for clean exports.
               </div>
             )}
 

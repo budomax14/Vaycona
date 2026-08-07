@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import { renderPageToCanvas, ExportCancelledError, yieldToMainThread } from "./offscreenRenderer";
 import { buildExportFilename } from "./exportRequest";
 import { CROP_MARK_LENGTH_PX, CROP_MARK_OFFSET_PX, CROP_MARK_STROKE_WIDTH } from "./exportConstants";
+import { drawWatermark } from "./exportWatermark";
 
 function canvasToDataUrl(canvas, mimeType, quality) {
   return canvas.toDataURL(mimeType, quality);
@@ -87,6 +88,7 @@ export async function exportPdf({ pages, items, request, availableAssetIds, proj
       signal,
     });
     if (signal?.aborted) throw new ExportCancelledError();
+    if (request.watermark) drawWatermark(canvas);
     const dataUrl = canvasToDataUrl(canvas, mimeType, quality);
     canvas.width = 0;
     canvas.height = 0;

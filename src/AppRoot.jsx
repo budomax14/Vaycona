@@ -9,6 +9,7 @@ import { WORKSPACE_STORAGE_KEY } from "./constants";
 import { BrandKitProvider } from "./brandKitContext";
 import { useHashRoute } from "./adminRoute";
 import { AuthProvider, useAuth } from "./authContext";
+import { SubscriptionProvider } from "./subscriptionContext";
 import { ThemeProvider } from "./themeContext";
 import { LanguageProvider } from "./languageContext";
 import LoginPage from "./components/Auth/LoginPage";
@@ -23,7 +24,9 @@ export default function AppRoot() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <Gate />
+          <SubscriptionProvider>
+            <Gate />
+          </SubscriptionProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

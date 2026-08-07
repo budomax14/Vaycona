@@ -22,6 +22,7 @@ import ComingSoonPanel from "./components/LeftSidebar/panels/ComingSoonPanel";
 import StatusBar from "./components/StatusBar/StatusBar";
 import Workspace from "./components/Workspace/Workspace";
 import ResizeModal from "./components/ResizeModal";
+import PricingModal from "./components/PricingModal";
 import ChartDataEditor from "./components/ChartDataEditor";
 import { RecentColorsProvider } from "./recentColorsContext";
 import {
@@ -186,6 +187,7 @@ import {
 // --- Phase 11: Brand Kit / design tokens ---
 import { DocumentColorsProvider } from "./documentColorsContext";
 import { useBrandKits } from "./brandKitContext";
+import { useSubscription } from "./subscriptionContext";
 import {
   addResource,
   updateResource,
@@ -633,6 +635,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Phase 11 — brand kit context is provided by AppRoot.jsx (an ancestor
   // of App), so it's safe to consume it here directly.
   const { activeBrandKit, activeBrandKitId, refresh: refreshBrandKits } = useBrandKits();
+  const { tier: subscriptionTier } = useSubscription();
 
   // Template Management Admin — the ONE place "which storage key does this
   // mount's autosave/initial-load use" is decided. Never WORKSPACE_STORAGE_KEY
@@ -784,6 +787,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [hasManualZoomOrPan, setHasManualZoomOrPan] = useState(initialWorkspace.hasManualZoomOrPan);
   const [isResizeOpen, setIsResizeOpen] = useState(false);
   const [isExportAnimationOpen, setIsExportAnimationOpen] = useState(false);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [editingChartId, setEditingChartId] = useState(null);
 
   // Table cell-edit mode — parallel in shape to editingTextId/croppingItemId
@@ -6192,6 +6196,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onZoomOut={() => workspaceRef.current?.zoomOut()}
         onResetZoom={handleFitToScreen}
         onOpenResize={() => setIsResizeOpen(true)}
+        onOpenPricing={() => setIsPricingOpen(true)}
       />
       )}
 
@@ -6575,6 +6580,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onApply={resizeActivePage}
       />
 
+      <PricingModal isOpen={isPricingOpen} onClose={() => setIsPricingOpen(false)} />
+
       <ChartDataEditor
         isOpen={!!editingChartId}
         item={items.find((it) => it.id === editingChartId) || null}
@@ -6650,6 +6657,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         items={items}
         projectName={projectName}
         initialFormat={exportDialogFormat}
+        watermark={subscriptionTier === "free"}
         onFlushBeforeExport={() => {
           if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
@@ -6720,6 +6728,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onDeletePage={handleDeleteReusablePage}
         onInsertSection={insertReusableSection}
         onDeleteSection={handleDeleteReusableSection}
+        userTier={subscriptionTier}
+        onRequireUpgrade={() => setIsPricingOpen(true)}
       />
 
       <TemplatePreviewDialog

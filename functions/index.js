@@ -2,6 +2,11 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const openaiProvider = require("./providers/openai");
+const { createCheckoutSession, createBillingPortalSession, stripeWebhook } = require("./stripe");
+
+exports.createCheckoutSession = createCheckoutSession;
+exports.createBillingPortalSession = createBillingPortalSession;
+exports.stripeWebhook = stripeWebhook;
 
 // Set once via: firebase functions:secrets:set OPENAI_API_KEY
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");

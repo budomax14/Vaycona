@@ -65,7 +65,15 @@ export async function runExport(request, context, { onProgress, signal, prefligh
   if (request.format === "svg") {
     onProgress?.({ stage: "rendering", pageIndex: 0, pageCount: 1, pageName: pages[0].name || "Page 1" });
     const backgroundFill = request.backgroundOverride || pages[0].background || "#ffffff";
-    const svgText = await buildSvgDocument({ page: pages[0], items, availableAssetIds, backgroundFill, scale: request.scale, signal });
+    const svgText = await buildSvgDocument({
+      page: pages[0],
+      items,
+      availableAssetIds,
+      backgroundFill,
+      scale: request.scale,
+      signal,
+      watermark: request.watermark,
+    });
     onProgress?.({ stage: "finalizing" });
     const blob = new Blob([svgText], { type: "image/svg+xml" });
     return { blob, filename: buildExportFilename(request.filenameBase, { extension: "svg" }) };

@@ -7,6 +7,7 @@ import JSZip from "jszip";
 import { renderPageToCanvas, ExportCancelledError, yieldToMainThread } from "./offscreenRenderer";
 import { buildExportFilename, buildZipFilename, dedupeFilenames } from "./exportRequest";
 import { MAX_ZIP_OUTPUT_BYTES } from "./exportConstants";
+import { drawWatermark } from "./exportWatermark";
 
 function canvasToBlob(canvas, mimeType, quality) {
   return new Promise((resolve, reject) => {
@@ -45,6 +46,7 @@ async function renderPagesToBlobs({ pages, items, request, availableAssetIds, on
       signal,
     });
     if (signal?.aborted) throw new ExportCancelledError();
+    if (request.watermark) drawWatermark(canvas);
     // eslint-disable-next-line no-await-in-loop
     const blob = await canvasToBlob(canvas, mimeType, quality);
     results.push({ pageId: page.id, page, blob, canvas: { width: canvas.width, height: canvas.height } });

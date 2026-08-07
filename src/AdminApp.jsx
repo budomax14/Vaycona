@@ -62,7 +62,7 @@ export default function AdminApp() {
 }
 
 function AdminCreateTemplateScreen() {
-  async function handleCreate({ name, description, category, tags, width, height, background }) {
+  async function handleCreate({ name, description, category, tags, width, height, background, tier }) {
     const pageId = crypto.randomUUID();
     const data = {
       pages: [{ id: pageId, name: "Page 1", width, height, background }],
@@ -88,6 +88,7 @@ function AdminCreateTemplateScreen() {
       thumbnail: null,
       status: "draft",
       createdBy: "admin",
+      tier,
     });
     navigateTo(`#/admin/templates/${template.id}`);
   }
@@ -207,10 +208,11 @@ function AdminTemplateSettingsOverlay({ isOpen, templateId, onClose, onSaved }) 
     background: record.data?.pages?.[0]?.background || "#ffffff",
     thumbnail: record.thumbnail,
     status: record.status || "draft",
+    tier: record.tier || "free",
   };
 
-  async function handleSubmit({ name, description, category, tags, background, thumbnail, status }) {
-    await updateTemplateSettings(templateId, { name, description, category, tags, background, thumbnail });
+  async function handleSubmit({ name, description, category, tags, background, thumbnail, status, tier }) {
+    await updateTemplateSettings(templateId, { name, description, category, tags, background, thumbnail, tier });
     let publishChanged = false;
     let publishMessage = "Settings saved.";
     if (status !== (record.status || "draft") && record.builtIn) {

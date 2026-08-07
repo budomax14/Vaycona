@@ -514,7 +514,25 @@ async function renderItemToSvg(item, { availableAssetIds, renderScale }) {
 // stays in the page's native units, so vector content stays crisp at any
 // requested output size) and the resolution used for the raster fallback
 // paths above.
-export async function buildSvgDocument({ page, items, availableAssetIds, backgroundFill, scale, signal }) {
+// Mirrors exportWatermark.js's raster tiling — repeating, low-opacity,
+// diagonal text, but built directly as SVG markup instead of drawn onto a
+// canvas since SVG export has no rasterization step to hook into.
+function buildWatermarkGroup(width, height) {
+  const fontSize = Math.max(14, Math.round(width / 28));
+  const spacingX = fontSize * 9;
+  const spacingY = fontSize * 6;
+  const rows = Math.ceil(height / spacingY) + 2;
+  const cols = Math.ceil(width / spacingX) + 2;
+  const texts = [];
+  for (let row = -1; row < rows; row++) {
+    for (let col = -1; col < cols; col++) {
+      texts.push(`<text x="${col * spacingX}" y="${row * spacingY}">Vaycona</text>`);
+    }
+  }
+  return `<g fill="rgba(0,0,0,0.14)" font-family="sans-serif" font-size="${fontSize}" font-weight="600" text-anchor="middle" transform="rotate(-22.5 ${width / 2} ${height / 2})">${texts.join("")}</g>`;
+}
+
+export async function buildSvgDocument({ page, items, availableAssetIds, backgroundFill, scale, signal, watermark }) {
   const itemsById = new Map(items.map((it) => [it.id, it]));
   const visibleItems = items.filter((item) => item.pageId === page.id && item.type !== "group" && !isEffectivelyHidden(item, itemsById));
 
@@ -546,6 +564,7 @@ export async function buildSvgDocument({ page, items, availableAssetIds, backgro
     backgroundRect,
     ...pieces,
     borderRect,
+    watermark ? buildWatermarkGroup(page.width, page.height) : "",
     `</svg>`,
   ].join("");
 }

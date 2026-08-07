@@ -47,6 +47,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
   const [unit, setUnit] = useState("px");
   const [background, setBackground] = useState("#ffffff");
   const [status, setStatus] = useState("draft");
+  const [tier, setTier] = useState("free");
   const [thumbnail, setThumbnail] = useState(null);
   const [thumbnailError, setThumbnailError] = useState(null);
   const [categories, setCategories] = useState(() => listAllCategories());
@@ -65,6 +66,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
     setUnit("px");
     setBackground(initialValues?.background || "#ffffff");
     setStatus(initialValues?.status || "draft");
+    setTier(initialValues?.tier || "free");
     setThumbnail(initialValues?.thumbnail || null);
     setThumbnailError(null);
     setNewCategoryInput(null);
@@ -125,11 +127,12 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
         width: Math.round(unitConfig.toPx(Number(width) || 0)) || 1080,
         height: Math.round(unitConfig.toPx(Number(height) || 0)) || 1080,
         background,
+        tier,
       });
       return;
     }
 
-    onSubmit({ name: trimmedName, description: description.trim(), category, tags, background, thumbnail, status });
+    onSubmit({ name: trimmedName, description: description.trim(), category, tags, background, thumbnail, status, tier });
   }
 
   const canPublishNow = mode === "edit" && !publishBlockedReason;
@@ -209,6 +212,19 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
               </div>
             )}
           </div>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">Plan required</span>
+            <select
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              value={tier}
+              onChange={(event) => setTier(event.target.value)}
+            >
+              <option value="free">Free — everyone</option>
+              <option value="pro">Pro</option>
+              <option value="business">Business</option>
+            </select>
+          </label>
 
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">Tags (comma separated)</span>

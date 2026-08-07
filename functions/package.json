@@ -1,12 +1,14 @@
 {
   "name": "functions",
-  "description": "Backend for DUMA STUDIO's AI Illustration generation — the only place that ever sees the OpenAI API key.",
+  "description": "Backend for DUMA STUDIO's AI Illustration generation and Stripe subscriptions — the only place that ever sees the OpenAI/Stripe secret keys.",
   "private": true,
   "main": "index.js",
   "engines": {
     "node": "20"
   },
   "dependencies": {
-    "firebase-functions": "^5.1.1"
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1",
+    "stripe": "^17.4.0"
   }
 }

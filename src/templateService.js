@@ -189,6 +189,7 @@ export async function createTemplate({
   protectedFlag = false,
   status = "published",
   createdBy = "user",
+  tier = "free",
 }) {
   const now = Date.now();
   const template = withChecksum({
@@ -222,6 +223,7 @@ export async function createTemplate({
     status,
     publishedAt: status === "published" ? now : null,
     createdBy,
+    tier,
   });
   await withStore("readwrite", (store) => store.put(template));
   return template;
@@ -255,7 +257,7 @@ export async function updateTemplateMetadata(id, patch) {
 // Status is deliberately NOT handled here — publishing has its own
 // validation (see publishTemplate/unpublishTemplate below) and must not be
 // silently grantable through a generic metadata patch.
-export async function updateTemplateSettings(id, { name, description, category, tags, background, thumbnail }) {
+export async function updateTemplateSettings(id, { name, description, category, tags, background, thumbnail, tier }) {
   const existing = await getTemplateById(id);
   if (!existing) return null;
   const data =
@@ -269,6 +271,7 @@ export async function updateTemplateSettings(id, { name, description, category, 
     description: description !== undefined ? (description || "").trim().slice(0, MAX_TEMPLATE_DESCRIPTION_LENGTH) || null : existing.description,
     category: category ?? existing.category,
     tags: tags !== undefined ? normalizeTags(tags) : existing.tags,
+    tier: tier ?? existing.tier ?? "free",
     data,
     previewSnapshot: data !== existing.data ? buildPreviewSnapshot(data) : existing.previewSnapshot,
     thumbnail: thumbnail !== undefined ? thumbnail : existing.thumbnail,

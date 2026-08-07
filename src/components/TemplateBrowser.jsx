@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Heart, Layers, MoreVertical, Plus, Search, Trash2, X } from "lucide-react";
+import { Heart, Layers, Lock, MoreVertical, Plus, Search, Trash2, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
 import { TEMPLATE_CATEGORIES } from "../templateService";
+import { TIER_RANK } from "../subscriptionContext";
 
 const SORT_OPTIONS = [
   { key: "recommended", label: "Recommended" },
@@ -44,6 +45,8 @@ export default function TemplateBrowser({
   onDeletePage,
   onInsertSection,
   onDeleteSection,
+  userTier = "free",
+  onRequireUpgrade,
 }) {
   const [tab, setTab] = useState("templates"); // templates | pages | sections
   const [query, setQuery] = useState("");
@@ -291,7 +294,9 @@ export default function TemplateBrowser({
                     <TemplateCard
                       key={template.id}
                       template={template}
+                      locked={TIER_RANK[template.tier || "free"] > TIER_RANK[userTier]}
                       onSelect={() => onSelectTemplate(template.id)}
+                      onRequireUpgrade={onRequireUpgrade}
                       onToggleFavorite={() => onToggleFavorite(template.id)}
                       onDelete={!template.builtIn ? () => onDeleteTemplate(template.id) : null}
                       onDuplicate={() => onDuplicateTemplate(template.id)}
@@ -324,17 +329,21 @@ export default function TemplateBrowser({
   );
 }
 
-function TemplateCard({ template, onSelect, onToggleFavorite, onDelete, onDuplicate }) {
+function TemplateCard({ template, locked, onSelect, onRequireUpgrade, onToggleFavorite, onDelete, onDuplicate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const orientation = orientationOf(template.pageWidth, template.pageHeight);
   return (
     <div className="group relative overflow-hidden rounded-xl border border-gray-200 hover:border-amber-300">
       <button
         className="block w-full text-left"
-        onClick={onSelect}
-        aria-label={`Preview ${template.name}, ${template.pageWidth} by ${template.pageHeight} pixels`}
+        onClick={locked ? onRequireUpgrade : onSelect}
+        aria-label={
+          locked
+            ? `${template.name} requires an upgrade`
+            : `Preview ${template.name}, ${template.pageWidth} by ${template.pageHeight} pixels`
+        }
       >
-        <div className="aspect-square w-full bg-gray-50">
+        <div className="relative aspect-square w-full bg-gray-50">
           {template.thumbnail ? (
             <img src={template.thumbnail} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -343,6 +352,14 @@ function TemplateCard({ template, onSelect, onToggleFavorite, onDelete, onDuplic
               items={template.previewSnapshot?.items || []}
               className="h-full w-full"
             />
+          )}
+          {locked && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+              <span className="flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                <Lock size={11} />
+                {template.tier === "business" ? "Business" : "Pro"}
+              </span>
+            </div>
           )}
         </div>
         <div className="p-2">

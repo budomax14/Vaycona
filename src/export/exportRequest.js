@@ -179,6 +179,7 @@ export function buildExportRequest(raw, context) {
     includePageNumbersInFilenames: pageIds.length > 1,
     filenameBase: sanitizeExportFilenameBase(raw.filenameBase || projectName),
     createVersionBeforeExport: !!raw.createVersionBeforeExport,
+    watermark: !!raw.watermark,
   };
 
   return { request, errors, selectedPages };
