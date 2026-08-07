@@ -3,6 +3,7 @@ import { FlipHorizontal, FlipVertical, MoreHorizontal, RotateCcw, RotateCw } fro
 import { IconButton, IconToggleButton } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
 import ObjectTransformFields from "./ObjectTransformFields";
+import AnimateMenuItem from "./AnimateMenuItem";
 
 function Section({ title, children }) {
   return (
@@ -17,7 +18,13 @@ function Section({ title, children }) {
 // (Shape/Icon/Frame, and Image with showTransform) — collapses the former
 // standalone Arrange (ObjectTransformFields) and Transform (flip/rotate)
 // buttons into one popover, same pattern as TextMoreMenu.
-export default function ObjectMoreMenu({ showTransform, ...transformFieldsProps }) {
+export default function ObjectMoreMenu({
+  showTransform,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
+  ...transformFieldsProps
+}) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const { item, onChange } = transformFieldsProps;
@@ -29,6 +36,17 @@ export default function ObjectMoreMenu({ showTransform, ...transformFieldsProps 
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-96 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
+          {onToggleAnimationPanel && (
+            <AnimateMenuItem
+              animationPanelOpen={animationPanelOpen}
+              onToggleAnimationPanel={() => {
+                setOpen(false);
+                onToggleAnimationPanel();
+              }}
+              hasAnimations={hasAnimations}
+            />
+          )}
+
           <Section title="Arrange">
             <ObjectTransformFields {...transformFieldsProps} />
           </Section>

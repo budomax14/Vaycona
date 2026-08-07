@@ -40,6 +40,9 @@ export default function TextPropertiesBar({
   onEnterImageFillEditMode,
   onExitImageFillEditMode,
   brand,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
 }) {
   const [isColorPanelOpen, setIsColorPanelOpen] = useState(false);
   const colorBrand = brand?.colorField("fill");
@@ -133,6 +136,9 @@ export default function TextPropertiesBar({
         onToggleHidden={onToggleHidden}
         onAlignToPage={onAlignToPage}
         brand={brand}
+        animationPanelOpen={animationPanelOpen}
+        onToggleAnimationPanel={onToggleAnimationPanel}
+        hasAnimations={hasAnimations}
       />
 
       <TextColorPanel

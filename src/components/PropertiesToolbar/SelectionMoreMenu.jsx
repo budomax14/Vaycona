@@ -1,13 +1,14 @@
 import React, { useRef, useState } from "react";
-import { MoreHorizontal, Sparkles } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { IconButton } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
+import AnimateMenuItem from "./AnimateMenuItem";
 
-// Selection-level "More" menu — sits at the far right of PropertiesToolbar's
-// row, alongside (not inside) the per-object-type More menus (ObjectMoreMenu,
-// TextMoreMenu). Those are scoped to a single object type's own controls;
-// this one holds actions that apply across every selection shape (single,
-// group, multi-select) — Animate being the first.
+// Fallback selection-level "More" menu — only rendered for selections that
+// have no per-object-type More menu of their own (group, multi-select; see
+// PropertiesToolbar). Single shape/icon/frame/image/text selections get
+// Animate folded into their own ObjectMoreMenu/TextMoreMenu instead, so
+// there is never more than one "More" button in the row at once.
 export default function SelectionMoreMenu({ animationPanelOpen, onToggleAnimationPanel, hasAnimations }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -19,24 +20,14 @@ export default function SelectionMoreMenu({ animationPanelOpen, onToggleAnimatio
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
         <div className="w-56 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg" data-text-toolbar-safe>
-          <button
-            type="button"
-            onClick={() => {
+          <AnimateMenuItem
+            animationPanelOpen={animationPanelOpen}
+            onToggleAnimationPanel={() => {
               setOpen(false);
               onToggleAnimationPanel();
             }}
-            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium ${
-              animationPanelOpen
-                ? "bg-amber-50 text-amber-700"
-                : hasAnimations
-                  ? "text-amber-600 hover:bg-amber-50"
-                  : "text-gray-700 hover:bg-amber-50 hover:text-amber-700"
-            }`}
-            aria-pressed={animationPanelOpen}
-          >
-            <Sparkles size={15} />
-            Animate
-          </button>
+            hasAnimations={hasAnimations}
+          />
         </div>
       </ToolbarPopover>
     </div>

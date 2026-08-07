@@ -25,6 +25,9 @@ export default function ShapePropertiesBar({
   onExitImageFillEditMode,
   shapeFillOpenRequest,
   brand,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
 }) {
   const [isColorPanelOpen, setIsColorPanelOpen] = useState(false);
 
@@ -190,6 +193,9 @@ export default function ShapePropertiesBar({
         onToggleLock={onToggleLock}
         onToggleHidden={onToggleHidden}
         onAlignToPage={onAlignToPage}
+        animationPanelOpen={animationPanelOpen}
+        onToggleAnimationPanel={onToggleAnimationPanel}
+        hasAnimations={hasAnimations}
       />
 
       {supportsFill && (

@@ -24,6 +24,9 @@ export default function ImagePropertiesBar({
   onRestoreOriginalRatio,
   onResetImageEdits,
   brand,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
 }) {
   const fileInputRef = useRef(null);
   const { objectUrl } = useAsset(item.assetId);
@@ -93,6 +96,9 @@ export default function ImagePropertiesBar({
         onToggleLock={onToggleLock}
         onToggleHidden={onToggleHidden}
         onAlignToPage={onAlignToPage}
+        animationPanelOpen={animationPanelOpen}
+        onToggleAnimationPanel={onToggleAnimationPanel}
+        hasAnimations={hasAnimations}
       />
     </>
   );

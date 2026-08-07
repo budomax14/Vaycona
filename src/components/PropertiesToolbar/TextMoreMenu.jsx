@@ -24,6 +24,7 @@ import {
 } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
 import ObjectTransformFields from "./ObjectTransformFields";
+import AnimateMenuItem from "./AnimateMenuItem";
 import { DEFAULT_PROJECT_TEXT_STYLES } from "../../textStyles";
 import { useBrandKits } from "../../brandKitContext";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
@@ -59,6 +60,9 @@ export default function TextMoreMenu({
   onToggleHidden,
   onAlignToPage,
   brand,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
 }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -74,6 +78,17 @@ export default function TextMoreMenu({
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
         <div className="flex max-h-[70vh] w-80 flex-col gap-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
+          {onToggleAnimationPanel && (
+            <AnimateMenuItem
+              animationPanelOpen={animationPanelOpen}
+              onToggleAnimationPanel={() => {
+                setOpen(false);
+                onToggleAnimationPanel();
+              }}
+              hasAnimations={hasAnimations}
+            />
+          )}
+
           <Section title="Arrange">
             <ObjectTransformFields
               item={item}

@@ -23,6 +23,9 @@ export default function FramePropertiesBar({
   onLiveAdjustments,
   onCommitAdjustments,
   onResetImageEdits,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
 }) {
   const fileInputRef = useRef(null);
   const { objectUrl } = useAsset(item.contentAssetId);
@@ -100,6 +103,9 @@ export default function FramePropertiesBar({
         onToggleLock={onToggleLock}
         onToggleHidden={onToggleHidden}
         onAlignToPage={onAlignToPage}
+        animationPanelOpen={animationPanelOpen}
+        onToggleAnimationPanel={onToggleAnimationPanel}
+        hasAnimations={hasAnimations}
       />
     </>
   );

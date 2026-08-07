@@ -199,6 +199,9 @@ export default function PropertiesToolbar({
           onUngroup={single.type === "group" ? onUngroup : undefined}
           onMoveBy={single.type === "group" ? (dx, dy) => onMoveGroupBy(single.id, dx, dy) : undefined}
           onSetGroupOpacity={single.type === "group" ? (value) => onSetGroupOpacity(single.id, value) : undefined}
+          animationPanelOpen={single.type !== "group" ? animationPanelOpen : undefined}
+          onToggleAnimationPanel={single.type !== "group" ? onToggleAnimationPanel : undefined}
+          hasAnimations={single.type !== "group" ? hasAnimations : undefined}
         />
       )}
 
@@ -223,7 +226,11 @@ export default function PropertiesToolbar({
         />
       )}
 
-      {selectedItems.length >= 1 && (
+      {/* Fallback for selection shapes with no per-type More menu of their
+          own (group, multi-select) — single shape/icon/frame/image/text
+          selections get Animate folded into their own Bar's More menu
+          above instead, so only one "More" button ever shows at once. */}
+      {(selectedItems.length > 1 || (single && single.type === "group")) && (
         <SelectionMoreMenu
           animationPanelOpen={animationPanelOpen}
           onToggleAnimationPanel={onToggleAnimationPanel}

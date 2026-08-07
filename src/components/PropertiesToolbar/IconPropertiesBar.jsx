@@ -15,6 +15,9 @@ export default function IconPropertiesBar({
   onToggleHidden,
   onAlignToPage,
   brand,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
 }) {
   return (
     <>
@@ -50,6 +53,9 @@ export default function IconPropertiesBar({
         onToggleLock={onToggleLock}
         onToggleHidden={onToggleHidden}
         onAlignToPage={onAlignToPage}
+        animationPanelOpen={animationPanelOpen}
+        onToggleAnimationPanel={onToggleAnimationPanel}
+        hasAnimations={hasAnimations}
       />
     </>
   );
