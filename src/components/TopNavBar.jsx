@@ -7,6 +7,14 @@ import { STRINGS } from "../i18n";
 import { navigateTo } from "../adminRoute";
 import ToolbarPopover from "./PropertiesToolbar/ToolbarPopover";
 
+// Tailwind's built-in `md:` variant only reads viewport WIDTH — a landscape
+// phone is wide (>768px) but short (~375-440px tall), so `md:` alone can't
+// tell "desktop" apart from "phone lying on its side." Both MenuDropdown's
+// height cap and MenuSubmenu's flyout-vs-inline layout below need genuine
+// vertical room, not just width, so they share this compound arbitrary
+// variant instead.
+const SPACIOUS = "[@media(min-width:768px)_and_(min-height:640px)]";
+
 // Short, human labels for the autosave status (spec §3) — internal status
 // names ("saving"/"error"/...) are never shown to the user directly.
 function saveStatusLabel(t, status, lastSavedAt) {
@@ -55,7 +63,7 @@ function MenuDropdown({ label, children }) {
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div
-          className="max-h-[80vh] min-w-[230px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg md:max-h-none md:overflow-visible"
+          className={`max-h-[80vh] min-w-[230px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg ${SPACIOUS}:max-h-none ${SPACIOUS}:overflow-visible`}
           onClick={() => setOpen(false)}
         >
           {children}
@@ -72,11 +80,16 @@ function MenuDropdown({ label, children }) {
 // uses). Opens on hover or click; closes on outside click, same pattern
 // as MenuDropdown's own outside-click handling.
 //
-// The panel itself flies out to the right only at md+ — MenuDropdown's
-// panel is portalled (fixed-positioned to the viewport, see MenuDropdown
-// above) so a flyout anchored off *its* right edge has nowhere to go on a
-// phone-width screen; below md it expands inline underneath the trigger
-// instead, same as a standard mobile accordion.
+// The panel itself flies out to the right only when there's genuinely room
+// for it — MenuDropdown's panel is portalled (fixed-positioned to the
+// viewport, see MenuDropdown above) so a flyout anchored off *its* right
+// edge has nowhere to go on a narrow screen; otherwise it expands inline
+// underneath the trigger instead, same as a standard mobile accordion.
+// Gated on BOTH width and height (not Tailwind's width-only `md:`) because
+// a landscape phone is wide (>768px) but short (~375-440px tall) — treating
+// that as "desktop" would strip MenuDropdown's height cap/scroll (see
+// its own class list above) and let the last items in a long menu render
+// off the bottom of the screen with no way to reach them.
 function MenuSubmenu({ label, children }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -120,7 +133,9 @@ function MenuSubmenu({ label, children }) {
         <ChevronRight size={14} className="text-gray-400" />
       </button>
       {open && (
-        <div className="mt-0.5 space-y-0.5 rounded-lg bg-gray-50 p-1 md:absolute md:left-full md:top-0 md:z-40 md:ml-1 md:mt-0 md:min-w-[230px] md:space-y-0 md:rounded-xl md:border md:border-gray-200 md:bg-white md:p-1.5 md:shadow-lg">
+        <div
+          className={`mt-0.5 space-y-0.5 rounded-lg bg-gray-50 p-1 ${SPACIOUS}:absolute ${SPACIOUS}:left-full ${SPACIOUS}:top-0 ${SPACIOUS}:z-40 ${SPACIOUS}:ml-1 ${SPACIOUS}:mt-0 ${SPACIOUS}:min-w-[230px] ${SPACIOUS}:space-y-0 ${SPACIOUS}:rounded-xl ${SPACIOUS}:border ${SPACIOUS}:border-gray-200 ${SPACIOUS}:bg-white ${SPACIOUS}:p-1.5 ${SPACIOUS}:shadow-lg`}
+        >
           {children}
         </div>
       )}
