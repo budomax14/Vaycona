@@ -27,10 +27,10 @@ const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
 // server-side allowlist too — a client is never trusted to send an
 // arbitrary Stripe Price ID straight through to checkout.
 const PRICE_TIERS = {
-  price_pro_monthly_REPLACE_ME: "pro",
-  price_pro_annual_REPLACE_ME: "pro",
-  price_business_monthly_REPLACE_ME: "business",
-  price_business_annual_REPLACE_ME: "business",
+  price_1U2ElD90aGERiS3Q9toSuMYm: "pro",
+  price_1U2FRg90aGERiS3QJo7HHSY8: "pro",
+  price_1U2Elt90aGERiS3QfNkib9Ol: "business",
+  price_1U2FGA90aGERiS3QS4dMH5oz: "business",
 };
 
 function tierForPriceId(priceId) {
