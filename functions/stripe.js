@@ -76,6 +76,7 @@ exports.createCheckoutSession = onCall(
       customer: customerId,
       client_reference_id: uid,
       line_items: [{ price: priceId, quantity: 1 }],
+      payment_method_types: ["card"],
       success_url: `${origin}/#/?checkout=success`,
       cancel_url: `${origin}/#/?checkout=cancel`,
     });
