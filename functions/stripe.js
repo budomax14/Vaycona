@@ -131,15 +131,15 @@ exports.stripeWebhook = onRequest(
           const uid = session.client_reference_id;
           if (uid && session.subscription) {
             const subscription = await stripe.subscriptions.retrieve(session.subscription);
-            const priceId = subscription.items.data[0]?.price?.id;
-            const tier = tierForPriceId(priceId) || "free";
+            const item = subscription.items.data[0];
+            const tier = tierForPriceId(item?.price?.id) || "free";
             await db.collection("users").doc(uid).set(
               {
                 tier,
                 status: subscription.status,
                 stripeCustomerId: session.customer,
                 stripeSubscriptionId: subscription.id,
-                currentPeriodEnd: subscription.current_period_end * 1000,
+                currentPeriodEnd: item?.current_period_end ? item.current_period_end * 1000 : null,
                 updatedAt: Date.now(),
               },
               { merge: true }
@@ -151,14 +151,14 @@ exports.stripeWebhook = onRequest(
           const subscription = event.data.object;
           const uid = await findUidByCustomerId(db, subscription.customer);
           if (uid) {
-            const priceId = subscription.items.data[0]?.price?.id;
-            const tier = tierForPriceId(priceId) || "free";
+            const item = subscription.items.data[0];
+            const tier = tierForPriceId(item?.price?.id) || "free";
             await db.collection("users").doc(uid).set(
               {
                 tier,
                 status: subscription.status,
                 stripeSubscriptionId: subscription.id,
-                currentPeriodEnd: subscription.current_period_end * 1000,
+                currentPeriodEnd: item?.current_period_end ? item.current_period_end * 1000 : null,
                 updatedAt: Date.now(),
               },
               { merge: true }
