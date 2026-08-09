@@ -12,8 +12,8 @@ const SubscriptionContext = createContext(null);
 // functions/stripe.js's PRICE_TIERS, which must list the same IDs as a
 // server-side allowlist).
 export const PRICE_IDS = {
-  pro: { monthly: "price_1U2ElD90aGERiS3Q9toSuMYm", annual: "price_1U2FRg90aGERiS3QJo7HHSY8" },
-  business: { monthly: "price_1U2Elt90aGERiS3QfNkib9Ol", annual: "price_1U2FGA90aGERiS3QS4dMH5oz" },
+  pro: { monthly: "price_1U2JIE90aGERiS3QGje8kZa4", annual: "price_1U2JRJ90aGERiS3QgOOy7hGp" },
+  business: { monthly: "price_1U2JWa90aGERiS3QzYjRUMYD", annual: "price_1U2JZv90aGERiS3Q32hhmnnP" },
 };
 
 export const TIER_RANK = { free: 0, pro: 1, business: 2 };
