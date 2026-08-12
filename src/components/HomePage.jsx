@@ -44,7 +44,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
     <div className="flex h-screen flex-col overflow-y-auto bg-gray-50 text-gray-900">
       <header
         className="relative flex h-28 shrink-0 items-start justify-between bg-gray-900 bg-cover bg-center px-6 py-4 md:h-36"
-        style={{ backgroundImage: "url(/herob.PNG)" }}
+        style={{ backgroundImage: "url(/herob.png)" }}
       >
         <div className="relative">
           <button
