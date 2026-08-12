@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { Plus, Search, Settings, X } from "lucide-react";
+import { LogOut, Plus, Search, Settings, User, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
 import { useTheme } from "../themeContext";
 import { useLanguage } from "../languageContext";
+import { useAuth } from "../authContext";
 import { STRINGS } from "../i18n";
 
 // The landing page shown before the editor mounts (and whenever the user
@@ -23,10 +24,13 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
   const [customUnit, setCustomUnit] = useState("px");
   const { language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
+  const { user, signOut } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const t = STRINGS[language].home;
   const c = STRINGS[language].common;
+  const nav = STRINGS[language].topNav;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -39,7 +43,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
   return (
     <div className="flex h-screen flex-col overflow-y-auto bg-gray-50 text-gray-900">
       <header
-        className="relative flex h-28 shrink-0 items-start justify-end bg-gray-900 bg-cover bg-center px-6 py-4 md:h-36"
+        className="relative flex h-28 shrink-0 items-start justify-between bg-gray-900 bg-cover bg-center px-6 py-4 md:h-36"
         style={{ backgroundImage: "url(/herob.PNG)" }}
       >
         <div className="relative">
@@ -55,7 +59,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
           {settingsOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setSettingsOpen(false)} />
-              <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
+              <div className="absolute left-0 z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-sm font-semibold text-gray-900">{c.settings}</span>
                   <button
@@ -106,6 +110,39 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
                     ))}
                   </div>
                 </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="relative">
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+            onClick={() => setProfileOpen((v) => !v)}
+            aria-label={nav.accountMenu}
+            title={user?.email || nav.accountMenu}
+          >
+            <User size={18} />
+          </button>
+
+          {profileOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
+              <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
+                <div className="px-3 py-2">
+                  <div className="truncate text-xs text-gray-500">{user?.email}</div>
+                </div>
+                <div className="my-1 h-px bg-gray-100" />
+                <button
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    signOut();
+                  }}
+                >
+                  <LogOut size={14} />
+                  {nav.logOut}
+                </button>
               </div>
             </>
           )}
