@@ -87,7 +87,7 @@ import { borderDashProps } from "./borderStyles";
 import { getItemBounds, rectsIntersect, unionBounds } from "./bounds";
 import { screenToContent, contentToScreen } from "./viewport";
 import { collectSnapCandidates, computeSnap, snapResizeEdge, thresholdForScale } from "./snapping";
-import { alignItems, alignToPage, distributeItems } from "./alignment";
+import { alignItems, alignToPage, distributeItems, distributeItemsWithGap, computeCurrentGap, inferDistributeAxis } from "./alignment";
 import {
   normalizeGuide,
   createGuide,
@@ -4027,6 +4027,132 @@ export default function App({ editorMode = "workspace", templateSession = null }
     );
   }
 
+  // Smart Spacing's Gap field for a selected group's direct children
+  // (GroupPropertiesBar) — same exact-gap math as the multi-select Gap
+  // field (distributeSelection), just scoped to one group's own children
+  // instead of the raw selection, and re-synced into lockSpacing.gap if
+  // spacing is currently locked so the two controls never disagree.
+  function distributeGroupChildren(groupId, axis, gapPx) {
+    const group = items.find((it) => it.id === groupId && it.type === "group");
+    if (!group) return;
+    const children = items.filter((it) => it.parentId === groupId);
+    if (children.length < 2) return;
+    const distributed = distributeItemsWithGap(children, axis, gapPx);
+    const deltaById = new Map(
+      distributed.map((a) => {
+        const orig = children.find((o) => o.id === a.id);
+        return [a.id, { dx: a.x - orig.x, dy: a.y - orig.y }];
+      })
+    );
+    let next = applyPositionDeltas(items, deltaById);
+    if (group.lockSpacing) {
+      next = next.map((it) =>
+        it.id === groupId ? { ...it, lockSpacing: { axis, gap: Math.max(0, gapPx) }, updatedAt: Date.now() } : it
+      );
+    }
+    commit(next, { type: "distribute", label: "Set group spacing", itemIds: [groupId, ...children.map((c) => c.id)] });
+  }
+
+  // Lock Spacing (spec §6): captures the group's current per-axis gap onto
+  // the group item itself (`lockSpacing: {axis, gap}`) rather than making
+  // every group implicitly flex-like — only opted-in groups get their
+  // children re-snapped to a fixed gap on resize (see handleTransformEnd).
+  // Toggling off just clears the flag; children keep whatever position
+  // they're already at.
+  function toggleLockSpacing(groupId) {
+    const group = items.find((it) => it.id === groupId && it.type === "group");
+    if (!group) return;
+    if (group.lockSpacing) {
+      commit(items.map((it) => (it.id === groupId ? { ...it, lockSpacing: null, updatedAt: Date.now() } : it)), {
+        type: "edit-property",
+        label: "Unlock spacing",
+        itemIds: [groupId],
+      });
+      return;
+    }
+    const children = items.filter((it) => it.parentId === groupId);
+    if (children.length < 2) return;
+    const axis = inferDistributeAxis(children);
+    const gap = Math.max(0, computeCurrentGap(children, axis) ?? 0);
+    commit(
+      items.map((it) => (it.id === groupId ? { ...it, lockSpacing: { axis, gap }, updatedAt: Date.now() } : it)),
+      { type: "edit-property", label: "Lock spacing", itemIds: [groupId] }
+    );
+  }
+
+  // Collage fill (spec follow-up): one image split across every
+  // shape/text descendant of a group, so together they read as one
+  // continuous photo. Reuses the EXISTING per-item `fillImage` descriptor
+  // and renderer unchanged (ShapeNode/SimpleTextNode already resolve it) —
+  // this just computes, per child, the {zoom, offsetX, offsetY} that make
+  // that per-shape cover-fit crop line up with the slice of the source
+  // image that would appear behind it if the whole image were laid out
+  // once across the group's bounding box, then writes it directly onto
+  // each child. A one-shot computation (like distribute/align elsewhere in
+  // this file), not a live constraint: moving/resizing the GROUP as a
+  // whole keeps the pieces aligned (fillImage's zoom/offset are normalized
+  // fractions of each child's own box, invariant under a uniform group
+  // resize), but repositioning one child independently afterward will
+  // break its piece out of alignment with the others, same as any other
+  // one-shot arrange action.
+  async function fillGroupWithImage(groupId, assetId) {
+    const meta = await getAssetMeta(assetId);
+    const naturalWidth = meta?.width;
+    const naturalHeight = meta?.height;
+    if (!naturalWidth || !naturalHeight) return;
+
+    const latestItems = itemsRef.current;
+    const group = latestItems.find((it) => it.id === groupId && it.type === "group");
+    if (!group) return;
+    const targets = getDescendantIds(latestItems, groupId)
+      .map((id) => latestItems.find((it) => it.id === id))
+      .filter(
+        (it) => it && (it.type === "shape" || it.type === "text") && it.width > 0 && it.height > 0 && !isEffectivelyLocked(it, itemsById)
+      );
+    if (targets.length === 0) return;
+
+    const groupBox = getItemBounds(group);
+    // Cover-scale a single copy of the source image over the whole
+    // group, centered — this is the "virtual background" every child's
+    // own crop window is sliced out of.
+    const scale = Math.max(groupBox.width / naturalWidth, groupBox.height / naturalHeight);
+    const drawWidth = naturalWidth * scale;
+    const drawHeight = naturalHeight * scale;
+    const imageOriginX = groupBox.left - (drawWidth - groupBox.width) / 2;
+    const imageOriginY = groupBox.top - (drawHeight - groupBox.height) / 2;
+
+    const now = Date.now();
+    const updatesById = new Map();
+    targets.forEach((child) => {
+      // This child's slice of the source image, in natural pixel coords.
+      const targetX = (child.x - imageOriginX) / scale;
+      const targetY = (child.y - imageOriginY) / scale;
+      const targetW = Math.max(1, child.width / scale);
+      const targetH = Math.max(1, child.height / scale);
+      // Solve computeCropLayout's own "fill" (cover) formula backwards for
+      // the {zoom, offsetX, offsetY} that reproduce exactly that slice —
+      // valid because targetW/targetH always share child's own box aspect
+      // ratio by construction (both were divided by the same `scale`).
+      const boxAspect = child.width / child.height;
+      const naturalAspect = naturalWidth / naturalHeight;
+      const baseCropWidth = naturalAspect > boxAspect ? naturalHeight * boxAspect : naturalWidth;
+      const zoom = Math.max(1, baseCropWidth / targetW);
+      const offsetX = Math.max(0, Math.min(1, (targetX + targetW / 2) / naturalWidth));
+      const offsetY = Math.max(0, Math.min(1, (targetY + targetH / 2) / naturalHeight));
+      updatesById.set(child.id, {
+        fillImage: { assetId, fit: "fill", zoom, offsetX, offsetY, rotation: 0, opacity: 1, flipX: false, flipY: false },
+        fillGradient: undefined,
+        updatedAt: now,
+      });
+    });
+
+    commit(latestItems.map((it) => (updatesById.has(it.id) ? { ...it, ...updatesById.get(it.id) } : it)), {
+      type: "edit-property",
+      label: "Fill group with image",
+      itemIds: [...updatesById.keys()],
+    });
+  }
+
   function toggleLockSelection() {
     if (selectedIds.length === 0) return;
     const allLocked = selectedItems.every((item) => item.locked);
@@ -4085,7 +4211,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const increment = size === "large" ? prefs.nudgeLarge : size === "fine" ? prefs.nudgeFine : prefs.nudgeStandard;
     const dx = dirX * increment;
     const dy = dirY * increment;
-    const ids = movable.map((item) => item.id);
+    // Same "once in a group, always moves as the whole group" rule as
+    // dragging (onItemDragStart) — a selected child inside a group (picked
+    // via double-click-into-group) expands to its top-level group's full
+    // leaf set instead of nudging alone.
+    const itemsNow = itemsRef.current;
+    const idSet = new Set();
+    movable.forEach((item) => {
+      const chain = getAncestorChain(itemsNow, item.id);
+      const topGroupId = chain.length > 1 ? chain[chain.length - 1] : null;
+      if (topGroupId) expandToLeafIds(itemsNow, [topGroupId]).forEach((leafId) => idSet.add(leafId));
+      else idSet.add(item.id);
+    });
+    const ids = [...idSet];
 
     if (!nudgeSessionRef.current) {
       nudgeSessionRef.current = { ids, timer: null };
@@ -4185,11 +4323,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
     });
   }
 
-  function distributeSelection(axis) {
-    if (selectedIds.length < 3) return;
+  // gapPx omitted -> classic "distribute evenly" (equal gap derived from
+  // the selection's own span). gapPx provided -> Smart Spacing's exact-gap
+  // mode (distributeItemsWithGap), which only needs 2+ items since there's
+  // no "even spacing" ambiguity to resolve.
+  function distributeSelection(axis, gapPx) {
+    if (gapPx == null && selectedIds.length < 3) return;
+    if (gapPx != null && selectedIds.length < 2) return;
     const selectedSet = new Set(selectedIds);
     const toDistribute = items.filter((item) => selectedSet.has(item.id));
-    const distributed = distributeItems(toDistribute, axis);
+    const distributed =
+      gapPx != null ? distributeItemsWithGap(toDistribute, axis, gapPx) : distributeItems(toDistribute, axis);
     const deltaById = new Map(
       distributed.map((a) => {
         const orig = toDistribute.find((o) => o.id === a.id);
@@ -4947,13 +5091,26 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   const onItemDragStart = useCallback((id, node) => {
     const items = itemsRef.current;
-    // If the physically-dragged leaf is part of the current logical
-    // selection (expanded through any selected group), the whole
+    // Once an object belongs to a group, it can never be dragged
+    // independently of it — even a child that's individually selected via
+    // double-click-into-group (selectedIds could be just that child's id)
+    // still rigidly drags the WHOLE top-level group along with it. Only
+    // Ungroup frees it. getAncestorChain's last entry is the topmost
+    // ancestor, guaranteed to be a group if the chain has more than one
+    // link (parentId only ever points at a group).
+    const chain = getAncestorChain(items, id);
+    const topGroupId = chain.length > 1 ? chain[chain.length - 1] : null;
+    // Otherwise: if the physically-dragged leaf is part of the current
+    // logical selection (expanded through any selected group), the whole
     // expanded set moves together; otherwise just the one leaf does
     // (matches the pre-Phase-5 shape of this check exactly, just against
     // the expanded leaf set instead of the raw selectedIds).
     const expandedSelected = expandToLeafIds(items, selectedIdsRef.current);
-    const idsToMove = expandedSelected.includes(id) ? expandedSelected : [id];
+    const idsToMove = topGroupId
+      ? expandToLeafIds(items, [topGroupId])
+      : expandedSelected.includes(id)
+        ? expandedSelected
+        : [id];
     const startPositions = new Map();
     idsToMove.forEach((itemId) => {
       const item = items.find((candidate) => candidate.id === itemId);
@@ -5414,6 +5571,27 @@ export default function App({ editorMode = "workspace", templateSession = null }
     groupTransformStartRef.current = [];
 
     next = recomputeAffectedGroupBounds(next, [...affectedParentIds]);
+
+    // Lock Spacing: a resize (not a rotate — re-flowing positions mid-spin
+    // would fight the rotation) of a group with lockSpacing set re-snaps
+    // its direct children to the locked gap, on top of whatever position
+    // the generic proportional resize above already gave them. Children
+    // keep their own resized dimensions; only their position is corrected.
+    if (interactionMode !== "rotating") {
+      affectedParentIds.forEach((groupId) => {
+        const group = next.find((it) => it.id === groupId);
+        if (group?.type !== "group" || !group.lockSpacing) return;
+        const children = next.filter((it) => it.parentId === groupId);
+        if (children.length < 2) return;
+        const distributed = distributeItemsWithGap(children, group.lockSpacing.axis, group.lockSpacing.gap);
+        const positioned = new Map(distributed.map((d) => [d.id, d]));
+        next = next.map((it) =>
+          positioned.has(it.id) ? { ...it, x: positioned.get(it.id).x, y: positioned.get(it.id).y } : it
+        );
+      });
+      next = recomputeAffectedGroupBounds(next, [...affectedParentIds]);
+    }
+
     const transformedIds = [...updates.keys()];
     const isRotate = interactionMode === "rotating";
     commit(next, {
@@ -6234,6 +6412,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onToggleHidden={toggleHiddenSelection}
         onMoveGroupBy={moveGroupBy}
         onSetGroupOpacity={setGroupOpacity}
+        groupChildren={
+          selectedItems.length === 1 && selectedItems[0].type === "group"
+            ? items.filter((it) => it.parentId === selectedItems[0].id)
+            : []
+        }
+        onDistributeGroupChildren={distributeGroupChildren}
+        onToggleLockSpacing={toggleLockSpacing}
+        onFillGroupWithImage={fillGroupWithImage}
         editingTextId={editingTextId}
         onEditText={enterTextEdit}
         onExitTextEdit={exitTextEdit}

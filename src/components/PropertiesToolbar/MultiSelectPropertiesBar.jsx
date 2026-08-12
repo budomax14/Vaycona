@@ -1,25 +1,12 @@
 import React from "react";
-import {
-  AlignCenterHorizontal,
-  AlignCenterVertical,
-  AlignEndHorizontal,
-  AlignEndVertical,
-  AlignHorizontalSpaceBetween,
-  AlignStartHorizontal,
-  AlignStartVertical,
-  AlignVerticalSpaceBetween,
-  ArrowDown,
-  ArrowUp,
-  FlipHorizontal,
-  FlipVertical,
-  Group,
-  Trash2,
-  Ungroup,
-} from "lucide-react";
-import { ColorField, IconButton, IconToggleButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
-import { PrecisionField } from "./ObjectTransformFields";
+import { ArrowDown, ArrowUp, Group, Trash2, Ungroup } from "lucide-react";
+import { ColorField, IconButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
+import PositionMenu from "./PositionMenu";
+import AlignMenu from "./AlignMenu";
+import DistributeMenu from "./DistributeMenu";
+import ImageAdjustMenu from "./ImageAdjustMenu";
+import SelectionMoreMenu from "./SelectionMoreMenu";
 import { computeSelectionControls } from "../../mixedSelection";
-import { FILTER_PRESETS } from "../../imageEffects";
 import { unionBounds, getItemBounds } from "../../bounds";
 
 // A selected item is "image-like" if bulk flip/filter controls should
@@ -61,6 +48,9 @@ export default function MultiSelectPropertiesBar({
   onDelete,
   onBulkFlip,
   onBulkFilterPreset,
+  animationPanelOpen,
+  onToggleAnimationPanel,
+  hasAnimations,
 }) {
   const rows = (items ? computeSelectionControls(items) : []).filter((row) => FIELD_WIDGETS[row.key]);
   const imageLikeIds = items ? items.filter(isImageLike).map((item) => item.id) : [];
@@ -75,14 +65,10 @@ export default function MultiSelectPropertiesBar({
 
       {groupBounds && onTransformBounds && (
         <>
-          <PrecisionField label="X" valuePx={groupBounds.left} unit={unit} width={56} onCommitPx={(px) => onTransformBounds({ x: px })} />
-          <PrecisionField label="Y" valuePx={groupBounds.top} unit={unit} width={56} onCommitPx={(px) => onTransformBounds({ y: px })} />
-          <PrecisionField label="Width" valuePx={groupBounds.width} unit={unit} min={1} width={56} onCommitPx={(px) => onTransformBounds({ width: Math.max(1, px) })} />
-          <PrecisionField label="Height" valuePx={groupBounds.height} unit={unit} min={1} width={56} onCommitPx={(px) => onTransformBounds({ height: Math.max(1, px) })} />
+          <PositionMenu bounds={groupBounds} unit={unit} onTransformBounds={onTransformBounds} />
+          {rows.length > 0 && <ToolbarDivider />}
         </>
       )}
-
-      {rows.length > 0 && <ToolbarDivider />}
 
       {rows.map(({ key, field, value, mixed }) => {
         const { Widget, props } = FIELD_WIDGETS[key];
@@ -99,27 +85,12 @@ export default function MultiSelectPropertiesBar({
 
       <ToolbarDivider />
 
-      <IconToggleButton icon={AlignStartVertical} onClick={() => onAlign("left")} title="Align left" />
-      <IconToggleButton icon={AlignCenterVertical} onClick={() => onAlign("center-h")} title="Align center" />
-      <IconToggleButton icon={AlignEndVertical} onClick={() => onAlign("right")} title="Align right" />
-      <IconToggleButton icon={AlignStartHorizontal} onClick={() => onAlign("top")} title="Align top" />
-      <IconToggleButton icon={AlignCenterHorizontal} onClick={() => onAlign("middle-v")} title="Align middle" />
-      <IconToggleButton icon={AlignEndHorizontal} onClick={() => onAlign("bottom")} title="Align bottom" />
-
-      <ToolbarDivider />
-
-      <IconToggleButton
-        icon={AlignHorizontalSpaceBetween}
-        onClick={() => onDistribute("horizontal")}
-        title="Distribute horizontally"
-        disabled={!canDistribute}
-      />
-      <IconToggleButton
-        icon={AlignVerticalSpaceBetween}
-        onClick={() => onDistribute("vertical")}
-        title="Distribute vertically"
-        disabled={!canDistribute}
-      />
+      {/* §5/§6 Smart Spacing + arrange controls are grouped one-button-per-
+          cluster (AlignMenu/DistributeMenu/ImageAdjustMenu) rather than
+          loose on the row — this bar gets crowded fast once several
+          multi-select items overlap. */}
+      <AlignMenu onAlign={onAlign} />
+      <DistributeMenu items={items} canDistribute={canDistribute} onDistribute={onDistribute} />
 
       <ToolbarDivider />
 
@@ -129,26 +100,7 @@ export default function MultiSelectPropertiesBar({
       {allImageLike && (
         <>
           <ToolbarDivider />
-          <IconToggleButton icon={FlipHorizontal} onClick={() => onBulkFlip(imageLikeIds, "x")} title="Flip horizontal (all selected)" />
-          <IconToggleButton icon={FlipVertical} onClick={() => onBulkFlip(imageLikeIds, "y")} title="Flip vertical (all selected)" />
-          <select
-            className="shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-600 outline-none"
-            defaultValue=""
-            onChange={(event) => {
-              const preset = FILTER_PRESETS.find((p) => p.key === event.target.value);
-              if (preset) onBulkFilterPreset(imageLikeIds, preset.adjustments);
-              event.target.value = "";
-            }}
-          >
-            <option value="" disabled>
-              Apply filter…
-            </option>
-            {FILTER_PRESETS.map((preset) => (
-              <option key={preset.key} value={preset.key}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
+          <ImageAdjustMenu imageLikeIds={imageLikeIds} onBulkFlip={onBulkFlip} onBulkFilterPreset={onBulkFilterPreset} />
         </>
       )}
 
@@ -156,6 +108,12 @@ export default function MultiSelectPropertiesBar({
 
       <IconButton icon={Group} label="Group" onClick={onGroup} />
       {hasGroupedSelection && <IconButton icon={Ungroup} label="Ungroup" onClick={onUngroup} />}
+      <SelectionMoreMenu
+        animationPanelOpen={animationPanelOpen}
+        onToggleAnimationPanel={onToggleAnimationPanel}
+        hasAnimations={hasAnimations}
+        pushRight={false}
+      />
 
       <ToolbarDivider />
 

@@ -37,14 +37,14 @@ const STORIES = [
   {
     image: "/canvaE.png",
     alt: "The AI Illustrations panel inside the Vaycona editor",
-    title: "Clean Canvas, simple working space",
-    body: "Use the canvas to do make your imgination comes true. You have the ability too choose any size for your page.",
+    title: "Your ideas deserve room to create.",
+    body: "Start with a blank canvas and bring your vision to life. Choose the perfect size, add your content, and create freely with everything you need right at your fingertips.",
   },
   {
     image: "/templates-suite-detail.png",
     alt: "Browsing template categories and starter designs in Vaycona",
-    title: "Hundreds of starting points, zero blank pages",
-    body: "Weddings, marketing decks, travel posts, menus — pick a category and start from a real design instead of an empty canvas. Every template stays fully editable, so it's a head start, never a straitjacket.",
+    title: "Start Inspired. Make it yours.",
+    body: "Explore ready-to-use templates for social media, presentations, marketing, events, menus, and more.Customize every detail and turn any template into something uniquely yours.",
   },
 ];
 

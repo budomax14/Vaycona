@@ -30,6 +30,10 @@ export default function PropertiesToolbar({
   onToggleHidden,
   onMoveGroupBy,
   onSetGroupOpacity,
+  groupChildren,
+  onDistributeGroupChildren,
+  onToggleLockSpacing,
+  onFillGroupWithImage,
   editingTextId,
   onEditText,
   onExitTextEdit,
@@ -203,6 +207,12 @@ export default function PropertiesToolbar({
           onUngroup={single.type === "group" ? onUngroup : undefined}
           onMoveBy={single.type === "group" ? (dx, dy) => onMoveGroupBy(single.id, dx, dy) : undefined}
           onSetGroupOpacity={single.type === "group" ? (value) => onSetGroupOpacity(single.id, value) : undefined}
+          groupChildren={single.type === "group" ? groupChildren : undefined}
+          onDistributeChildren={
+            single.type === "group" ? (axis, gapPx) => onDistributeGroupChildren(single.id, axis, gapPx) : undefined
+          }
+          onToggleLockSpacing={single.type === "group" ? () => onToggleLockSpacing(single.id) : undefined}
+          onFillWithImage={single.type === "group" ? (assetId) => onFillGroupWithImage(single.id, assetId) : undefined}
           animationPanelOpen={single.type !== "group" ? animationPanelOpen : undefined}
           onToggleAnimationPanel={single.type !== "group" ? onToggleAnimationPanel : undefined}
           hasAnimations={single.type !== "group" ? hasAnimations : undefined}
@@ -227,14 +237,19 @@ export default function PropertiesToolbar({
           onDelete={onDelete}
           onBulkFlip={onBulkFlip}
           onBulkFilterPreset={onBulkFilterPreset}
+          animationPanelOpen={animationPanelOpen}
+          onToggleAnimationPanel={onToggleAnimationPanel}
+          hasAnimations={hasAnimations}
         />
       )}
 
-      {/* Fallback for selection shapes with no per-type More menu of their
-          own (group, multi-select) — single shape/icon/frame/image/text
-          selections get Animate folded into their own Bar's More menu
-          above instead, so only one "More" button ever shows at once. */}
-      {(selectedItems.length > 1 || (single && single.type === "group")) && (
+      {/* Fallback for a selected group, which has no per-type More menu of
+          its own — the multi-select case renders its own SelectionMoreMenu
+          inline (next to Group/Ungroup) inside MultiSelectPropertiesBar
+          instead; single shape/icon/frame/image/text selections get
+          Animate folded into their own Bar's More menu above. So there is
+          never more than one "More" button in the row at once. */}
+      {single && single.type === "group" && (
         <SelectionMoreMenu
           animationPanelOpen={animationPanelOpen}
           onToggleAnimationPanel={onToggleAnimationPanel}

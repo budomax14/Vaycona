@@ -9,12 +9,12 @@ import AnimateMenuItem from "./AnimateMenuItem";
 // PropertiesToolbar). Single shape/icon/frame/image/text selections get
 // Animate folded into their own ObjectMoreMenu/TextMoreMenu instead, so
 // there is never more than one "More" button in the row at once.
-export default function SelectionMoreMenu({ animationPanelOpen, onToggleAnimationPanel, hasAnimations }) {
+export default function SelectionMoreMenu({ animationPanelOpen, onToggleAnimationPanel, hasAnimations, pushRight = true }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
 
   return (
-    <div className="relative ml-auto shrink-0" data-text-toolbar-safe>
+    <div className={`relative shrink-0 ${pushRight ? "ml-auto" : ""}`} data-text-toolbar-safe>
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={MoreHorizontal} label="More" onClick={() => setOpen((v) => !v)} active={open} />
       </div>

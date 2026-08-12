@@ -1,16 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
   Copy,
   Eye,
   EyeOff,
+  ImageIcon,
   Lock,
+  Magnet,
   Trash2,
   Ungroup as UngroupIcon,
   Unlock,
 } from "lucide-react";
 import { IconButton, IconToggleButton, LabeledField, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
+import { computeCurrentGap, inferDistributeAxis } from "../../alignment";
+import ImageAssetPickerModal from "../ImageAssetPickerModal";
 
 // A group has no independent visual footprint (see hierarchy.js) — its
 // x/y/width/height are DERIVED from its children's union bounds, so only
@@ -23,6 +27,7 @@ import { IconButton, IconToggleButton, LabeledField, NumberField, SliderField, T
 // tradeoff, not a silent inconsistency.
 export default function GroupPropertiesBar({
   item,
+  groupChildren = [],
   onChange,
   onMoveBy,
   onSetGroupOpacity,
@@ -33,7 +38,24 @@ export default function GroupPropertiesBar({
   onToggleLock,
   onToggleHidden,
   onUngroup,
+  onDistributeChildren,
+  onToggleLockSpacing,
+  onFillWithImage,
 }) {
+  // Smart Spacing (spec §5/§6) — only meaningful once the group actually
+  // has 2+ direct children to space out. Axis is whatever's already
+  // locked in, or inferred from how the children are laid out.
+  const canSpace = groupChildren.length >= 2;
+  const spacingAxis = item.lockSpacing?.axis || (canSpace ? inferDistributeAxis(groupChildren) : "horizontal");
+  const gapValue = item.lockSpacing?.gap ?? (canSpace ? computeCurrentGap(groupChildren, spacingAxis) : null);
+
+  // Collage fill (§9 follow-up) — one photo split across every
+  // fillable (shape/text) descendant of the group. Needs at least one
+  // fillable child; the picker itself is a plain asset-pick modal, same
+  // one ShapePropertiesBar's own image fill uses.
+  const canFillWithImage = !!onFillWithImage && groupChildren.some((c) => c.type === "shape" || c.type === "text");
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
   return (
     <>
       <LabeledField label="Name" width={140}>
@@ -74,6 +96,40 @@ export default function GroupPropertiesBar({
       <ToolbarDivider />
 
       <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={onSetGroupOpacity} />
+
+      {canSpace && (
+        <>
+          <ToolbarDivider />
+          <NumberField
+            label="Gap"
+            value={gapValue != null ? Math.round(gapValue) : 0}
+            min={0}
+            width={64}
+            onChange={(value) => onDistributeChildren(spacingAxis, Math.max(0, value))}
+          />
+          <IconToggleButton
+            icon={Magnet}
+            active={!!item.lockSpacing}
+            onClick={onToggleLockSpacing}
+            title={item.lockSpacing ? "Unlock spacing" : "Lock spacing while resizing"}
+          />
+        </>
+      )}
+
+      {canFillWithImage && (
+        <>
+          <ToolbarDivider />
+          <IconButton icon={ImageIcon} label="Fill with image" onClick={() => setIsPickerOpen(true)} />
+          <ImageAssetPickerModal
+            isOpen={isPickerOpen}
+            onClose={() => setIsPickerOpen(false)}
+            onPick={(assetId) => {
+              setIsPickerOpen(false);
+              onFillWithImage(assetId);
+            }}
+          />
+        </>
+      )}
 
       <ToolbarDivider />
 
