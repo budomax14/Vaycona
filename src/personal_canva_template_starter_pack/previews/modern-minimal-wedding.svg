@@ -2,7 +2,7 @@
 <rect x="0" y="0" width="1500" height="2100" rx="0" fill="#F5F1EA" stroke="none" stroke-width="0"/>
 <rect x="120" y="168" width="1260" height="1764" rx="8" fill="none" stroke="#1B1B1B" stroke-width="6"/>
 <text x="750.0" y="685" text-anchor="middle" font-family="Georgia" font-size="97" font-weight="bold" fill="#B8A58C">
-<tspan x="750.0" dy="0">Alex & Jordan</tspan>
+<tspan x="750.0" dy="0">Alex &amp; Jordan</tspan>
 </text>
 <text x="750.0" y="1050" text-anchor="middle" font-family="Arial" font-size="42" font-weight="normal" fill="#B8A58C">
 <tspan x="750.0" dy="0">Save the date</tspan>

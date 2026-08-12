@@ -3314,6 +3314,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
       overlayRef.current?.applyFormat(styleKey, value);
       return;
     }
+    // outline{Color,Width} have no flat legacy field (they live under the
+    // nested item.effects.outline, same place TextEffectsMenu.jsx already
+    // writes to for the whole-object case) — handled separately from the
+    // flat-field map below.
+    if (styleKey === "outlineColor" || styleKey === "outlineWidth") {
+      const item = itemsRef.current.find((it) => it.id === itemId);
+      if (!item) return;
+      const outline = { ...item.effects?.outline, [styleKey === "outlineColor" ? "color" : "width"]: value };
+      updateItem(itemId, { effects: { ...item.effects, outline } }, true, { type: "text-format", label: "Format text", itemIds: [itemId] });
+      return;
+    }
     const field = LEGACY_FIELD_BY_STYLE_KEY[styleKey];
     if (!field) return;
     const item = itemsRef.current.find((it) => it.id === itemId);

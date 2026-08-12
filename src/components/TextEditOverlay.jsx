@@ -85,6 +85,8 @@ function collectRunStyleAt(el) {
     if (cs.color && !style.color) style.color = cs.color;
     if (cs.fontFamily && !style.fontFamily) style.fontFamily = cs.fontFamily.replace(/['"]/g, "");
     if (cs.fontSize && !style.fontSize) style.fontSize = parseFloat(cs.fontSize);
+    if (cs.webkitTextStrokeWidth && style.outlineWidth === undefined) style.outlineWidth = parseFloat(cs.webkitTextStrokeWidth) || 0;
+    if (cs.webkitTextStrokeColor && !style.outlineColor) style.outlineColor = cs.webkitTextStrokeColor;
     node = node.parentElement;
   }
   return style;
@@ -100,6 +102,11 @@ function applyRunStyleToSpan(span, style, fontSizeScale) {
   if (style.color) parts.push(`color:${style.color}`);
   if (style.fontFamily) parts.push(`font-family:${style.fontFamily}`);
   if (style.fontSize) parts.push(`font-size:${style.fontSize * fontSizeScale}px`);
+  // Always written explicitly (both branches), same as font-weight above —
+  // this span carries the full current+patch style (see applyFormat), so a
+  // real off-state must overwrite any stroke inherited from an ancestor span
+  // rather than silently omitting the property.
+  if (style.outlineWidth !== undefined) parts.push(`-webkit-text-stroke:${style.outlineWidth}px ${style.outlineColor || "#000000"}`);
   span.setAttribute("style", parts.join(";"));
 }
 

@@ -13,6 +13,7 @@ import { SubscriptionProvider } from "./subscriptionContext";
 import { ThemeProvider } from "./themeContext";
 import { LanguageProvider } from "./languageContext";
 import LoginPage from "./components/Auth/LoginPage";
+import LandingPage from "./components/LandingPage";
 
 // Wraps the editor in a top-level error boundary (Phase 7C). Kept as its
 // own component (rather than folded into App) specifically so it still
@@ -35,9 +36,12 @@ export default function AppRoot() {
 
 // Real per-user login (Firebase Auth) in front of the entire app — both the
 // normal editor and the admin section, which is gated by identity
-// (authContext.jsx's isAdmin) rather than a second, separate wall.
+// (authContext.jsx's isAdmin) rather than a second, separate wall. Signed-out
+// visitors land on LandingPage first (marketing/orientation), then move to
+// LoginPage once they click "Log in" or "Get started".
 function Gate() {
   const { user, loading } = useAuth();
+  const [authView, setAuthView] = useState({ screen: "landing", mode: "signin" });
 
   if (loading) {
     return (
@@ -48,7 +52,20 @@ function Gate() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    if (authView.screen === "login") {
+      return (
+        <LoginPage
+          initialMode={authView.mode}
+          onBack={() => setAuthView({ screen: "landing", mode: "signin" })}
+        />
+      );
+    }
+    return (
+      <LandingPage
+        onLogin={() => setAuthView({ screen: "login", mode: "signin" })}
+        onGetStarted={() => setAuthView({ screen: "login", mode: "signup" })}
+      />
+    );
   }
 
   return <AuthenticatedApp />;

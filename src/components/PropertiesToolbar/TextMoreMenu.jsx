@@ -11,14 +11,11 @@ import {
   MoreHorizontal,
   RotateCcw,
   RotateCw,
-  Sparkles,
   Strikethrough,
 } from "lucide-react";
 import {
-  ColorField,
   IconButton,
   IconToggleButton,
-  LabeledField,
   NumberField,
   ToolbarDivider,
 } from "./toolbarUi";
@@ -27,7 +24,6 @@ import ObjectTransformFields from "./ObjectTransformFields";
 import AnimateMenuItem from "./AnimateMenuItem";
 import { DEFAULT_PROJECT_TEXT_STYLES } from "../../textStyles";
 import { useBrandKits } from "../../brandKitContext";
-import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
 
 function Section({ title, children }) {
   return (
@@ -67,9 +63,6 @@ export default function TextMoreMenu({
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const { activeBrandKit } = useBrandKits();
-
-  const background = item.background || {};
-  const border = item.border || {};
 
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
@@ -184,38 +177,6 @@ export default function TextMoreMenu({
               <span className="text-[10px] text-gray-400">A small warning dot appears on overflow.</span>
             </Section>
           )}
-
-          <Section title="Background">
-            <IconToggleButton icon={Sparkles} active={!!background.enabled} onClick={() => onChange({ background: { ...background, enabled: !background.enabled } })} title="Toggle background" />
-            {background.enabled && (
-              <>
-                <ColorField label="Color" value={background.color || "#ffffff"} onChange={(color) => onChange({ background: { ...background, color } })} />
-                <NumberField label="Corner radius" value={background.cornerRadius || 0} min={0} max={100} onChange={(v) => onChange({ background: { ...background, cornerRadius: v } })} />
-              </>
-            )}
-          </Section>
-
-          <Section title="Border">
-            <IconToggleButton icon={Sparkles} active={!!border.enabled} onClick={() => onChange({ border: { ...border, enabled: !border.enabled } })} title="Toggle border" />
-            {border.enabled && (
-              <>
-                <ColorField label="Color" value={border.color || "#111827"} onChange={(color) => onChange({ border: { ...border, color } })} />
-                <NumberField label="Width" value={border.width ?? 1} min={0} max={20} onChange={(v) => onChange({ border: { ...border, width: v } })} />
-                <select
-                  className="h-8 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
-                  aria-label="Border style"
-                  value={border.style || "solid"}
-                  onChange={(event) => onChange({ border: { ...border, style: event.target.value } })}
-                >
-                  {BORDER_STYLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-          </Section>
 
           {activeBrandKit && brand?.typography && (
             <Section title="Brand typography">

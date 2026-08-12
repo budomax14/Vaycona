@@ -81,6 +81,17 @@ export const FONT_LIBRARY = [
   bundledFont("Karla", "sans", '"Karla", sans-serif', () =>
     Promise.all([import("@fontsource/karla/400.css"), import("@fontsource/karla/700.css")])
   ),
+  // Fredoka ships 5 usable static weights (vs. the 2 most other bundled
+  // fonts load) so its whole range — Light through Bold — is imported here.
+  bundledFont("Fredoka", "sans", '"Fredoka", sans-serif', () =>
+    Promise.all([
+      import("@fontsource/fredoka/300.css"),
+      import("@fontsource/fredoka/400.css"),
+      import("@fontsource/fredoka/500.css"),
+      import("@fontsource/fredoka/600.css"),
+      import("@fontsource/fredoka/700.css"),
+    ])
+  ),
 
   bundledFont("Playfair Display", "serif", '"Playfair Display", serif', () =>
     Promise.all([import("@fontsource/playfair-display/400.css"), import("@fontsource/playfair-display/700.css")])

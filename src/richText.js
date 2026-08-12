@@ -1,10 +1,17 @@
 // Rich-text data model: an item's `richText` field is an array of
 // paragraphs, each `{ runs, align, listType, listLevel }`. `runs` is a
 // flat array of `{ text, bold, italic, underline, strikethrough, color,
-// fontFamily, fontSize }`, plus a special pseudo-run `{ break: true }`
-// representing a Shift+Enter soft line break *inside* a paragraph (kept
-// distinct from a paragraph boundary so list continuation / paragraph
-// spacing aren't triggered by a soft break).
+// fontFamily, fontSize, outlineColor, outlineWidth }`, plus a special
+// pseudo-run `{ break: true }` representing a Shift+Enter soft line break
+// *inside* a paragraph (kept distinct from a paragraph boundary so list
+// continuation / paragraph spacing aren't triggered by a soft break).
+//
+// outlineColor/outlineWidth are optional per-run overrides for the
+// letter border (see textEffects.js's item-level `effects.outline`,
+// which is what SimpleTextNode/RichTextNode fall back to when a run
+// doesn't specify its own — undefined here means "no override, use the
+// object's whole-text-box outline setting", exactly like a run with no
+// bold/italic override reads as "not bold").
 //
 // Legacy flat text fields (`text`, `fontWeight`, `italic`, `underline`,
 // `fill`, `fontFamily`, `fontSize`) remain the source of truth for any
@@ -82,7 +89,9 @@ export function isRichText(item) {
         !!r.strikethrough !== base.strikethrough ||
         (r.color || base.color) !== base.color ||
         (r.fontFamily || base.fontFamily) !== base.fontFamily ||
-        (r.fontSize || base.fontSize) !== base.fontSize
+        (r.fontSize || base.fontSize) !== base.fontSize ||
+        r.outlineColor !== undefined ||
+        r.outlineWidth !== undefined
     );
     return varies || rt.some((p) => p.listType) || rt.length > 1;
   }
@@ -110,6 +119,8 @@ function computedRunStyle(el, inherited) {
   if (cs.color) style.color = cs.color;
   if (cs.fontFamily) style.fontFamily = cs.fontFamily.replace(/['"]/g, "");
   if (cs.fontSize) style.fontSize = parseFloat(cs.fontSize);
+  if (cs.webkitTextStrokeWidth) style.outlineWidth = parseFloat(cs.webkitTextStrokeWidth) || 0;
+  if (cs.webkitTextStrokeColor) style.outlineColor = cs.webkitTextStrokeColor;
   return style;
 }
 
@@ -201,6 +212,7 @@ function runStyleAttr(run, fontSizeScale) {
   if (run.color) parts.push(`color:${run.color}`);
   if (run.fontFamily) parts.push(`font-family:${run.fontFamily}`);
   if (run.fontSize) parts.push(`font-size:${run.fontSize * fontSizeScale}px`);
+  if (run.outlineWidth !== undefined) parts.push(`-webkit-text-stroke:${run.outlineWidth}px ${run.outlineColor || "#000000"}`);
   return parts.join(";");
 }
 

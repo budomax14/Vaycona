@@ -11,6 +11,6 @@
 <rect x="459" y="973" width="357" height="4" rx="2" fill="#FBBF24" stroke="none" stroke-width="0"/>
 <text x="637.5" y="1082" text-anchor="middle" font-family="Arial" font-size="26" font-weight="normal" fill="#F9FAFB">
 <tspan x="637.5" dy="0">DATE • TIME • LOCATION</tspan>
-<tspan x="637.5" dy="35.1">Tickets & information available now</tspan>
+<tspan x="637.5" dy="35.1">Tickets &amp; information available now</tspan>
 </text>
 </svg>

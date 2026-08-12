@@ -113,7 +113,7 @@ export default function TextPropertiesBar({
       <ToolbarDivider />
 
       <TextListMenu onApplyListFormat={onApplyListFormat} />
-      <TextEffectsMenu item={item} onChange={onChange} />
+      <TextEffectsMenu item={item} onChange={onChange} onApplyFormat={onApplyFormat} />
       <TextCurveMenu item={item} onChange={onChange} />
 
       <ToolbarDivider />

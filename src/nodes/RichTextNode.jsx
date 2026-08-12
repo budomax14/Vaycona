@@ -134,9 +134,15 @@ export default function RichTextNode({ item, commonProps }) {
               line.segments.forEach((seg) => {
                 ctx.font = fontString(seg.run);
                 ctx.fillStyle = imagePattern || canvasGradient || seg.run.color || item.fill || "#111827";
-                if (effectProps.stroke) {
-                  ctx.strokeStyle = effectProps.stroke;
-                  ctx.lineWidth = effectProps.strokeWidth;
+                // Per-run outline override (see richText.js's outlineColor/
+                // outlineWidth doc comment) wins when set; otherwise falls
+                // back to the whole-object Effects > Outline setting, same
+                // as before this override existed.
+                const runStrokeColor = seg.run.outlineColor !== undefined ? seg.run.outlineColor : effectProps.stroke;
+                const runStrokeWidth = seg.run.outlineWidth !== undefined ? seg.run.outlineWidth : effectProps.strokeWidth;
+                if (runStrokeColor && runStrokeWidth > 0) {
+                  ctx.strokeStyle = runStrokeColor;
+                  ctx.lineWidth = runStrokeWidth;
                   strokeSegmentChars(ctx, seg.text, cursorX, baseY, letterSpacing);
                 }
                 drawSegmentChars(ctx, seg.text, cursorX, baseY, letterSpacing);

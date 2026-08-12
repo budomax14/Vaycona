@@ -3,6 +3,8 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
 } from "firebase/auth";
@@ -32,6 +34,7 @@ export function AuthProvider({ children }) {
     isAdmin,
     signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
     signUp: (email, password) => createUserWithEmailAndPassword(auth, email, password),
+    signInWithGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
     signOut: () => firebaseSignOut(auth),
     resetPassword: (email) => sendPasswordResetEmail(auth, email),
   };

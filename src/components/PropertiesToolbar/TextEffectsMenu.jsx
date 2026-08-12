@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { ColorField, IconButton, IconToggleButton, LabeledField, NumberField } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
+import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
 
 // Promoted out of TextMoreMenu.jsx to a top-level toolbar control (shadow/
 // glow/outline are common enough to earn their own button). Same
@@ -9,12 +10,28 @@ import ToolbarPopover from "./ToolbarPopover";
 // stored or rendered changed, only where the controls live. Opens via
 // ToolbarPopover (portalled) — PropertiesToolbar's row clips ordinary
 // anchored dropdowns, see that component's comment.
-export default function TextEffectsMenu({ item, onChange }) {
+//
+// Outline color/thickness route through onApplyFormat (same "color"
+// command TextColorPanel.jsx already uses) instead of always calling
+// onChange directly: App.jsx's applyTextFormat dispatches to a per-run
+// DOM edit when there's an active text selection (per-letter outline —
+// richText.js's run.outlineColor/outlineWidth), or to the whole-object
+// item.effects.outline when there isn't. onChange is kept as a fallback
+// for any caller that doesn't wire onApplyFormat.
+export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const effects = item.effects || {};
+  const background = item.background || {};
+  const border = item.border || {};
 
-  const hasAnyEffect = !!(effects.shadow?.enabled || effects.glow?.enabled || effects.outline?.enabled);
+  const hasAnyEffect = !!(
+    effects.shadow?.enabled ||
+    effects.glow?.enabled ||
+    effects.outline?.enabled ||
+    background.enabled ||
+    border.enabled
+  );
 
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
@@ -85,9 +102,80 @@ export default function TextEffectsMenu({ item, onChange }) {
               />
             </LabeledField>
             {effects.outline?.enabled && (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <ColorField
+                    label="Color"
+                    value={effects.outline.color || "#000000"}
+                    onChange={(color) =>
+                      onApplyFormat
+                        ? onApplyFormat("outlineColor", color)
+                        : onChange({ effects: { ...effects, outline: { ...effects.outline, color } } })
+                    }
+                  />
+                  <NumberField
+                    label="Thickness"
+                    value={effects.outline.width ?? 1}
+                    min={0}
+                    max={10}
+                    onChange={(v) =>
+                      onApplyFormat
+                        ? onApplyFormat("outlineWidth", v)
+                        : onChange({ effects: { ...effects, outline: { ...effects.outline, width: v } } })
+                    }
+                  />
+                </div>
+                {onApplyFormat && (
+                  <p className="text-[11px] leading-snug text-gray-400">
+                    Tip: select specific letters while editing text, then change the color/thickness here to border just that selection.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
+            <LabeledField label="Background">
+              <IconToggleButton
+                icon={Sparkles}
+                active={!!background.enabled}
+                onClick={() => onChange({ background: { ...background, enabled: !background.enabled } })}
+                title="Toggle background"
+              />
+            </LabeledField>
+            {background.enabled && (
               <div className="flex flex-wrap items-center gap-2">
-                <ColorField label="Color" value={effects.outline.color || "#000000"} onChange={(color) => onChange({ effects: { ...effects, outline: { ...effects.outline, color } } })} />
-                <NumberField label="Thickness" value={effects.outline.width ?? 1} min={0} max={10} onChange={(v) => onChange({ effects: { ...effects, outline: { ...effects.outline, width: v } } })} />
+                <ColorField label="Color" value={background.color || "#ffffff"} onChange={(color) => onChange({ background: { ...background, color } })} />
+                <NumberField label="Corner radius" value={background.cornerRadius || 0} min={0} max={100} onChange={(v) => onChange({ background: { ...background, cornerRadius: v } })} />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
+            <LabeledField label="Border">
+              <IconToggleButton
+                icon={Sparkles}
+                active={!!border.enabled}
+                onClick={() => onChange({ border: { ...border, enabled: !border.enabled } })}
+                title="Toggle border"
+              />
+            </LabeledField>
+            {border.enabled && (
+              <div className="flex flex-wrap items-center gap-2">
+                <ColorField label="Color" value={border.color || "#111827"} onChange={(color) => onChange({ border: { ...border, color } })} />
+                <NumberField label="Width" value={border.width ?? 1} min={0} max={20} onChange={(v) => onChange({ border: { ...border, width: v } })} />
+                <select
+                  className="h-8 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
+                  aria-label="Border style"
+                  value={border.style || "solid"}
+                  onChange={(event) => onChange({ border: { ...border, style: event.target.value } })}
+                >
+                  {BORDER_STYLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
