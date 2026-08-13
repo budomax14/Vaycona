@@ -13,10 +13,11 @@
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
-const admin = require("firebase-admin");
+const { initializeApp, getApps } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
 const Stripe = require("stripe");
 
-if (!admin.apps.length) admin.initializeApp();
+if (!getApps().length) initializeApp();
 
 // Set once via: firebase functions:secrets:set STRIPE_SECRET_KEY /
 // STRIPE_WEBHOOK_SECRET
@@ -56,7 +57,7 @@ exports.createCheckoutSession = onCall(
 
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
     const uid = request.auth.uid;
-    const db = admin.firestore();
+    const db = getFirestore();
     const userRef = db.collection("users").doc(uid);
     const userSnap = await userRef.get();
     let customerId = userSnap.exists ? userSnap.data().stripeCustomerId : null;
@@ -97,7 +98,7 @@ exports.createBillingPortalSession = onCall(
       throw new HttpsError("unauthenticated", "You must be signed in.");
     }
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
-    const db = admin.firestore();
+    const db = getFirestore();
     const userSnap = await db.collection("users").doc(request.auth.uid).get();
     const customerId = userSnap.exists ? userSnap.data().stripeCustomerId : null;
     if (!customerId) {
@@ -127,7 +128,7 @@ exports.stripeWebhook = onRequest(
       return;
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
 
     try {
       switch (event.type) {

@@ -22,6 +22,7 @@ const MAX_COUNT = 4;
 // no-op: forces a redeploy so a rotated OPENAI_API_KEY secret version is
 // actually picked up — Firebase skips redeploying functions whose source
 // is unchanged, even when the bound secret's value changed underneath it.
+// (build marker: nodejs22 runtime rollout)
 
 exports.generateIllustrations = onRequest(
   { secrets: [OPENAI_API_KEY], cors: true, region: "us-central1", timeoutSeconds: 120 },
