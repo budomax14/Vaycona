@@ -81,6 +81,15 @@ export const FONT_LIBRARY = [
   bundledFont("Karla", "sans", '"Karla", sans-serif', () =>
     Promise.all([import("@fontsource/karla/400.css"), import("@fontsource/karla/700.css")])
   ),
+  bundledFont("Josefin Sans", "sans", '"Josefin Sans", sans-serif', () =>
+    Promise.all([import("@fontsource/josefin-sans/400.css"), import("@fontsource/josefin-sans/700.css")])
+  ),
+  bundledFont("Space Grotesk", "sans", '"Space Grotesk", sans-serif', () =>
+    Promise.all([import("@fontsource/space-grotesk/400.css"), import("@fontsource/space-grotesk/700.css")])
+  ),
+  bundledFont("Outfit", "sans", '"Outfit", sans-serif', () =>
+    Promise.all([import("@fontsource/outfit/400.css"), import("@fontsource/outfit/700.css")])
+  ),
   // Fredoka ships 5 usable static weights (vs. the 2 most other bundled
   // fonts load) so its whole range — Light through Bold — is imported here.
   bundledFont("Fredoka", "sans", '"Fredoka", sans-serif', () =>
@@ -123,6 +132,12 @@ export const FONT_LIBRARY = [
   bundledFont("Noto Serif", "serif", '"Noto Serif", serif', () =>
     Promise.all([import("@fontsource/noto-serif/400.css"), import("@fontsource/noto-serif/700.css")])
   ),
+  bundledFont("Spectral", "serif", '"Spectral", serif', () =>
+    Promise.all([import("@fontsource/spectral/400.css"), import("@fontsource/spectral/700.css")])
+  ),
+  bundledFont("Domine", "serif", '"Domine", serif', () =>
+    Promise.all([import("@fontsource/domine/400.css"), import("@fontsource/domine/700.css")])
+  ),
   // Cinzel/Marcellus/Almendra: classic engraved-capital and old-book serif
   // faces — the diploma/certificate/award-style lettering most editors
   // reach for on formal documents (Cinzel in particular is the standard
@@ -147,6 +162,7 @@ export const FONT_LIBRARY = [
   bundledFont("Fjalla One", "display", '"Fjalla One", sans-serif', () => import("@fontsource/fjalla-one/400.css")),
   bundledFont("Alfa Slab One", "display", '"Alfa Slab One", sans-serif', () => import("@fontsource/alfa-slab-one/400.css")),
   bundledFont("Staatliches", "display", '"Staatliches", sans-serif', () => import("@fontsource/staatliches/400.css")),
+  bundledFont("Jersey 25", "display", '"Jersey 25", sans-serif', () => import("@fontsource/jersey-25/400.css")),
   // Blackletter/old-English — the "Ye Olde" gothic lettering on
   // old-fashioned diplomas, certificates, and awards.
   bundledFont("Cinzel Decorative", "display", '"Cinzel Decorative", serif', () =>
@@ -159,6 +175,7 @@ export const FONT_LIBRARY = [
   bundledFont("IM Fell English", "display", '"IM Fell English", serif', () =>
     import("@fontsource/im-fell-english/400.css")
   ),
+  bundledFont("Bangers", "display", '"Bangers", cursive', () => import("@fontsource/bangers/400.css")),
 
   bundledFont("JetBrains Mono", "monospace", '"JetBrains Mono", monospace', () =>
     import("@fontsource/jetbrains-mono/400.css")
@@ -171,6 +188,9 @@ export const FONT_LIBRARY = [
   ),
   bundledFont("Source Code Pro", "monospace", '"Source Code Pro", monospace', () =>
     Promise.all([import("@fontsource/source-code-pro/400.css"), import("@fontsource/source-code-pro/700.css")])
+  ),
+  bundledFont("Fira Code", "monospace", '"Fira Code", monospace', () =>
+    Promise.all([import("@fontsource/fira-code/400.css"), import("@fontsource/fira-code/700.css")])
   ),
 
   bundledFont("Caveat", "handwritten", '"Caveat", cursive', () =>
@@ -197,6 +217,9 @@ export const FONT_LIBRARY = [
   ),
   bundledFont("Berkshire Swash", "handwritten", '"Berkshire Swash", cursive', () =>
     import("@fontsource/berkshire-swash/400.css")
+  ),
+  bundledFont("Permanent Marker", "handwritten", '"Permanent Marker", cursive', () =>
+    import("@fontsource/permanent-marker/400.css")
   ),
 ];
 

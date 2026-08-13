@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
+  Building2,
   Check,
   ChevronDown,
   CreditCard,
+  Crown,
   Download,
   Grid2x2,
   Image as ImageIcon,
@@ -22,6 +24,30 @@ const NAV_LINKS = [
   { label: "Features", target: "features" },
   { label: "Templates", target: "showcase" },
   { label: "Pricing", target: "cta" },
+];
+
+const PLAN_DETAILS = [
+  {
+    key: "pro",
+    icon: Crown,
+    name: "Vaycona Pro",
+    price: "$9.99/mo",
+    tagline: "For regular creators",
+    features: ["Clean, watermark-free exports", "Full template gallery", "Everything in Free"],
+  },
+  {
+    key: "business",
+    icon: Building2,
+    name: "Vaycona Business",
+    price: "$19.99/mo",
+    tagline: "For teams & brands",
+    features: [
+      "Shared team workspace & roles",
+      "Company brand kit",
+      "Shared asset library & templates",
+      "Design approvals, comments & version history",
+    ],
+  },
 ];
 
 const FEATURES = [
@@ -66,6 +92,7 @@ function scrollToId(id) {
 // Templates/Pricing/Resources/About plus the "Get Started Free" CTA.
 function NavMenu({ onGetStarted }) {
   const [open, setOpen] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -82,6 +109,10 @@ function NavMenu({ onGetStarted }) {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) setPlansOpen(false);
   }, [open]);
 
   function go(target) {
@@ -113,6 +144,41 @@ function NavMenu({ onGetStarted }) {
               {link.label}
             </button>
           ))}
+          <div>
+            <button
+              type="button"
+              onClick={() => setPlansOpen((v) => !v)}
+              aria-expanded={plansOpen}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-orange-50 hover:text-orange-700"
+            >
+              Plans
+              <ChevronDown size={14} className={`transition-transform ${plansOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {plansOpen && (
+              <div className="space-y-2 px-1 pb-2 pt-1">
+                {PLAN_DETAILS.map((plan) => (
+                  <div key={plan.key} className="rounded-lg border border-orange-100 bg-orange-50/60 p-3">
+                    <div className="flex items-center gap-2">
+                      <plan.icon size={14} className="shrink-0 text-orange-600" />
+                      <span className="text-sm font-semibold text-slate-900">{plan.name}</span>
+                      <span className="ml-auto text-xs font-medium text-slate-500">{plan.price}</span>
+                    </div>
+                    <p className="mt-0.5 pl-5.5 text-xs text-slate-500">{plan.tagline}</p>
+                    <ul className="mt-2 space-y-1">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-1.5 text-xs text-slate-600">
+                          <Check size={12} className="mt-0.5 shrink-0 text-orange-500" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <span className="flex items-center gap-1 px-3 py-2 text-sm text-slate-700">
             Resources
             <ChevronDown size={14} />

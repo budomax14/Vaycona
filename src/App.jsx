@@ -23,6 +23,8 @@ import StatusBar from "./components/StatusBar/StatusBar";
 import Workspace from "./components/Workspace/Workspace";
 import ResizeModal from "./components/ResizeModal";
 import PricingModal from "./components/PricingModal";
+import BusinessInfoPage from "./components/BusinessInfoPage";
+import PlanStatusBanner from "./components/PlanStatusBanner";
 import ChartDataEditor from "./components/ChartDataEditor";
 import { RecentColorsProvider } from "./recentColorsContext";
 import {
@@ -66,7 +68,7 @@ import {
   getAncestorChain,
   getDescendantIds,
   isEffectivelyHidden,
-  isEffectivelyLocked,
+  isEffectivelyLocked as isEffectivelyLockedByItem,
   recomputeAffectedGroupBounds,
   reorderLayerItems,
   repairHierarchy,
@@ -635,7 +637,30 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Phase 11 — brand kit context is provided by AppRoot.jsx (an ancestor
   // of App), so it's safe to consume it here directly.
   const { activeBrandKit, activeBrandKitId, refresh: refreshBrandKits } = useBrandKits();
-  const { tier: subscriptionTier } = useSubscription();
+  const { tier: subscriptionTier, canEdit, isTrialing, currentPeriodEnd } = useSubscription();
+
+  // Mirrors the itemsRef/pagesRef pattern below: several handlers that
+  // consult this were memoized with empty dep arrays at mount, so a plain
+  // closure over `canEdit` would go stale the moment a trial lapses mid
+  // session — the ref is always current regardless of which render's
+  // closure is calling it.
+  const canEditRef = useRef(canEdit);
+  useEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+
+  // Shadows the imported isEffectivelyLocked for every call site in this
+  // file (all ~18 of them: drag, text/crop/table edit entry, delete/
+  // duplicate/align/distribute filtering, frame drop targets...) so a
+  // lapsed trial behaves like every item is locked, with zero changes to
+  // those call sites. This is UX polish (dragging looks disabled, double-
+  // click won't open a text cursor that silently fails to save) — the
+  // actual enforcement is the canEditRef guard inside commit/commitPages/
+  // commitBoth/commitGuides/updateItem below, since property-toolbar edits
+  // (color/font/etc via updateItems) never consult per-item lock state.
+  function isEffectivelyLocked(item, itemsById) {
+    return !canEditRef.current || isEffectivelyLockedByItem(item, itemsById);
+  }
 
   // Template Management Admin — the ONE place "which storage key does this
   // mount's autosave/initial-load use" is decided. Never WORKSPACE_STORAGE_KEY
@@ -788,6 +813,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [isResizeOpen, setIsResizeOpen] = useState(false);
   const [isExportAnimationOpen, setIsExportAnimationOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [isBusinessInfoOpen, setIsBusinessInfoOpen] = useState(false);
   const [editingChartId, setEditingChartId] = useState(null);
 
   // Table cell-edit mode — parallel in shape to editingTextId/croppingItemId
@@ -2258,7 +2284,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // on. pushHistoryEntry itself no-ops (returns prevHistory unchanged) when
   // resolvedItems/resolvedPages are equivalent to the current top entry, so
   // callers don't need their own "did anything actually change" checks.
+  // Last-line enforcement for the trial/payment-lock: commit/commitPages/
+  // commitBoth/commitGuides and updateItem's non-committing branch are the
+  // only places that ever persist an item/page/guide change (see their own
+  // comments below) — guarding here catches everything the isEffectivelyLocked
+  // shadow above can't, chiefly property-toolbar edits (color/font/etc via
+  // updateItems), which never consult per-item lock state.
+  function blockEditIfLocked() {
+    setStatus("Your trial has ended — subscribe to keep editing.");
+    window.setTimeout(() => setStatus(""), 3000);
+  }
+
   const commit = useCallback((nextItemsOrUpdater, meta = { type: "edit", label: "Edit" }) => {
+    if (!canEditRef.current) return blockEditIfLocked();
     const resolvedItems =
       typeof nextItemsOrUpdater === "function" ? nextItemsOrUpdater(itemsRef.current) : nextItemsOrUpdater;
     itemsRef.current = resolvedItems;
@@ -2272,6 +2310,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // delete/reorder/resize/rename/background/precision settings) — same
   // shape, snapshots the current items alongside the new pages value.
   const commitPages = useCallback((nextPagesOrUpdater, meta = { type: "edit", label: "Edit" }) => {
+    if (!canEditRef.current) return blockEditIfLocked();
     const resolvedPages =
       typeof nextPagesOrUpdater === "function" ? nextPagesOrUpdater(pagesRef.current) : nextPagesOrUpdater;
     pagesRef.current = resolvedPages;
@@ -2288,6 +2327,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // calling this — pushHistoryEntry below always snapshots whatever
   // guidesRef.current holds at call time.
   const commitBoth = useCallback((nextItems, nextPages, meta = { type: "edit", label: "Edit" }) => {
+    if (!canEditRef.current) return blockEditIfLocked();
     const nextHistory = pushHistoryEntry(historyStateRef.current, nextItems, nextPages, meta, guidesRef.current);
     historyStateRef.current = nextHistory;
     setHistoryState(nextHistory);
@@ -2301,6 +2341,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // history transaction per committed guide change (add/move/delete/lock/
   // color/label — spec §76), items/pages carried forward unchanged.
   const commitGuides = useCallback((nextGuidesOrUpdater, meta = { type: "edit-guide", label: "Edit guide" }) => {
+    if (!canEditRef.current) return blockEditIfLocked();
     const resolvedGuides =
       typeof nextGuidesOrUpdater === "function" ? nextGuidesOrUpdater(guidesRef.current) : nextGuidesOrUpdater;
     guidesRef.current = resolvedGuides;
@@ -2315,6 +2356,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
       const next = itemsRef.current.map((item) => (item.id === id ? { ...item, ...changes, updatedAt: Date.now() } : item));
       commit(next, meta);
     } else {
+      // This branch bypasses commit() entirely (see its own comment), so
+      // it needs the same lock guard commit() applies to itself.
+      if (!canEditRef.current) return blockEditIfLocked();
       // Resolved against itemsRef.current (see commit() above) — typing
       // fires several non-committing updates per second, and each must
       // see the previous one's result, including within the same tick
@@ -6389,6 +6433,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
       />
       )}
 
+      {!templateSession && (
+        <PlanStatusBanner
+          canEdit={canEdit}
+          isTrialing={isTrialing}
+          currentPeriodEnd={currentPeriodEnd}
+          onOpenPricing={() => setIsPricingOpen(true)}
+        />
+      )}
+
       <PropertiesToolbar
         selectedItems={selectedItems}
         background={background}
@@ -6777,7 +6830,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onApply={resizeActivePage}
       />
 
-      <PricingModal isOpen={isPricingOpen} onClose={() => setIsPricingOpen(false)} />
+      <PricingModal
+        isOpen={isPricingOpen}
+        onClose={() => setIsPricingOpen(false)}
+        onLearnMoreBusiness={() => {
+          setIsPricingOpen(false);
+          setIsBusinessInfoOpen(true);
+        }}
+      />
+
+      <BusinessInfoPage isOpen={isBusinessInfoOpen} onClose={() => setIsBusinessInfoOpen(false)} />
 
       <ChartDataEditor
         isOpen={!!editingChartId}

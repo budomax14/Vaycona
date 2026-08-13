@@ -18,6 +18,15 @@ export const PRICE_IDS = {
 
 export const TIER_RANK = { free: 0, pro: 1, business: 2 };
 
+// Statuses where Stripe considers the subscription attached but not in
+// good standing (trial converted to a real charge that failed, retries
+// still in flight, etc). Firestore's `tier` field only ever resets to
+// "free" on full cancellation (see functions/stripe.js's
+// customer.subscription.deleted handler) — while payment is failing the
+// user is still nominally "pro"/"business" but must be treated as locked
+// out of editing until they fix billing.
+const PAYMENT_FAILING_STATUSES = new Set(["past_due", "unpaid", "incomplete", "incomplete_expired"]);
+
 // Wraps the app (below AuthProvider — subscription state is meaningless
 // without a signed-in user) so both the editor and any gated UI (template
 // gallery, export dialog, top nav) can read the current plan the same way
@@ -45,10 +54,20 @@ export function SubscriptionProvider({ children }) {
   // content behind it.
   const tier = isAdmin ? "business" : doc_?.tier || "free";
   const status = doc_?.status || null;
+  const currentPeriodEnd = doc_?.currentPeriodEnd || null;
+  const isTrialing = status === "trialing";
+  // A user who started a paid plan and whose payment is now failing loses
+  // edit access entirely (view-only) rather than quietly falling back to
+  // free-tier editing — only a fully resolved cancellation (tier reset to
+  // "free" by the webhook) restores normal free-tier editing.
+  const canEdit = isAdmin || !(tier !== "free" && PAYMENT_FAILING_STATUSES.has(status));
 
   const value = {
     tier,
     status,
+    currentPeriodEnd,
+    isTrialing,
+    canEdit,
     loading: !!user && doc_ === undefined,
     openCheckout: async (priceId) => {
       const fn = httpsCallable(functions, "createCheckoutSession");

@@ -29,7 +29,7 @@ const PLANS = [
   },
 ];
 
-export default function PricingModal({ isOpen, onClose }) {
+export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
   const { tier: currentTier, openCheckout } = useSubscription();
   const [cycle, setCycle] = useState("monthly");
   const [loadingPlan, setLoadingPlan] = useState(null);
@@ -139,6 +139,14 @@ export default function PricingModal({ isOpen, onClose }) {
                     >
                       {loadingPlan === plan.key && <Loader2 size={14} className="animate-spin" />}
                       {isCurrent ? "Current plan" : `Choose ${plan.name}`}
+                    </button>
+                  )}
+                  {plan.key === "business" && onLearnMoreBusiness && (
+                    <button
+                      className="mt-2 text-xs font-medium text-amber-700 hover:underline"
+                      onClick={onLearnMoreBusiness}
+                    >
+                      Learn more about Business
                     </button>
                   )}
                 </div>

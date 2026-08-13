@@ -60,6 +60,10 @@ exports.createCheckoutSession = onCall(
     const userRef = db.collection("users").doc(uid);
     const userSnap = await userRef.get();
     let customerId = userSnap.exists ? userSnap.data().stripeCustomerId : null;
+    // Only ever granted once per account — a user who has already had a
+    // Stripe subscription (even a canceled one) doesn't get a second free
+    // trial just by re-subscribing.
+    const eligibleForTrial = !(userSnap.exists && userSnap.data().stripeSubscriptionId);
 
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -77,6 +81,7 @@ exports.createCheckoutSession = onCall(
       client_reference_id: uid,
       line_items: [{ price: priceId, quantity: 1 }],
       payment_method_types: ["card"],
+      ...(eligibleForTrial ? { subscription_data: { trial_period_days: 7 } } : {}),
       success_url: `${origin}/#/?checkout=success`,
       cancel_url: `${origin}/#/?checkout=cancel`,
     });
