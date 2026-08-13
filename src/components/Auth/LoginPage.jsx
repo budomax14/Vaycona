@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Loader2, LogIn, UserPlus } from "lucide-react";
+import { Loader2, LogIn, UserPlus, X } from "lucide-react";
 import { useAuth } from "../../authContext";
+import { TERMS_AND_CONDITIONS } from "../../termsContent";
 
 // Friendly copy for the Firebase Auth error codes users actually hit here
 // (email/password only) — everything else falls back to a generic message
@@ -35,6 +36,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const isSignUp = mode === "signup";
 
@@ -230,8 +232,45 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
               {isSignUp ? "Log in" : "Sign up"}
             </button>
           </p>
+
+          <p className="mt-3 text-center text-xs text-slate-500">
+            <button
+              type="button"
+              className="font-medium text-slate-400 hover:text-amber-700 hover:underline"
+              onClick={() => setShowTerms(true)}
+            >
+              Terms &amp; Conditions
+            </button>
+          </p>
         </div>
       </div>
+
+      {showTerms && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowTerms(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-hidden bg-[#ffffff] shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h2 className="text-sm font-semibold text-black">Terms &amp; Conditions</h2>
+              <button
+                type="button"
+                onClick={() => setShowTerms(false)}
+                aria-label="Close"
+                className="p-1 text-black hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="max-h-[65vh] overflow-y-auto px-5 py-4 text-sm leading-relaxed text-black whitespace-pre-wrap">
+              {TERMS_AND_CONDITIONS}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
