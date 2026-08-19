@@ -7,6 +7,7 @@ import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
 import { useImageFilters } from "../useImageFilters";
 import { computeCropLayout } from "../imageCrop";
+import { resolveMaskGeometry } from "../opacityMask";
 
 const PLACEHOLDER_ICON = findIconByName("Image");
 const MISSING_ICON = findIconByName("ImageOff") || findIconByName("Image");
@@ -27,9 +28,25 @@ export default function FrameNode({ item, commonProps }) {
     flipX: item.flipX,
     flipY: item.flipY,
   });
-  useImageFilters(innerImageRef, image, item.adjustments);
 
   const clipFunc = (ctx) => kindDef.clipPath(ctx, width, height, item);
+
+  // contentInset (polaroid) shrinks the area the IMAGE itself occupies
+  // while the frame's own clip stays the full outline — see the content
+  // rendering branch below. Computed up here (not just inside it) because
+  // Fade's mask coordinates are normalized over the frame's own full box,
+  // and the cached/filtered node is this inset+letterboxed content region.
+  const inset = kindDef.contentInset || { top: 0, right: 0, bottom: 0, left: 0 };
+  const contentX = width * inset.left;
+  const contentY = height * inset.top;
+  const contentWidth = Math.max(1, width * (1 - inset.left - inset.right));
+  const contentHeight = Math.max(1, height * (1 - inset.top - inset.bottom));
+  const layout = computeCropLayout(item.__animatedCrop || item.crop, naturalWidth, naturalHeight, contentWidth, contentHeight);
+  const maskGeometry =
+    layout.mode === "contain"
+      ? resolveMaskGeometry(width, height, { x: contentX + layout.offsetX, y: contentY + layout.offsetY, width: layout.drawWidth, height: layout.drawHeight })
+      : resolveMaskGeometry(width, height, { x: contentX, y: contentY, width: contentWidth, height: contentHeight });
+  useImageFilters(innerImageRef, image, item.adjustments, item.opacityMask, maskGeometry);
 
   let content;
   if (!item.contentAssetId) {
@@ -69,18 +86,10 @@ export default function FrameNode({ item, commonProps }) {
     // while the asset resolves, same stable Group so no node-type swap.
     content = <Shape sceneFunc={(context, shapeNode) => kindDef.sceneFunc(context, shapeNode, item)} fill="#f9fafb" />;
   } else {
-    // contentInset (polaroid) shrinks the area the IMAGE itself occupies
-    // while the frame's own clip stays the full outline — the margin left
+    // contentInset (polaroid), contentWidth/Height and layout are all
+    // computed above (shared with the maskGeometry calc) — the margin left
     // over shows the background fill below, giving the classic
     // photo-with-a-caption-strip look with no extra geometry needed.
-    const inset = kindDef.contentInset || { top: 0, right: 0, bottom: 0, left: 0 };
-    const contentX = width * inset.left;
-    const contentY = height * inset.top;
-    const contentWidth = Math.max(1, width * (1 - inset.left - inset.right));
-    const contentHeight = Math.max(1, height * (1 - inset.top - inset.bottom));
-    // Phase 12: see ImageNode.jsx's identical comment — animated pan/zoom
-    // never touches the durable item.crop.
-    const layout = computeCropLayout(item.__animatedCrop || item.crop, naturalWidth, naturalHeight, contentWidth, contentHeight);
     content = (
       <>
         <Rect width={width} height={height} fill="#ffffff" />

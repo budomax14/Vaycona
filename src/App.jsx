@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Layer, Rect, Stage, Transformer } from "react-konva";
+import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
 import DesignNode from "./DesignNode";
 import CanvasOverlays from "./CanvasOverlays";
 import ContextMenu from "./ContextMenu";
@@ -82,7 +82,11 @@ import { CHART_KINDS } from "./chartKinds";
 import TextEditOverlay from "./components/TextEditOverlay";
 import CropOverlay from "./components/CropOverlay";
 import ImageFillOverlay from "./components/ImageFillOverlay";
-import { ensureRichText, isValidRichText as isValidRichTextShape, plainTextOf } from "./richText";
+import FadeOverlay from "./components/FadeOverlay";
+import GrabItOverlay from "./components/GrabItOverlay";
+import useGrabIt from "./grabIt/useGrabIt";
+import { extractGrabItRegionBlob } from "./grabIt/grabItExtraction";
+import { ensureRichText, isValidRichText as isValidRichTextShape, measureAutoHeight, plainTextOf } from "./richText";
 import { defaultTextEffects } from "./textEffects";
 import { getPresetByKey } from "./textStyles";
 import { borderDashProps } from "./borderStyles";
@@ -174,6 +178,7 @@ import ConfirmDeleteTemplateDialog from "./components/Admin/ConfirmDeleteTemplat
 import { DEFAULT_CROP, legacyInsetsToCrop, normalizeCrop } from "./imageCrop";
 import { normalizeImageFill } from "./imageFill";
 import { DEFAULT_ADJUSTMENTS, normalizeAdjustments } from "./imageEffects";
+import { normalizeOpacityMask } from "./opacityMask";
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -337,6 +342,9 @@ function validateItem(raw, fallbackPageId) {
   if (normalized.type === "shape" && !SHAPE_KIND_ORDER.includes(normalized.shapeKind)) {
     normalized = { ...normalized, shapeKind: "rectangle" };
   }
+  if (normalized.type === "shape") {
+    normalized = { ...normalized, opacityMask: normalizeOpacityMask(normalized.opacityMask) };
+  }
   if (normalized.type === "line" && !LINE_KIND_ORDER.includes(normalized.lineKind)) {
     normalized = { ...normalized, lineKind: "straight" };
   }
@@ -363,6 +371,7 @@ function validateItem(raw, fallbackPageId) {
       ...normalized,
       crop: looksLegacyCrop ? normalized.crop : normalizeCrop(normalized.crop),
       adjustments: normalizeAdjustments(normalized.adjustments),
+      opacityMask: normalizeOpacityMask(normalized.opacityMask),
     };
   }
   if (normalized.type === "frame") {
@@ -375,6 +384,7 @@ function validateItem(raw, fallbackPageId) {
       ...normalized,
       crop: normalizeCrop(normalized.crop),
       adjustments: normalizeAdjustments(normalized.adjustments),
+      opacityMask: normalizeOpacityMask(normalized.opacityMask),
     };
   }
   if (normalized.type === "text") {
@@ -920,6 +930,22 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [imageFillEditItemId, setImageFillEditItemId] = useState(null);
   const imageFillEntrySnapshotRef = useRef(null);
 
+  // Fade (opacity mask) on-canvas edit mode — parallel in shape to crop
+  // mode above: entry snapshots the pre-gesture opacityMask so Cancel can
+  // restore it without an undo step, live handle drags (FadeOverlay.jsx)
+  // call updateItem(...,false), and a single commit lands the whole
+  // gesture as one history entry.
+  const [fadeEditItemId, setFadeEditItemId] = useState(null);
+  const fadeEntrySnapshotRef = useRef(null);
+
+  // Grab It on-canvas mode — parallel in shape to crop/fade/image-fill
+  // above, but simpler: nothing on the source item is mutated live (hover/
+  // click only READ detected regions), so there's no entry snapshot to
+  // restore on exit. Detection itself (regions, cache, settings, hover
+  // state) lives in useGrabIt below, not here.
+  const [grabItEditItemId, setGrabItEditItemId] = useState(null);
+  const [grabItExtracting, setGrabItExtracting] = useState(false);
+
   // One-way "please open" signal for the Shape fill panel (ShapePropertiesBar
   // owns isColorPanelOpen locally, toggled by its own swatch button) — the
   // floating SelectionToolbar's "Shape fill" button lives outside that
@@ -958,6 +984,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const enteredGroupIdRef = useRef(enteredGroupId);
   const croppingItemIdRef = useRef(croppingItemId);
   const imageFillEditItemIdRef = useRef(imageFillEditItemId);
+  const fadeEditItemIdRef = useRef(fadeEditItemId);
+  const grabItEditItemIdRef = useRef(grabItEditItemId);
+  const grabItExtractingRef = useRef(grabItExtracting);
   const editingTableIdRef = useRef(editingTableId);
   const tableCellSelectionRef = useRef(tableCellSelection);
   const interactionModeRef = useRef(interactionMode);
@@ -983,6 +1012,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   enteredGroupIdRef.current = enteredGroupId;
   croppingItemIdRef.current = croppingItemId;
   imageFillEditItemIdRef.current = imageFillEditItemId;
+  fadeEditItemIdRef.current = fadeEditItemId;
+  grabItEditItemIdRef.current = grabItEditItemId;
+  grabItExtractingRef.current = grabItExtracting;
   editingTableIdRef.current = editingTableId;
   tableCellSelectionRef.current = tableCellSelection;
   interactionModeRef.current = interactionMode;
@@ -2087,6 +2119,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (editingTextIdRef.current) return;
       if (croppingItemIdRef.current) return;
       if (imageFillEditItemIdRef.current) return;
+      if (fadeEditItemIdRef.current) return;
       createRecoverySnapshotNow("periodic-dirty");
     }, PERIODIC_SNAPSHOT_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -2177,7 +2210,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     window.__historyDebug = () => ({
       undoCount: historyState.index,
       redoCount: historyState.history.length - 1 - historyState.index,
-      activeTransaction: editingTextId ? "text-edit" : croppingItemId ? "crop" : imageFillEditItemId ? "image-fill" : null,
+      activeTransaction: editingTextId ? "text-edit" : croppingItemId ? "crop" : imageFillEditItemId ? "image-fill" : fadeEditItemId ? "fade" : null,
       lastCommitted: historyState.history[historyState.index]?.meta ?? null,
       historyLimit: HISTORY_LIMIT,
       approxSizeBytes: (() => {
@@ -2191,7 +2224,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     return () => {
       delete window.__historyDebug;
     };
-  }, [historyState, editingTextId, croppingItemId, imageFillEditItemId]);
+  }, [historyState, editingTextId, croppingItemId, imageFillEditItemId, fadeEditItemId]);
 
   const pageItems = useMemo(
     () => items.filter((item) => item.pageId === activePageId),
@@ -2203,6 +2236,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   );
   const hasGroupedSelection = selectedItems.some((item) => item.type === "group");
   const itemsById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
+
+  // Grab It's own detection lifecycle/cache/settings/hover state — see
+  // grabIt/useGrabIt.js. Only ever analyzes the item grabItEditItemId
+  // points at (null the rest of the time, so the hook is a no-op).
+  const grabItItem = grabItEditItemId ? itemsById.get(grabItEditItemId) || null : null;
+  const grabIt = useGrabIt({ item: grabItItem, enabled: !!grabItEditItemId });
 
   // Bundled cell-editing controls handed to TablePropertiesBar (spec §44) —
   // built here rather than inside PropertiesToolbar since it needs direct
@@ -2249,6 +2288,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
   );
   const displayPageItems = useMemo(() => displayItems.filter((item) => item.pageId === activePageId), [displayItems, activePageId]);
   const displayItemsById = useMemo(() => new Map(displayItems.map((it) => [it.id, it])), [displayItems]);
+  // Page clipping (canvas-as-artboard): a selected item (and every leaf of a
+  // selected group, same expansion the Transformer itself binds to — see
+  // syncTransformerNodes) renders in the UNCLIPPED overlay below instead of
+  // inside the page-bounded Group, so the full object — including the part
+  // hanging off the page — stays visible and draggable while selected.
+  // Nothing is exempted during playback/preview: that render approximates
+  // the final export, which is always clipped to the page.
+  const unclippedRenderIds = useMemo(
+    () => (isPreviewPlaying ? new Set() : new Set(expandToLeafIds(displayItems, selectedIds))),
+    [displayItems, selectedIds, isPreviewPlaying]
+  );
   const isSelectionLocked =
     selectedItems.length > 0 && selectedItems.every((item) => isEffectivelyLocked(item, itemsById));
   const selectedBoundsContent = useMemo(() => {
@@ -2858,6 +2908,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // effect below, whose handler is captured once at mount (empty deps)
     // and would otherwise walk a permanently stale ancestor map.
     if (!item || isEffectivelyLocked(item, new Map(itemsRef.current.map((it) => [it.id, it])))) return;
+    if (grabItEditItemIdRef.current) exitGrabItMode();
     setSelectedIds([itemId]);
     pendingCaretPointRef.current = clientX != null ? { x: clientX, y: clientY } : null;
     setEditingTextId(itemId);
@@ -2869,8 +2920,29 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setEditingTextId(null);
   }
 
+  // Auto-grow-height applies to the common "auto-height" box (also the
+  // implicit default for legacy items with no autoSize field — see
+  // SimpleTextNode/RichTextNode's own `=== "fixed"`/`"auto-width"` checks,
+  // undefined behaves like auto-height there too). "fixed" boxes are a
+  // deliberate manual size (spec: keep the existing clip/overflow-badge
+  // behavior); "auto-width" boxes grow width instead, never wrap, so a
+  // wrap-based height doesn't apply; curved text has no wrap/height model
+  // at all (CurvedTextNode bypasses layoutRichText entirely).
+  function textUsesAutoHeight(item) {
+    return !!item && !item.curve && item.autoSize !== "fixed" && item.autoSize !== "auto-width";
+  }
+
   function updateEditingTextLive(richText) {
-    updateItem(editingTextId, { richText, text: plainTextOf(richText) }, false);
+    const changes = { richText, text: plainTextOf(richText) };
+    const item = itemsRef.current.find((it) => it.id === editingTextId);
+    // Recomputed on every keystroke/paste but folded into the same
+    // non-committing update those already are (see updateItem's
+    // commitChange=false branch) — commitEditingText's debounced flush
+    // still lands it as exactly one undo step, never one per measurement.
+    if (textUsesAutoHeight(item)) {
+      changes.height = measureAutoHeight({ ...item, ...changes }, richText);
+    }
+    updateItem(editingTextId, changes, false);
   }
 
   function commitEditingText() {
@@ -3102,6 +3174,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (!hasContent) return;
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
+    if (fadeEditItemIdRef.current) cancelFadeMode();
+    if (grabItEditItemIdRef.current) exitGrabItMode();
     cropEntrySnapshotRef.current = { itemId, crop: { ...normalizeCrop(item.crop) } };
     setSelectedIds([itemId]);
     setCroppingItemId(itemId);
@@ -3211,6 +3285,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
     if (croppingItemIdRef.current) cancelCropMode();
+    if (fadeEditItemIdRef.current) cancelFadeMode();
+    if (grabItEditItemIdRef.current) exitGrabItMode();
     imageFillEntrySnapshotRef.current = { itemId, fillImage: { ...normalizeImageFill(item.fillImage) } };
     setImageFillEditItemId(itemId);
   }
@@ -3245,6 +3321,160 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setImageFillEditItemId(null);
     imageFillEntrySnapshotRef.current = null;
     return true;
+  }
+
+  // --- Fade (opacity mask) on-canvas edit mode — parallel in shape to crop
+  // mode above: entry snapshots the pre-gesture opacityMask so Cancel can
+  // restore it without an undo step, live handle drags (FadeOverlay.jsx,
+  // or the FadePopover's own GroupedSliderFields) call updateItem(...,
+  // false), and a single commit lands the whole gesture as one history
+  // entry. Supported for image/frame/shape items only (see
+  // objectRegistry.js's "fade" control gating). ---
+
+  function enterFadeMode(itemId) {
+    const item = itemsRef.current.find((it) => it.id === itemId);
+    if (!item || !["image", "frame", "shape"].includes(item.type) || isEffectivelyLocked(item, itemsById)) return;
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
+    if (croppingItemIdRef.current) cancelCropMode();
+    if (imageFillEditItemIdRef.current) cancelImageFillEditMode();
+    if (grabItEditItemIdRef.current) exitGrabItMode();
+    fadeEntrySnapshotRef.current = { itemId, opacityMask: { ...normalizeOpacityMask(item.opacityMask) } };
+    setSelectedIds([itemId]);
+    setFadeEditItemId(itemId);
+  }
+
+  // Live fade changes (drag in FadeOverlay, or a GroupedSliderField drag in
+  // FadePopover) — non-committing, mirrors liveCropChange.
+  function liveFadeChange(itemId, opacityMask) {
+    updateItem(itemId, { opacityMask }, false);
+  }
+
+  function commitFadeGesture() {
+    commit((prevItems) => prevItems, {
+      type: "fade",
+      label: "Edit fade",
+      itemIds: fadeEditItemIdRef.current ? [fadeEditItemIdRef.current] : [...selectedIdsRef.current],
+    });
+  }
+
+  function applyFadeModeAndCommit() {
+    if (!fadeEditItemIdRef.current) return;
+    setFadeEditItemId(null);
+    fadeEntrySnapshotRef.current = null;
+    commitFadeGesture();
+  }
+
+  function cancelFadeMode() {
+    if (!fadeEditItemIdRef.current) return false;
+    const snapshot = fadeEntrySnapshotRef.current;
+    if (snapshot && snapshot.itemId === fadeEditItemIdRef.current) {
+      setItems((prev) => prev.map((it) => (it.id === snapshot.itemId ? { ...it, opacityMask: snapshot.opacityMask } : it)));
+    }
+    setFadeEditItemId(null);
+    fadeEntrySnapshotRef.current = null;
+    return true;
+  }
+
+  // --- Grab It (extract a sub-design from a multi-design image) ---
+  // On-canvas mode, parallel in shape to crop/fade above, but nothing on
+  // the source item is mutated live — hover/click only READ detected
+  // regions (owned by the useGrabIt hook instantiated further down), so
+  // there's no entry snapshot / cancel-restore to do. Extraction itself
+  // follows removeImageBackground's shape just below: client-side pixel
+  // processing -> a new asset -> a normal new image item, one commit.
+
+  function enterGrabItMode(itemId) {
+    const item = itemsRef.current.find((it) => it.id === itemId);
+    if (!item || item.type !== "image" || !item.assetId || isEffectivelyLocked(item, itemsById)) return;
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
+    if (croppingItemIdRef.current) cancelCropMode();
+    if (imageFillEditItemIdRef.current) cancelImageFillEditMode();
+    if (fadeEditItemIdRef.current) cancelFadeMode();
+    setSelectedIds([itemId]);
+    setGrabItEditItemId(itemId);
+  }
+
+  function exitGrabItMode() {
+    if (!grabItEditItemIdRef.current) return false;
+    setGrabItEditItemId(null);
+    return true;
+  }
+
+  function toggleGrabItMode(itemId) {
+    if (grabItEditItemIdRef.current === itemId) exitGrabItMode();
+    else enterGrabItMode(itemId);
+  }
+
+  // One grab = one commit = one undo step (spec: don't put temporary
+  // hover/detection state into history). Deliberately does NOT call
+  // setSelectedIds — the source item stays selected/in Grab It mode so the
+  // user can grab again immediately from the same image (spec: "remain in
+  // Grab It mode unless the user exits it").
+  async function extractGrabItRegion(itemId, region, detectionMeta) {
+    const item = itemsRef.current.find((it) => it.id === itemId);
+    if (!item || item.type !== "image" || !item.assetId || !region) return;
+    if (grabItExtractingRef.current) return; // one job at a time
+    setGrabItExtracting(true);
+    setStatus("Adding to canvas…");
+    try {
+      const sourceBlob = await getAssetBlob(item.assetId);
+      if (!sourceBlob) throw new Error("Original image could not be found.");
+      const blob = await extractGrabItRegionBlob(sourceBlob, item, region, detectionMeta || {});
+      const sourceMeta = await getAssetMeta(item.assetId);
+      const file = new File([blob], `${sourceMeta?.name || "image"}-grab.png`, { type: "image/png" });
+      const result = await uploadFileToLibrary(file);
+      if (!result.id) throw new Error(result.errorMessage || "Could not save the extracted image.");
+      const stillPresent = itemsRef.current.find((it) => it.id === itemId);
+      if (!stillPresent) return; // source item was deleted while processing
+
+      const naturalWidth = result.width || 200;
+      const naturalHeight = result.height || 200;
+      const maxWidth = Math.min(activePageRef.current.width * 0.6, 320);
+      const maxHeight = Math.min(activePageRef.current.height * 0.6, 320);
+      const shrink = Math.min(1, maxWidth / naturalWidth, maxHeight / naturalHeight);
+      const width = naturalWidth * shrink;
+      const height = naturalHeight * shrink;
+      const grabCount = itemsRef.current.filter((it) => it.source === "grab-it" && it.sourceItemId === itemId).length;
+      const cascade = 20 + (grabCount % 8) * 14;
+
+      const now = Date.now();
+      const newItem = {
+        id: crypto.randomUUID(),
+        type: "image",
+        pageId: item.pageId,
+        parentId: item.parentId ?? null,
+        ...getDefaultProps("image"),
+        assetId: result.id,
+        naturalWidth,
+        naturalHeight,
+        x: stillPresent.x + cascade,
+        y: stillPresent.y + cascade,
+        width,
+        height,
+        rotation: 0,
+        opacity: 1,
+        locked: false,
+        hidden: false,
+        createdAt: now,
+        updatedAt: now,
+        source: "grab-it",
+        sourceItemId: itemId,
+      };
+      commit((prev) => [...prev, newItem], {
+        type: "add-object",
+        label: "Grab it",
+        itemIds: [newItem.id],
+        pageIds: [item.pageId],
+      });
+      setStatus("Added to canvas.");
+    } catch (err) {
+      setStatus(err?.message || "Couldn't add that design to the canvas.");
+    } finally {
+      setGrabItExtracting(false);
+      window.setTimeout(() => setStatus(""), 2500);
+    }
   }
 
   // --- Remove background (right-click context menu action) ---
@@ -4438,6 +4668,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (editingTableIdRef.current) exitTableEditMode(); // flushes pending typing into its own entry first
     if (croppingItemIdRef.current) cancelCropMode(); // uncommitted crop gesture — revert, don't fold into undo
     if (imageFillEditItemIdRef.current) cancelImageFillEditMode(); // uncommitted image-fill gesture — same reasoning
+    if (fadeEditItemIdRef.current) cancelFadeMode(); // uncommitted fade gesture — same reasoning
     const current = historyStateRef.current;
     if (!historyCanUndo(current)) return;
     const undoneEntry = current.history[current.index];
@@ -4463,6 +4694,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (editingTableIdRef.current) exitTableEditMode();
     if (croppingItemIdRef.current) cancelCropMode();
     if (imageFillEditItemIdRef.current) cancelImageFillEditMode();
+    if (fadeEditItemIdRef.current) cancelFadeMode();
     const current = historyStateRef.current;
     if (!historyCanRedo(current)) return;
     const nextIndex = current.index + 1;
@@ -5056,6 +5288,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
         // bounding box and rotate the whole object out from under a crop
         // gesture.
         if (id === croppingItemIdRef.current) return false;
+        // Same reasoning for an item in Fade edit mode — FadeOverlay.jsx's
+        // own drag handles are the only interaction surface while editing.
+        if (id === fadeEditItemIdRef.current) return false;
+        // Same for an item in Grab It mode — GrabItOverlay's own hover/
+        // click surface is the only interaction while picking a design; the
+        // Transformer would otherwise let the whole source image be resized
+        // or rotated out from under an in-progress grab.
+        if (id === grabItEditItemIdRef.current) return false;
         // A table in cell-edit mode hides the whole-element resize handles
         // too — TableEditChrome's own row/column resize handles are the
         // only interaction surface while editing cells (spec §10B).
@@ -5397,7 +5637,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     onCut: cutSelection,
     onDuplicate: duplicateSelection,
     onDelete: () => {
-      if (croppingItemId || imageFillEditItemId) return;
+      if (croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId) return;
       removeSelection();
     },
     onSelectAll: selectAll,
@@ -5411,9 +5651,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
       ? nudgeCropFocalPoint
       : imageFillEditItemId
         ? nudgeImageFillPosition
-        : editingTableId
-          ? (dirX, dirY, size) => moveTableCellSelection(dirY, dirX, { additive: size === "large" })
-          : nudgeSelection,
+        : fadeEditItemId || grabItEditItemId
+          ? () => {} // arrow keys don't nudge the object while positioning fade handles / picking a Grab It region
+          : editingTableId
+            ? (dirX, dirY, size) => moveTableCellSelection(dirY, dirX, { additive: size === "large" })
+            : nudgeSelection,
     onExitTextEdit: exitTextEdit,
     onBringForward: () => reorderSelection("forward"),
     onSendBackward: () => reorderSelection("backward"),
@@ -5430,7 +5672,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       exitTableEditMode();
       return true;
     },
-    onCancelCrop: () => cancelImageFillEditMode() || cancelCropMode(),
+    onCancelCrop: () => cancelFadeMode() || cancelImageFillEditMode() || cancelCropMode() || exitGrabItMode(),
     onToggleRulers: () => setPrecisionPrefs((prev) => ({ ...prev, showRulers: !prev.showRulers })),
     onToggleGuidesVisible: () => setPrecisionPrefs((prev) => ({ ...prev, showGuides: !prev.showGuides })),
     onDeleteSelectedGuide: deleteSelectedGuide,
@@ -5450,6 +5692,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (croppingItemIdRef.current) {
         event.preventDefault();
         applyCropModeAndCommit();
+        return;
+      }
+      // Fade edit mode: same "Enter applies" convention as crop mode.
+      if (fadeEditItemIdRef.current) {
+        event.preventDefault();
+        applyFadeModeAndCommit();
         return;
       }
       if (editingTextIdRef.current) return;
@@ -5530,7 +5778,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   useEffect(() => {
     syncTransformerNodes();
-  }, [selectedIds, items, editingTextId, croppingItemId, editingTableId, syncTransformerNodes]);
+  }, [selectedIds, items, editingTextId, croppingItemId, fadeEditItemId, grabItEditItemId, editingTableId, syncTransformerNodes]);
 
   function handleTransformStart() {
     const anchor = transformerRef.current?.getActiveAnchor();
@@ -5577,11 +5825,23 @@ export default function App({ editorMode = "workspace", templateSession = null }
       };
       const sourceItem = items.find((it) => it.id === node.id());
       if (sourceItem?.type === "text") {
-        // Font size scales with the box resize — the usual expected
-        // behavior for text in a design editor (Phase 5 decision 8),
-        // whether the text is resized alone or as part of a group.
-        const geometricScale = Math.sqrt(Math.abs(scaleX * scaleY));
-        update.fontSize = Math.max(1, (sourceItem.fontSize || 24) * geometricScale);
+        // A pure horizontal drag (only the width-changing scale moved) on
+        // an auto-height box reflows text at the new width instead of
+        // scaling font size — font size stays exactly what the user chose,
+        // and height follows the rewrapped content (spec: resizing
+        // horizontally recalculates wrapping and adjusts height, it never
+        // shrinks/grows font). Corner/vertical drags keep the existing
+        // font-scales-with-box behavior (Phase 5 decision 8) unchanged.
+        const isWidthOnlyDrag = scaleY === 1 && scaleX !== 1;
+        if (isWidthOnlyDrag && textUsesAutoHeight(sourceItem)) {
+          update.height = measureAutoHeight({ ...sourceItem, width: update.width }, ensureRichText(sourceItem));
+        } else {
+          // Font size scales with the box resize — the usual expected
+          // behavior for text in a design editor (Phase 5 decision 8),
+          // whether the text is resized alone or as part of a group.
+          const geometricScale = Math.sqrt(Math.abs(scaleX * scaleY));
+          update.fontSize = Math.max(1, (sourceItem.fontSize || 24) * geometricScale);
+        }
       } else if (sourceItem?.type === "table") {
         // Redistributes column widths/row heights proportionally instead of
         // leaving a Konva scale baked in — keeps text crisp (never a
@@ -5986,8 +6246,41 @@ export default function App({ editorMode = "workspace", templateSession = null }
               >
                 <Layer>
                 <Rect name="canvas-background" x={0} y={0} width={page.width} height={page.height} fill={background} />
+                {/* Canvas/page clipping: the page behaves like a real
+                    artboard — anything an unselected object hangs off the
+                    edge is hidden, without ever touching its stored x/y (the
+                    item keeps whatever coordinates it has; only this Group's
+                    drawing/hit region is bounded to the page rect). Selected
+                    items are rendered a layer up (see `unclippedRenderIds`
+                    below), fully outside this clip, so the whole object —
+                    including the overhanging part — stays visible and
+                    draggable while it's selected. Each item lives in
+                    exactly one of the two groups at a time (never both), so
+                    there's no double-registration of its Konva node against
+                    registerNode/nodesMapRef. */}
+                <Group name="page-clip-group" clipX={0} clipY={0} clipWidth={page.width} clipHeight={page.height}>
+                  {displayPageItems
+                    .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById) && !unclippedRenderIds.has(item.id))
+                    .map((item) => (
+                      <DesignNode
+                        key={item.id}
+                        item={item}
+                        isSpaceDown={isSpaceDown || isPreviewPlaying}
+                        isEditingText={editingTextId === item.id}
+                        isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById)}
+                        onSelect={handleSelect}
+                        onContextMenu={handleItemContextMenu}
+                        onDragStart={onItemDragStart}
+                        onDragMove={onItemDragMove}
+                        onDragEnd={onItemDragEnd}
+                        onItemDblClick={handleItemDblClick}
+                        dragBoundFunc={dragBoundFunc}
+                        registerNode={registerNode}
+                      />
+                    ))}
+                </Group>
                 {displayPageItems
-                  .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById))
+                  .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById) && unclippedRenderIds.has(item.id))
                   .map((item) => (
                     <DesignNode
                       key={item.id}
@@ -6104,7 +6397,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
               unit={activeUnit}
             />}
 
-            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && (
+            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && (
               <SelectionToolbar
                 selectionBoundsContent={selectedBoundsContent}
                 viewport={KONVA_VIEWPORT}
@@ -6124,13 +6417,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
             )}
 
             <RotationIndicator
-              visible={interactionMode === "rotating" && !editingTextId && !croppingItemId && !imageFillEditItemId}
+              visible={interactionMode === "rotating" && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId}
               angle={rotationAngle}
               selectionBoundsContent={selectedBoundsContent}
               viewport={KONVA_VIEWPORT}
             />
 
-            {!editingTextId && !croppingItemId && !imageFillEditItemId && selectedItems.length === 1 && selectedItems[0].type === "line" && !isEffectivelyLocked(selectedItems[0], itemsById) && (
+            {!editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && selectedItems.length === 1 && selectedItems[0].type === "line" && !isEffectivelyLocked(selectedItems[0], itemsById) && (
               <LineEndpointHandles
                 item={selectedItems[0]}
                 viewport={KONVA_VIEWPORT}
@@ -6246,6 +6539,43 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     scale={scale}
                     onLiveChange={(fillImage) => liveImageFillChange(imageFillEditItemId, fillImage)}
                     onRequestExit={applyImageFillEditModeAndCommit}
+                  />
+                );
+              })()}
+
+            {fadeEditItemId &&
+              (() => {
+                const fadeItem = items.find((it) => it.id === fadeEditItemId);
+                if (!fadeItem) return null;
+                return (
+                  <FadeOverlay
+                    key={fadeEditItemId}
+                    item={fadeItem}
+                    viewport={KONVA_VIEWPORT}
+                    scale={scale}
+                    onLiveChange={(opacityMask) => liveFadeChange(fadeEditItemId, opacityMask)}
+                    onRequestExit={applyFadeModeAndCommit}
+                  />
+                );
+              })()}
+
+            {grabItEditItemId &&
+              (() => {
+                const grabItTargetItem = items.find((it) => it.id === grabItEditItemId);
+                if (!grabItTargetItem) return null;
+                return (
+                  <GrabItOverlay
+                    key={grabItEditItemId}
+                    item={grabItTargetItem}
+                    viewport={KONVA_VIEWPORT}
+                    scale={scale}
+                    regions={grabIt.regions}
+                    detectionMeta={grabIt.detectionMeta}
+                    hoveredRegionId={grabIt.hoveredRegionId}
+                    onHoverChange={grabIt.setHoveredRegionId}
+                    showAllRegions={grabIt.showAllRegions}
+                    isDetecting={grabIt.isDetecting}
+                    onPick={(region) => extractGrabItRegion(grabItEditItemId, region, grabIt.detectionMeta)}
                   />
                 );
               })()}
@@ -6509,6 +6839,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onCommitAdjustments={commitAdjustmentsGesture}
         onRestoreOriginalRatio={restoreOriginalAspectRatio}
         onResetImageEdits={resetImageEdits}
+        fadeEditItemId={fadeEditItemId}
+        onLiveFade={liveFadeChange}
+        onCommitFade={commitFadeGesture}
+        onEnterFadeMode={enterFadeMode}
+        grabItEditItemId={grabItEditItemId}
+        onToggleGrabItMode={toggleGrabItMode}
+        grabIt={grabIt}
+        onDoneGrabIt={exitGrabItMode}
         onBulkFlip={bulkFlipSelection}
         onBulkFilterPreset={(ids, adjustments) => updateItems(ids, { adjustments })}
         unit={activeUnit}

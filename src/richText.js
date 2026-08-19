@@ -237,57 +237,6 @@ export function richTextToHTML(richText, fontSizeScale = 1) {
 }
 
 // ---------------------------------------------------------------------
-// Paste sanitization — allowlist approach: only a small set of tags and
-// style properties ever survive, everything else (scripts, event
-// handlers, javascript: URLs, unknown tags/styles) is stripped. Falls
-// back to plain text (line breaks preserved) when the clipboard has no
-// HTML at all.
-// ---------------------------------------------------------------------
-
-const ALLOWED_TAGS = new Set(["B", "STRONG", "I", "EM", "U", "S", "STRIKE", "SPAN", "DIV", "P", "BR", "LI", "OL", "UL"]);
-const ALLOWED_STYLES = new Set(["font-weight", "font-style", "text-decoration", "color", "font-family", "font-size"]);
-
-export function sanitizePastedHtml(html) {
-  const parsed = new DOMParser().parseFromString(html, "text/html");
-  const container = parsed.body;
-
-  function sanitizeNode(node) {
-    if (node.nodeType === 3) return node.cloneNode(false);
-    if (node.nodeType !== 1) return null;
-    if (!ALLOWED_TAGS.has(node.tagName)) {
-      const frag = document.createDocumentFragment();
-      node.childNodes.forEach((child) => {
-        const cleaned = sanitizeNode(child);
-        if (cleaned) frag.appendChild(cleaned);
-      });
-      return frag;
-    }
-    const clean = document.createElement(node.tagName);
-    const style = node.style;
-    const keptStyle = [];
-    ALLOWED_STYLES.forEach((prop) => {
-      const value = style.getPropertyValue(prop);
-      if (value) keptStyle.push(`${prop}:${value}`);
-    });
-    if (keptStyle.length) clean.setAttribute("style", keptStyle.join(";"));
-    node.childNodes.forEach((child) => {
-      const cleaned = sanitizeNode(child);
-      if (cleaned) clean.appendChild(cleaned);
-    });
-    return clean;
-  }
-
-  const frag = document.createDocumentFragment();
-  container.childNodes.forEach((child) => {
-    const cleaned = sanitizeNode(child);
-    if (cleaned) frag.appendChild(cleaned);
-  });
-  const wrapper = document.createElement("div");
-  wrapper.appendChild(frag);
-  return wrapper.innerHTML;
-}
-
-// ---------------------------------------------------------------------
 // Layout: shared by the Konva draw path and the auto-size measurement
 // path so they can never disagree. Letter-spacing is applied per
 // character (not via the still-inconsistently-supported canvas
@@ -400,6 +349,28 @@ export function layoutRichText(paragraphs, opts) {
     ? Math.max(0, ...lines.map((l) => l.width + l.indent))
     : maxWidth;
   return { lines, totalWidth, totalHeight: y, letterSpacing };
+}
+
+// Auto-grow-height: the box height the wrapped `richText` needs at its own
+// current width — same layoutRichText pass RichTextNode draws with, so the
+// box a typing/pasting user sees can never disagree with what's measured
+// here (per-run font size, so mixed rich-text sizes wrap and measure
+// correctly). Width is never grown by this — callers keep the user's
+// chosen `item.width` and only ever write back `height`. 20 matches the
+// Transformer's own boundBoxFunc minimum (App.jsx) so a just-cleared text
+// box doesn't collapse to 0.
+export function measureAutoHeight(item, richText) {
+  const padding = item.padding ?? 4;
+  const maxWidth = Math.max(1, (item.width || 100) - padding * 2);
+  const { totalHeight } = layoutRichText(richText, {
+    maxWidth,
+    autoWidth: false,
+    lineHeight: item.lineHeight || 1,
+    align: item.align || "left",
+    letterSpacing: item.letterSpacing || 0,
+    paragraphSpacing: item.paragraphSpacing || 0,
+  });
+  return Math.max(20, totalHeight + padding * 2);
 }
 
 export { fontString, measureRunText, getMeasureContext, LIST_INDENT_PER_LEVEL };

@@ -12,7 +12,6 @@ import {
   isRichText,
   MAX_LIST_LEVEL,
   richTextToHTML,
-  sanitizePastedHtml,
 } from "../richText";
 
 const TYPING_COMMIT_DEBOUNCE_MS = 1000;
@@ -206,19 +205,24 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     scheduleFlush();
   }
 
+  // Deliberately ignores clipboardData's "text/html" entirely: external
+  // sources (ChatGPT, web pages, Word, Docs, email) attach arbitrary CSS —
+  // dark-mode backgrounds, off-brand fonts/sizes/line-heights — that has
+  // caused black backgrounds and mismatched styling landing in a Vaycona
+  // text element. Only the plain-text content is trusted; it's inserted at
+  // the caret via insertHTML so it still inherits whatever *Vaycona* run
+  // it lands in (bold/italic span, item font/size/color/alignment), never
+  // formatting carried in from the clipboard. Vaycona's own object
+  // copy/paste (Cmd+C/V of a whole text element, richText intact) never
+  // goes through this handler — it round-trips through App.jsx's in-memory
+  // clipboardRef, not the OS clipboard, so it's unaffected.
   function handlePaste(event) {
     event.preventDefault();
-    const html = event.clipboardData.getData("text/html");
     const plain = event.clipboardData.getData("text/plain");
-    let insertHtml;
-    if (html) {
-      insertHtml = sanitizePastedHtml(html);
-    } else {
-      insertHtml = plain
-        .split("\n")
-        .map((line) => line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"))
-        .join("<br>");
-    }
+    const insertHtml = plain
+      .split("\n")
+      .map((line) => line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"))
+      .join("<br>");
     document.execCommand("insertHTML", false, insertHtml);
     serializeAndSync();
     flush();

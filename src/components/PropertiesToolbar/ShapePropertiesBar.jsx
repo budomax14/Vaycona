@@ -4,6 +4,7 @@ import { Ban, Sparkles } from "lucide-react";
 import ObjectMoreMenu from "./ObjectMoreMenu";
 import ObjectStylePicker from "./ObjectStylePicker";
 import TextColorPanel from "./TextColorPanel";
+import FadePopover from "./FadePopover";
 import { getControls } from "../../objectRegistry";
 import { LINE_KIND_ORDER, LINE_KINDS } from "../../lineKinds";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
@@ -24,6 +25,10 @@ export default function ShapePropertiesBar({
   onEnterImageFillEditMode,
   onExitImageFillEditMode,
   shapeFillOpenRequest,
+  onLiveFade,
+  onCommitFade,
+  onEnterFadeMode,
+  isEditingFade,
   brand,
   animationPanelOpen,
   onToggleAnimationPanel,
@@ -42,6 +47,7 @@ export default function ShapePropertiesBar({
   const supportsFill = controls.includes("fill");
   const supportsCornerRadius = controls.includes("cornerRadius");
   const supportsLineKind = controls.includes("lineKind");
+  const supportsFade = controls.includes("fade");
   const colorBrand = brand?.colorField("fill");
   const { objectUrl: fillImagePreviewUrl } = useAsset(item.fillImage?.assetId);
 
@@ -158,6 +164,17 @@ export default function ShapePropertiesBar({
         max={1}
         onChange={(value) => onChange({ opacity: value })}
       />
+
+      {supportsFade && (
+        <FadePopover
+          opacityMask={item.opacityMask}
+          onChange={(opacityMask) => onChange({ opacityMask })}
+          onLiveChange={onLiveFade}
+          onCommit={onCommitFade}
+          onEnterEditMode={onEnterFadeMode}
+          isEditingOnCanvas={isEditingFade}
+        />
+      )}
 
       {!isLine && (
         <>

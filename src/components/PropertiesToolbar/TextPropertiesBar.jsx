@@ -6,6 +6,7 @@ import TextColorPanel from "./TextColorPanel";
 import TextAlignMenu from "./TextAlignMenu";
 import TextListMenu from "./TextListMenu";
 import TextEffectsMenu from "./TextEffectsMenu";
+import Text3DMenu from "./Text3DMenu";
 import TextCurveMenu from "./TextCurveMenu";
 import TextMoreMenu from "./TextMoreMenu";
 import { normalizeImageFill } from "../../imageFill";
@@ -114,6 +115,7 @@ export default function TextPropertiesBar({
 
       <TextListMenu onApplyListFormat={onApplyListFormat} />
       <TextEffectsMenu item={item} onChange={onChange} onApplyFormat={onApplyFormat} />
+      <Text3DMenu item={item} onChange={onChange} />
       <TextCurveMenu item={item} onChange={onChange} />
 
       <ToolbarDivider />

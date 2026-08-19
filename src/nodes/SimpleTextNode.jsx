@@ -1,11 +1,14 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
-import { Group, Rect, Text } from "react-konva";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import Konva from "konva";
+import { Group, Rect, Shape, Text } from "react-konva";
 import { getTextEffectProps } from "../textEffects";
 import { resolveGradientKonvaProps } from "../gradientFill";
 import { resolveImageFillKonvaProps } from "../imageFill";
 import { borderDashProps } from "../borderStyles";
 import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
+import { resolveText3D, getText3DSteps, getText3DBevelRim } from "../text3D";
+import { useText3DCache } from "../useText3DCache";
 
 function buildFontStyle(item) {
   const parts = [];
@@ -61,6 +64,44 @@ export default function SimpleTextNode({ item, commonProps }) {
   const lineHeight = item.lineHeight || 1;
   const padding = item.padding ?? 4;
 
+  // Text Effects → 3D. Extrusion is drawn by a second, non-listening Shape
+  // behind the real front-face Text (never separate Konva nodes offset via
+  // their own x/y — see text3D.js's header comment for why that's what
+  // keeps the Transformer's selection box pinned to the item's real
+  // width/height regardless of depth). SimpleTextNode's front face is a
+  // native Konva `Text` (not a custom sceneFunc like Rich/CurvedTextNode),
+  // so wrapping is delegated to a detached, unrendered Konva.Text
+  // "measurer" sharing the exact same text-affecting props — reusing
+  // Konva's own wrap algorithm exactly rather than reimplementing it here.
+  const text3D = resolveText3D(item);
+  const text3DSteps = useMemo(() => getText3DSteps(text3D), [JSON.stringify(text3D)]);
+  const bevelRim = useMemo(() => getText3DBevelRim(text3D), [JSON.stringify(text3D)]);
+  const text3DContent = textTransformContent(item);
+  const measurer = useMemo(() => {
+    if (!text3D.enabled || (text3DSteps.length === 0 && !bevelRim)) return null;
+    return new Konva.Text({
+      text: text3DContent,
+      width,
+      height,
+      fontSize,
+      fontFamily: item.fontFamily || "Arial",
+      fontStyle: buildFontStyle(item),
+      letterSpacing: item.letterSpacing || 0,
+      lineHeight,
+      align: item.align || "left",
+      verticalAlign: item.verticalAlign || "middle",
+      wrap: item.autoSize === "auto-width" ? "none" : "word",
+      padding,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text3D.enabled, text3DSteps.length, !!bevelRim, text3DContent, width, height, fontSize, item.fontFamily, item.fontWeight, item.italic, item.letterSpacing, lineHeight, item.align, item.verticalAlign, item.autoSize, padding]);
+
+  const text3DCacheKey = JSON.stringify([
+    text3DContent, item.fontFamily, fontSize, item.fontWeight, item.italic, item.letterSpacing, lineHeight,
+    item.align, item.verticalAlign, item.fill, item.fillGradient, item.fillImage, background, border,
+  ]);
+  useText3DCache(ref, text3D, width, height, text3DCacheKey);
+
   useLayoutEffect(() => {
     if (item.autoSize !== "fixed") {
       setIsOverflowing(false);
@@ -110,6 +151,61 @@ export default function SimpleTextNode({ item, commonProps }) {
           reusing that for flip (like useImageElement.js explicitly avoids doing)
           would conflate flip with resize. */}
       <Group scaleX={item.flipX ? -1 : 1} scaleY={item.flipY ? -1 : 1} x={item.flipX ? width : 0} y={item.flipY ? height : 0}>
+        {measurer && (
+          <Shape
+            listening={false}
+            width={width}
+            height={height}
+            sceneFunc={(ctx) => {
+              if (!measurer.text()) return;
+              const pad = measurer.padding();
+              const fSize = measurer.fontSize();
+              const lineHeightPx = measurer.lineHeight() * fSize;
+              const lines = measurer.textArr;
+              const textAlign = measurer.align();
+              const vAlign = measurer.verticalAlign();
+              const ls = measurer.letterSpacing();
+              const totalW = measurer.getWidth();
+              let alignY = 0;
+              if (vAlign === "middle") alignY = (height - lines.length * lineHeightPx - pad * 2) / 2;
+              else if (vAlign === "bottom") alignY = height - lines.length * lineHeightPx - pad * 2;
+              ctx.font = `${buildFontStyle(item)} ${fSize}px ${item.fontFamily || "Arial"}`;
+              ctx.textBaseline = "middle";
+              ctx.textAlign = "left";
+
+              const paintLines = (dx, dy, color, scale) => {
+                ctx.save();
+                ctx.translate(dx, dy);
+                if (scale !== 1) {
+                  ctx.translate(width / 2, height / 2);
+                  ctx.scale(scale, scale);
+                  ctx.translate(-width / 2, -height / 2);
+                }
+                ctx.translate(pad, alignY + pad);
+                ctx.fillStyle = color;
+                let y = lineHeightPx / 2;
+                lines.forEach((line) => {
+                  let lineX = 0;
+                  if (textAlign === "right") lineX = totalW - line.width - pad * 2;
+                  else if (textAlign === "center") lineX = (totalW - line.width - pad * 2) / 2;
+                  let cursor = lineX;
+                  for (const ch of line.text) {
+                    ctx.fillText(ch, cursor, y);
+                    cursor += ctx.measureText(ch).width + ls;
+                  }
+                  y += lineHeightPx;
+                });
+                ctx.restore();
+              };
+
+              text3DSteps.forEach((step) => paintLines(step.dx, step.dy, step.color, step.scale));
+              if (bevelRim) {
+                paintLines(bevelRim.shadow.dx, bevelRim.shadow.dy, bevelRim.shadow.color, 1);
+                paintLines(bevelRim.highlight.dx, bevelRim.highlight.dy, bevelRim.highlight.color, 1);
+              }
+            }}
+          />
+        )}
         <Text
           ref={textNodeRef}
           text={textTransformContent(item)}

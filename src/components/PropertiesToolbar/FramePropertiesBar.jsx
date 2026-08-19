@@ -3,6 +3,7 @@ import { Crop, FlipHorizontal, FlipVertical, ImageOff, Replace, RotateCcw } from
 import { IconButton, IconToggleButton, LabeledField, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
 import ObjectMoreMenu from "./ObjectMoreMenu";
 import FiltersPopover from "./FiltersPopover";
+import FadePopover from "./FadePopover";
 import { useAsset } from "../../useAsset";
 import { FRAME_KIND_ORDER, FRAME_KINDS } from "../../frameKinds";
 
@@ -23,6 +24,10 @@ export default function FramePropertiesBar({
   onLiveAdjustments,
   onCommitAdjustments,
   onResetImageEdits,
+  onLiveFade,
+  onCommitFade,
+  onEnterFadeMode,
+  isEditingFade,
   animationPanelOpen,
   onToggleAnimationPanel,
   hasAnimations,
@@ -82,6 +87,15 @@ export default function FramePropertiesBar({
             onChange={(adjustments) => onChange({ adjustments })}
             onLiveChange={onLiveAdjustments}
             onCommit={onCommitAdjustments}
+          />
+
+          <FadePopover
+            opacityMask={item.opacityMask}
+            onChange={(opacityMask) => onChange({ opacityMask })}
+            onLiveChange={onLiveFade}
+            onCommit={onCommitFade}
+            onEnterEditMode={onEnterFadeMode}
+            isEditingOnCanvas={isEditingFade}
           />
 
           <ToolbarDivider />

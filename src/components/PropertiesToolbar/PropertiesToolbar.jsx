@@ -2,8 +2,19 @@ import React from "react";
 import CanvasPropertiesBar from "./CanvasPropertiesBar";
 import MultiSelectPropertiesBar from "./MultiSelectPropertiesBar";
 import CropModePropertiesBar from "./CropModePropertiesBar";
+import GrabItModePropertiesBar from "./GrabItModePropertiesBar";
 import SelectionMoreMenu from "./SelectionMoreMenu";
 import { getPropertiesBar } from "../../objectRegistry";
+import { ensureRichText, measureAutoHeight } from "../../richText";
+
+// Mirrors App.jsx's own handleTransformEnd rule for a horizontal-only
+// canvas drag: typing an exact width into the Position & Size panel is the
+// same "user manually resized the box horizontally" gesture, so it gets
+// the same auto-height reflow (never a font-size change) rather than
+// silently leaving the box too short/tall for its rewrapped content.
+function textUsesAutoHeight(item) {
+  return !!item && item.type === "text" && !item.curve && item.autoSize !== "fixed" && item.autoSize !== "auto-width";
+}
 
 export default function PropertiesToolbar({
   selectedItems,
@@ -64,6 +75,21 @@ export default function PropertiesToolbar({
   onBulkFlip,
   onBulkFilterPreset,
   onTransformBounds,
+  // Fade / opacity mask — mirrors onLiveAdjustments/onCommitAdjustments'
+  // shape; onEnterFadeMode/fadeEditItemId mirror crop mode's on-canvas
+  // edit-mode toggle (see App.jsx's own "Fade mode" section).
+  fadeEditItemId,
+  onLiveFade,
+  onCommitFade,
+  onEnterFadeMode,
+  // Grab It — on-canvas "pick a design out of this image" mode. Mirrors
+  // crop mode's whole-row toolbar swap (see the croppingItemId branch
+  // below) rather than fade's inline popover, since it's a full mode with
+  // its own status/settings, not a quick per-field edit.
+  grabItEditItemId,
+  onToggleGrabItMode,
+  grabIt,
+  onDoneGrabIt,
   // Image Fill for text — on-canvas drag-to-reposition mode, mirroring
   // crop mode's shape (see App.jsx's imageFillEditItemId block).
   onEnterImageFillEditMode,
@@ -108,6 +134,26 @@ export default function PropertiesToolbar({
           onApply={onApplyCrop}
           onCancel={onCancelCrop}
           onReset={() => onResetCrop(single.id)}
+        />
+      </div>
+    );
+  }
+
+  if (single && grabItEditItemId === single.id) {
+    return (
+      <div data-grab-it-toolbar-safe className="flex h-16 shrink-0 items-center gap-3 overflow-x-auto border-b border-gray-200 bg-white px-4">
+        <GrabItModePropertiesBar
+          regionCount={grabIt?.regions?.length || 0}
+          isDetecting={!!grabIt?.isDetecting}
+          error={grabIt?.error}
+          sensitivity={grabIt?.sensitivity ?? 0.5}
+          onSensitivityChange={grabIt?.setSensitivity}
+          mergeAmount={grabIt?.mergeAmount ?? 0.5}
+          onMergeAmountChange={grabIt?.setMergeAmount}
+          showAllRegions={!!grabIt?.showAllRegions}
+          onToggleShowAllRegions={grabIt?.setShowAllRegions}
+          onResetDetection={grabIt?.resetDetection}
+          onDone={onDoneGrabIt}
         />
       </div>
     );
@@ -174,7 +220,12 @@ export default function PropertiesToolbar({
       {single && Bar && (
         <Bar
           {...transformProps}
-          onChange={(changes) => onUpdateItem(single.id, changes)}
+          onChange={(changes) => {
+            if (changes.width !== undefined && changes.height === undefined && textUsesAutoHeight(single)) {
+              changes = { ...changes, height: measureAutoHeight({ ...single, width: changes.width }, ensureRichText(single)) };
+            }
+            onUpdateItem(single.id, changes);
+          }}
           onAlignToPage={onAlignToPage}
           brand={brand}
           onReplaceImage={isImageLike ? (file) => onReplaceImage(single.id, file) : undefined}
@@ -184,6 +235,12 @@ export default function PropertiesToolbar({
           onCommitAdjustments={onCommitAdjustments}
           onRestoreOriginalRatio={single.type === "image" ? () => onRestoreOriginalRatio(single.id) : undefined}
           onResetImageEdits={isImageLike ? () => onResetImageEdits(single.id) : undefined}
+          onLiveFade={isImageLike || single.type === "shape" ? (opacityMask) => onLiveFade(single.id, opacityMask) : undefined}
+          onCommitFade={isImageLike || single.type === "shape" ? onCommitFade : undefined}
+          onEnterFadeMode={isImageLike || single.type === "shape" ? () => onEnterFadeMode(single.id) : undefined}
+          isEditingFade={fadeEditItemId === single.id}
+          onEnterGrabItMode={single.type === "image" ? () => onToggleGrabItMode(single.id) : undefined}
+          isGrabItActive={grabItEditItemId === single.id}
           isEditingText={single.type === "text" && editingTextId === single.id}
           onEditText={
             single.type === "text"

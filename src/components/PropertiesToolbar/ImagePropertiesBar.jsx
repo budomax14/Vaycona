@@ -1,8 +1,9 @@
 import React, { useRef } from "react";
-import { Crop, Maximize, Replace, Undo2 } from "lucide-react";
+import { Crop, Grab, Maximize, Replace, Undo2 } from "lucide-react";
 import { IconButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
 import ObjectMoreMenu from "./ObjectMoreMenu";
 import FiltersPopover from "./FiltersPopover";
+import FadePopover from "./FadePopover";
 import ImageStylePicker from "./ImageStylePicker";
 import { useAsset } from "../../useAsset";
 
@@ -23,6 +24,12 @@ export default function ImagePropertiesBar({
   onCommitAdjustments,
   onRestoreOriginalRatio,
   onResetImageEdits,
+  onLiveFade,
+  onCommitFade,
+  onEnterFadeMode,
+  isEditingFade,
+  onEnterGrabItMode,
+  isGrabItActive,
   brand,
   animationPanelOpen,
   onToggleAnimationPanel,
@@ -34,6 +41,15 @@ export default function ImagePropertiesBar({
   return (
     <>
       <IconButton icon={Crop} label="Crop" onClick={onEnterCropMode} disabled={!item.assetId} />
+
+      <IconButton
+        icon={Grab}
+        label="Grab it"
+        title="Pick a design from this image and turn it into its own element."
+        onClick={onEnterGrabItMode}
+        disabled={!item.assetId}
+        active={isGrabItActive}
+      />
 
       <IconButton icon={Replace} label="Replace" onClick={() => fileInputRef.current?.click()} />
       <input
@@ -63,6 +79,15 @@ export default function ImagePropertiesBar({
         min={0}
         max={100}
         onChange={(value) => onChange({ cornerRadius: value })}
+      />
+
+      <FadePopover
+        opacityMask={item.opacityMask}
+        onChange={(opacityMask) => onChange({ opacityMask })}
+        onLiveChange={onLiveFade}
+        onCommit={onCommitFade}
+        onEnterEditMode={onEnterFadeMode}
+        isEditingOnCanvas={isEditingFade}
       />
 
       <ToolbarDivider />

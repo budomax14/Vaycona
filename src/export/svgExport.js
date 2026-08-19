@@ -233,7 +233,10 @@ function isVectorSafeText(item) {
     !item.border?.enabled &&
     !item.curve &&
     !item.flipX &&
-    !item.flipY
+    !item.flipY &&
+    // 3D extrusion (Text Effects → 3D) has no faithful <text>+filter SVG
+    // equivalent — same reasoning as shadow/outline/glow above.
+    !item.text3D?.enabled
   );
 }
 

@@ -13,6 +13,7 @@ import { validateHierarchy, repairHierarchy } from "./hierarchy";
 import { isValidRichText } from "./richText";
 import { normalizeCrop } from "./imageCrop";
 import { normalizeAdjustments } from "./imageEffects";
+import { normalizeOpacityMask } from "./opacityMask";
 import { REGISTRY } from "./objectRegistry";
 import {
   GUIDE_ORIENTATIONS,
@@ -385,6 +386,7 @@ export function repairProject(data) {
     if (next.type === "text" && next.richText !== undefined && !isValidRichText(next.richText)) next.richText = undefined;
     if (next.crop) next.crop = normalizeCrop(next.crop);
     if (next.adjustments) next.adjustments = normalizeAdjustments(next.adjustments);
+    if (next.opacityMask) next.opacityMask = normalizeOpacityMask(next.opacityMask);
 
     // Phase 11 — clear (never guess-fix) any malformed brand-link ref;
     // the item's own literal fields already hold its current appearance

@@ -4,6 +4,7 @@ import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
 import { useImageFilters } from "../useImageFilters";
 import { computeCropLayout } from "../imageCrop";
+import { resolveMaskGeometry } from "../opacityMask";
 import { buildRectPath } from "../shapeGeometry";
 import { findIconByName, ICON_NATIVE_SIZE } from "../iconCatalog";
 import { renderPrimitive } from "./IconNode";
@@ -40,11 +41,27 @@ export default function ImageNode({ item, commonProps }) {
     flipX: item.flipX,
     flipY: item.flipY,
   });
-  useImageFilters(innerImageRef, image, item.adjustments);
 
   const width = item.width || 100;
   const height = item.height || 100;
   const clipFunc = item.cornerRadius > 0 ? (ctx) => buildRectPath(ctx, width, height, item.cornerRadius) : undefined;
+
+  // Phase 12: a Ken Burns pan/zoom preset stashes an interpolated crop on
+  // `__animatedCrop` for the current preview/playback/export frame only
+  // (see animationService.js's computeCropDeltaForItem) — the durable
+  // `item.crop` underneath is never touched, so playback stopping or
+  // being canceled always reverts to exactly the stored crop.
+  const layout = computeCropLayout(item.__animatedCrop || item.crop, naturalWidth, naturalHeight, width, height);
+  // Fade's normalized mask coordinates are defined over the item's own full
+  // box, but the cached/filtered Konva node is the INNER <KonvaImage> —
+  // which in "contain"/fit layout is smaller than and offset within that
+  // box (letterboxed). Only that mode needs a non-identity mapping; "crop"
+  // and "stretch" already draw the inner image at exactly (0,0,width,height).
+  const maskGeometry =
+    layout.mode === "contain"
+      ? resolveMaskGeometry(width, height, { x: layout.offsetX, y: layout.offsetY, width: layout.drawWidth, height: layout.drawHeight })
+      : resolveMaskGeometry(width, height, { x: 0, y: 0, width, height });
+  useImageFilters(innerImageRef, image, item.adjustments, item.opacityMask, maskGeometry);
 
   let content;
   if (status === "missing" || (status === "ready" && !image)) {
@@ -64,12 +81,6 @@ export default function ImageNode({ item, commonProps }) {
     // Loading — inert placeholder box, same outer Group as the real content.
     content = <Shape sceneFunc={boxSceneFunc} width={width} height={height} fill="#f3f4f6" listening={false} />;
   } else {
-    // Phase 12: a Ken Burns pan/zoom preset stashes an interpolated crop on
-    // `__animatedCrop` for the current preview/playback/export frame only
-    // (see animationService.js's computeCropDeltaForItem) — the durable
-    // `item.crop` underneath is never touched, so playback stopping or
-    // being canceled always reverts to exactly the stored crop.
-    const layout = computeCropLayout(item.__animatedCrop || item.crop, naturalWidth, naturalHeight, width, height);
     content =
       layout.mode === "contain" ? (
         <KonvaImage ref={innerImageRef} image={image} x={layout.offsetX} y={layout.offsetY} width={layout.drawWidth} height={layout.drawHeight} listening={false} />

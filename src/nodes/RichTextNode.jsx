@@ -8,6 +8,8 @@ import { useFontsLoaded } from "../useFontLoader";
 import { borderDashProps } from "../borderStyles";
 import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
+import { resolveText3D, getText3DSteps, getText3DBevelRim } from "../text3D";
+import { useText3DCache } from "../useText3DCache";
 
 function alignOffset(line, totalWidth, align) {
   const free = Math.max(0, totalWidth - line.width - line.indent);
@@ -32,6 +34,57 @@ function strokeSegmentChars(ctx, text, x, y, letterSpacing) {
     cursor += ctx.measureText(ch).width + letterSpacing;
   }
   return cursor;
+}
+
+// Shared by the real front face AND every 3D extrusion copy (Text Effects
+// → 3D) — `fillOverride` set means "this is an extrusion/bevel pass": skip
+// stroke/underline/strikethrough decoration and paint every glyph in one
+// flat color instead of resolving per-run color/gradient/image-fill, since
+// the extrusion always uses its own independent color (spec §5).
+function paintRichTextContent(ctx, { layout, padding, totalWidthFallback, item, effectProps, imagePattern, canvasGradient, fillOverride }) {
+  const letterSpacing = layout.letterSpacing;
+  layout.lines.forEach((line) => {
+    const baseX = padding + alignOffset(line, layout.totalWidth || totalWidthFallback, line.align);
+    const baseY = padding + line.y + (line.height - line.maxFont) / 2 + line.maxFont * 0.8;
+
+    if (line.prefix) {
+      ctx.font = fontString(line.segments[0]?.run || { fontSize: line.maxFont, fontFamily: item.fontFamily });
+      ctx.fillStyle = fillOverride || imagePattern || canvasGradient || line.segments[0]?.run.color || item.fill || "#111827";
+      ctx.fillText(line.prefix, padding + line.indent - 18, baseY);
+    }
+
+    let cursorX = baseX;
+    line.segments.forEach((seg) => {
+      ctx.font = fontString(seg.run);
+      ctx.fillStyle = fillOverride || imagePattern || canvasGradient || seg.run.color || item.fill || "#111827";
+      if (!fillOverride) {
+        // Per-run outline override (see richText.js's outlineColor/
+        // outlineWidth doc comment) wins when set; otherwise falls back to
+        // the whole-object Effects > Outline setting, same as before this
+        // override existed.
+        const runStrokeColor = seg.run.outlineColor !== undefined ? seg.run.outlineColor : effectProps.stroke;
+        const runStrokeWidth = seg.run.outlineWidth !== undefined ? seg.run.outlineWidth : effectProps.strokeWidth;
+        if (runStrokeColor && runStrokeWidth > 0) {
+          ctx.strokeStyle = runStrokeColor;
+          ctx.lineWidth = runStrokeWidth;
+          strokeSegmentChars(ctx, seg.text, cursorX, baseY, letterSpacing);
+        }
+      }
+      drawSegmentChars(ctx, seg.text, cursorX, baseY, letterSpacing);
+      if (!fillOverride && (seg.run.underline || seg.run.strikethrough)) {
+        const lineY = seg.run.underline ? baseY + seg.run.fontSize * 0.12 : baseY - seg.run.fontSize * 0.3;
+        ctx.save();
+        ctx.strokeStyle = imagePattern || canvasGradient || seg.run.color || item.fill || "#111827";
+        ctx.lineWidth = Math.max(1, seg.run.fontSize * 0.06);
+        ctx.beginPath();
+        ctx.moveTo(cursorX, lineY);
+        ctx.lineTo(cursorX + seg.width, lineY);
+        ctx.stroke();
+        ctx.restore();
+      }
+      cursorX += seg.width;
+    });
+  });
 }
 
 // Manual sceneFunc renderer for objects with real per-run formatting
@@ -77,6 +130,17 @@ export default function RichTextNode({ item, commonProps }) {
   const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl);
   const isOverflowing = item.autoSize === "fixed" && layout.totalHeight > height - padding * 2;
 
+  // Text Effects → 3D — see text3D.js's header comment for why extrusion is
+  // drawn inside this same sceneFunc (translated, not via separate Konva
+  // nodes) rather than as sibling shapes: that's what keeps the
+  // Transformer's selection box pinned to the item's real width/height
+  // regardless of depth.
+  const text3D = resolveText3D(item);
+  const text3DSteps = useMemo(() => getText3DSteps(text3D), [JSON.stringify(text3D)]);
+  const bevelRim = useMemo(() => getText3DBevelRim(text3D), [JSON.stringify(text3D)]);
+  const text3DCacheKey = JSON.stringify([richText, item.fillGradient, item.fillImage, background, border]);
+  useText3DCache(ref, text3D, width, height, text3DCacheKey);
+
   return (
     <Group ref={ref} x={x} y={y} width={width} height={height} rotation={rotation} opacity={opacity} draggable={draggable} dragBoundFunc={dragBoundFunc} {...handlers}>
       {background?.enabled && (
@@ -91,6 +155,17 @@ export default function RichTextNode({ item, commonProps }) {
       <Group scaleX={item.flipX ? -1 : 1} scaleY={item.flipY ? -1 : 1} x={item.flipX ? width : 0} y={item.flipY ? height : 0}>
         <Shape
           {...effectProps}
+          // Explicit width/height (matching the item's own box) is required
+          // here, not cosmetic: Konva's Shape.getSelfRect() reports exactly
+          // these attrs regardless of what the sceneFunc actually paints —
+          // without them the node defaults to a 0×0 self-rect, which made
+          // the Transformer's selection box collapse to a point for any
+          // rich-formatted text with no background/border enabled (verified
+          // against Konva 9.3.22 directly). Also what keeps that same box
+          // correctly pinned once 3D extrusion (Text Effects → 3D) paints
+          // outside it — see text3D.js's header comment.
+          width={width}
+          height={height}
           // Same reasoning as CurvedTextNode.jsx's hitFunc: a custom sceneFunc
           // shape gets no hit region for free, so clicking anywhere that
           // isn't exactly on rendered glyph ink (e.g. the padding, gaps
@@ -119,47 +194,32 @@ export default function RichTextNode({ item, commonProps }) {
             // precedence — resolved once per draw, not per segment, since
             // the pattern's transform is fixed for the whole object.
             const imagePattern = createImageFillPattern(ctx, item, fillImageEl, fillImageNaturalWidth, fillImageNaturalHeight, width, height);
-            const letterSpacing = layout.letterSpacing;
-            layout.lines.forEach((line) => {
-              const baseX = padding + alignOffset(line, layout.totalWidth || width - padding * 2, line.align);
-              const baseY = padding + line.y + (line.height - line.maxFont) / 2 + line.maxFont * 0.8;
+            const totalWidthFallback = width - padding * 2;
 
-              if (line.prefix) {
-                ctx.font = fontString(line.segments[0]?.run || { fontSize: line.maxFont, fontFamily: item.fontFamily });
-                ctx.fillStyle = imagePattern || canvasGradient || line.segments[0]?.run.color || item.fill || "#111827";
-                ctx.fillText(line.prefix, padding + line.indent - 18, baseY);
+            // 3D extrusion (Text Effects → 3D), drawn first so the real
+            // front face paints on top — pure canvas translates inside this
+            // same sceneFunc, never separate Konva nodes (see text3D.js).
+            text3DSteps.forEach((step) => {
+              ctx.save();
+              ctx.translate(step.dx, step.dy);
+              if (step.scale !== 1) {
+                ctx.translate(width / 2, height / 2);
+                ctx.scale(step.scale, step.scale);
+                ctx.translate(-width / 2, -height / 2);
               }
-
-              let cursorX = baseX;
-              line.segments.forEach((seg) => {
-                ctx.font = fontString(seg.run);
-                ctx.fillStyle = imagePattern || canvasGradient || seg.run.color || item.fill || "#111827";
-                // Per-run outline override (see richText.js's outlineColor/
-                // outlineWidth doc comment) wins when set; otherwise falls
-                // back to the whole-object Effects > Outline setting, same
-                // as before this override existed.
-                const runStrokeColor = seg.run.outlineColor !== undefined ? seg.run.outlineColor : effectProps.stroke;
-                const runStrokeWidth = seg.run.outlineWidth !== undefined ? seg.run.outlineWidth : effectProps.strokeWidth;
-                if (runStrokeColor && runStrokeWidth > 0) {
-                  ctx.strokeStyle = runStrokeColor;
-                  ctx.lineWidth = runStrokeWidth;
-                  strokeSegmentChars(ctx, seg.text, cursorX, baseY, letterSpacing);
-                }
-                drawSegmentChars(ctx, seg.text, cursorX, baseY, letterSpacing);
-                if (seg.run.underline || seg.run.strikethrough) {
-                  const lineY = seg.run.underline ? baseY + seg.run.fontSize * 0.12 : baseY - seg.run.fontSize * 0.3;
-                  ctx.save();
-                  ctx.strokeStyle = imagePattern || canvasGradient || seg.run.color || item.fill || "#111827";
-                  ctx.lineWidth = Math.max(1, seg.run.fontSize * 0.06);
-                  ctx.beginPath();
-                  ctx.moveTo(cursorX, lineY);
-                  ctx.lineTo(cursorX + seg.width, lineY);
-                  ctx.stroke();
-                  ctx.restore();
-                }
-                cursorX += seg.width;
-              });
+              paintRichTextContent(ctx, { layout, padding, totalWidthFallback, item, effectProps, fillOverride: step.color });
+              ctx.restore();
             });
+            if (bevelRim) {
+              [bevelRim.shadow, bevelRim.highlight].forEach((rim) => {
+                ctx.save();
+                ctx.translate(rim.dx, rim.dy);
+                paintRichTextContent(ctx, { layout, padding, totalWidthFallback, item, effectProps, fillOverride: rim.color });
+                ctx.restore();
+              });
+            }
+
+            paintRichTextContent(ctx, { layout, padding, totalWidthFallback, item, effectProps, imagePattern, canvasGradient });
           }}
         />
       </Group>

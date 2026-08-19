@@ -20,8 +20,10 @@ import ChartPropertiesBar from "./components/PropertiesToolbar/ChartPropertiesBa
 import TablePropertiesBar from "./components/PropertiesToolbar/TablePropertiesBar";
 import { createTableData } from "./tableUtils";
 import { defaultTextEffects } from "./textEffects";
+import { defaultText3D } from "./text3D";
 import { DEFAULT_CROP } from "./imageCrop";
 import { DEFAULT_ADJUSTMENTS } from "./imageEffects";
+import { DEFAULT_OPACITY_MASK } from "./opacityMask";
 
 // One entry per top-level `type`. `shape`/`line`/`frame` hold an internal
 // `kinds` lookup for the axis that actually varies (geometry/behavior);
@@ -57,6 +59,7 @@ export const REGISTRY = {
       background: { enabled: false, color: "#ffffff", opacity: 1, cornerRadius: 0 },
       border: { enabled: false, color: "#111827", width: 1, style: "solid" },
       effects: defaultTextEffects(),
+      text3D: defaultText3D(),
       curve: 0,
       flipX: false,
       flipY: false,
@@ -64,7 +67,7 @@ export const REGISTRY = {
     controls: () => [
       "fill", "fontFamily", "fontSize", "fontWeight", "italic", "underline", "strikethrough",
       "textAlign", "verticalAlign", "lineHeight", "letterSpacing", "paragraphSpacing",
-      "textTransform", "list", "autoSize", "overflow", "background", "border", "effects", "opacity",
+      "textTransform", "list", "autoSize", "overflow", "background", "border", "effects", "text3D", "opacity",
     ],
     transforms: { resizable: true, rotatable: true, usesTransformer: true },
   },
@@ -81,6 +84,7 @@ export const REGISTRY = {
       strokeWidth: 0,
       strokeStyle: "solid",
       strokeOpacity: 1,
+      opacityMask: { ...DEFAULT_OPACITY_MASK },
       ...(SHAPE_KINDS[shapeKind]?.extraDefaults ?? {}),
     }),
     controls: (item) => [
@@ -90,6 +94,7 @@ export const REGISTRY = {
       "strokeStyle",
       "strokeOpacity",
       "opacity",
+      "fade",
       ...(SHAPE_KINDS[item.shapeKind]?.extraControls ?? []),
     ],
     transforms: (item) => ({
@@ -152,10 +157,11 @@ export const REGISTRY = {
       flipY: false,
       crop: { ...DEFAULT_CROP },
       adjustments: { ...DEFAULT_ADJUSTMENTS },
+      opacityMask: { ...DEFAULT_OPACITY_MASK },
       naturalWidth: null,
       naturalHeight: null,
     }),
-    controls: () => ["cornerRadius", "opacity"],
+    controls: () => ["cornerRadius", "opacity", "fade"],
     transforms: { resizable: true, rotatable: true, usesTransformer: true },
   },
 
@@ -182,12 +188,13 @@ export const REGISTRY = {
       contentAssetId: null,
       crop: { ...DEFAULT_CROP },
       adjustments: { ...DEFAULT_ADJUSTMENTS },
+      opacityMask: { ...DEFAULT_OPACITY_MASK },
       flipX: false,
       flipY: false,
       cornerRadius: 0,
       ...(FRAME_KINDS[frameKind]?.extraDefaults ?? {}),
     }),
-    controls: () => ["opacity"],
+    controls: () => ["opacity", "fade"],
     transforms: (item) => ({
       resizable: true,
       rotatable: true,

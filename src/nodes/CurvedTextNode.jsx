@@ -8,6 +8,8 @@ import { useFontLoader } from "../useFontLoader";
 import { borderDashProps } from "../borderStyles";
 import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
+import { resolveText3D, getText3DSteps, getText3DBevelRim } from "../text3D";
+import { useText3DCache } from "../useText3DCache";
 
 const MAX_CURVE_ANGLE = Math.PI * 1.5; // ~270° of arc at |curve| === 100
 
@@ -52,6 +54,15 @@ export default function CurvedTextNode({ item, commonProps }) {
   const { objectUrl: fillImageUrl } = useAsset(item.fillImage?.assetId);
   const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl);
 
+  // Text Effects → 3D — see text3D.js's header comment for why extrusion is
+  // drawn inside this same sceneFunc (translated per arc-placed glyph)
+  // rather than as sibling Konva nodes.
+  const text3D = resolveText3D(item);
+  const text3DSteps = getText3DSteps(text3D);
+  const bevelRim = getText3DBevelRim(text3D);
+  const text3DCacheKey = JSON.stringify([item.fillGradient, item.fillImage, background, border]);
+  useText3DCache(ref, text3D, width, height, text3DCacheKey);
+
   return (
     <Group
       ref={ref}
@@ -77,6 +88,15 @@ export default function CurvedTextNode({ item, commonProps }) {
       <Group scaleX={item.flipX ? -1 : 1} scaleY={item.flipY ? -1 : 1} x={item.flipX ? width : 0} y={item.flipY ? height : 0}>
         <Shape
           {...effectProps}
+          // Explicit width/height (matching the item's own box) is required
+          // here, not cosmetic — see the matching comment in RichTextNode.jsx:
+          // without it, Konva's Shape.getSelfRect() defaults to 0×0 and the
+          // Transformer's selection box collapses to a point whenever no
+          // background/border is enabled (verified against Konva 9.3.22
+          // directly). Also what keeps that box correctly pinned once 3D
+          // extrusion (Text Effects → 3D) paints outside it.
+          width={width}
+          height={height}
           // Custom sceneFunc shapes get no hit region for free — Konva can't
           // infer one from arbitrary ctx.fillText calls scattered across an
           // arc, so without this, clicking anywhere that isn't exactly on a
@@ -117,25 +137,52 @@ export default function CurvedTextNode({ item, commonProps }) {
             }
 
             let cursor = 0;
-            chars.forEach((ch, i) => {
+            const placements = chars.map((ch, i) => {
               const charCenter = cursor + widths[i] / 2;
               cursor += widths[i] + letterSpacing;
+              if (angleSpan <= 0.0001) {
+                return { charCenter, px: charCenter - totalWidth / 2, py: 0, charRotation: 0 };
+              }
+              const theta = (charCenter - totalWidth / 2) / radius;
+              return {
+                charCenter,
+                px: radius * Math.sin(theta),
+                py: sign * radius * (1 - Math.cos(theta)),
+                charRotation: sign * theta,
+              };
+            });
 
+            // 3D extrusion (Text Effects → 3D), drawn first so the real
+            // front face paints on top — reuses the arc placement computed
+            // above, just translated per step, never separate Konva nodes
+            // (see text3D.js).
+            if (text3DSteps.length || bevelRim) {
+              ctx.save();
+              const paintStep = (dx, dy, color, scale = 1) => {
+                ctx.fillStyle = color;
+                chars.forEach((ch, i) => {
+                  const { px, py, charRotation } = placements[i];
+                  ctx.save();
+                  ctx.translate(centerX + px + dx, centerY + py + dy);
+                  if (scale !== 1) ctx.scale(scale, scale);
+                  ctx.rotate(charRotation);
+                  ctx.fillText(ch, 0, 0);
+                  ctx.restore();
+                });
+              };
+              text3DSteps.forEach((step) => paintStep(step.dx, step.dy, step.color, step.scale));
+              if (bevelRim) {
+                paintStep(bevelRim.shadow.dx, bevelRim.shadow.dy, bevelRim.shadow.color);
+                paintStep(bevelRim.highlight.dx, bevelRim.highlight.dy, bevelRim.highlight.color);
+              }
+              ctx.restore();
+            }
+
+            chars.forEach((ch, i) => {
+              const { px, py, charRotation, charCenter } = placements[i];
               if (hasImageFill) {
                 ctx.fillStyle =
                   createImageFillPattern(ctx, item, fillImageEl, fillImageNaturalWidth, fillImageNaturalHeight, totalWidth, fontSize, charCenter) || fill;
-              }
-
-              let px, py, charRotation;
-              if (angleSpan <= 0.0001) {
-                px = charCenter - totalWidth / 2;
-                py = 0;
-                charRotation = 0;
-              } else {
-                const theta = (charCenter - totalWidth / 2) / radius;
-                px = radius * Math.sin(theta);
-                py = sign * radius * (1 - Math.cos(theta));
-                charRotation = sign * theta;
               }
 
               ctx.save();

@@ -7,6 +7,8 @@ import { borderDashProps } from "../borderStyles";
 import { parseColor, toRgbaString } from "../brandColor";
 import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
+import { useImageFilters } from "../useImageFilters";
+import { hasActiveOpacityMask, resolveMaskGeometry } from "../opacityMask";
 
 // Bakes strokeOpacity into the stroke color itself: Konva's stroke/fill are
 // drawn by the same sceneFunc's single context.fillStrokeShape(shapeNode)
@@ -45,6 +47,20 @@ export default function ShapeNode({ item, commonProps, shadowProps }) {
   const { objectUrl: fillImageUrl } = useAsset(item.fillImage?.assetId);
   const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl);
   const imageFill = resolveImageFillKonvaProps(item, fillImageEl, fillImageNaturalWidth, fillImageNaturalHeight);
+  const width = item.width || 100;
+  const height = item.height || 100;
+  // Fade (opacity mask) — same cache()+filters() pipeline image adjustments
+  // use (see useImageFilters.js), reused here via commonProps.ref (the same
+  // Konva node DesignNode's registerNode/Transformer already attach to —
+  // there's no separate inner node to cache for a shape, unlike Image/Frame).
+  // `image: true, requireImage: false` since a shape's sceneFunc draws
+  // synchronously with no async asset dependency; hasActiveOpacityMask
+  // gates the actual cache()/filters() call, so this is a no-op whenever
+  // fade isn't enabled (no perf cost for the common case).
+  useImageFilters(commonProps.ref, true, undefined, item.opacityMask, resolveMaskGeometry(width, height), {
+    requireImage: false,
+    cacheBounds: hasActiveOpacityMask(item.opacityMask) ? { x: 0, y: 0, width, height } : undefined,
+  });
   return (
     <Shape
       {...commonProps}
