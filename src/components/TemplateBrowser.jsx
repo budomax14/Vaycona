@@ -92,7 +92,9 @@ export default function TemplateBrowser({
     else if (sort === "recent-created") sorted.sort((a, b) => b.createdAt - a.createdAt);
     else if (sort === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === "most-used") sorted.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
-    else sorted.sort((a, b) => (a.builtIn === b.builtIn ? 0 : a.builtIn ? -1 : 1)); // recommended: built-ins first
+    // "recommended" trusts the order `templates` already arrives in — App.jsx's
+    // templateSummaries sorts by sortOrder, the admin's drag-to-reorder order
+    // from the Template Admin dashboard — so no extra sort is applied here.
     return sorted;
   }, [templates, scope, category, orientation, debouncedQuery, sort]);
 

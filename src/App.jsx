@@ -781,7 +781,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const templateSummaries = useMemo(() => {
     const merged = new Map(cloudTemplateSummaries.map((t) => [t.id, t]));
     localTemplateSummaries.forEach((t) => merged.set(t.id, t)); // local wins on id collision (this browser's own freshest copy)
-    return Array.from(merged.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+    // Admin-controlled display order (templateService.reorderTemplates) —
+    // missing sortOrder (pre-migration records) sorts last, tie-broken by
+    // recency, matching this list's behavior before manual ordering existed.
+    return Array.from(merged.values()).sort((a, b) => {
+      const aOrder = typeof a.sortOrder === "number" ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+      const bOrder = typeof b.sortOrder === "number" ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return b.updatedAt - a.updatedAt;
+    });
   }, [localTemplateSummaries, cloudTemplateSummaries]);
   const [reusablePages, setReusablePages] = useState([]);
   const [reusableSections, setReusableSections] = useState([]);

@@ -249,6 +249,13 @@ export async function createTemplate({
     publishedAt: status === "published" ? now : null,
     createdBy,
     tier,
+    // Gallery/admin-grid display order (project kind only — see
+    // reorderTemplates below). New templates default to "append to the
+    // end": `Date.now()` is far larger than any built-in's small
+    // index-based sortOrder (seedBuiltInTemplatesOnce) or any already
+    // manually-reordered template's sequential value, so a fresh template
+    // lands last until an admin drags it somewhere else.
+    sortOrder: now,
   });
   await withStore("readwrite", (store) => store.put(template));
   return template;
@@ -418,7 +425,19 @@ export async function listTemplateSummaries(kind) {
     return requestToPromise(store.getAll());
   });
   const resolved = await all;
-  return resolved.map(({ data, checksum, ...meta }) => meta).sort((a, b) => b.updatedAt - a.updatedAt);
+  return resolved
+    .map(({ data, checksum, ...meta }) => meta)
+    .sort((a, b) => {
+      // Admin-controlled display order (reorderTemplates below) only
+      // applies to "project" templates — reusable pages/sections have no
+      // such concept and keep the original recency sort.
+      if (a.kind === "project" && b.kind === "project") {
+        const aOrder = typeof a.sortOrder === "number" ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+        const bOrder = typeof b.sortOrder === "number" ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+      }
+      return b.updatedAt - a.updatedAt;
+    });
 }
 
 export async function getTemplateById(id) {
@@ -458,6 +477,34 @@ export async function duplicateTemplate(id) {
   });
   await withStore("readwrite", (store) => store.put(duplicate));
   return duplicate;
+}
+
+// --- manual display order (Template Management Admin) ---
+
+// Rewrites every listed template's `sortOrder` to match `orderedIds`'
+// position, spaced out (not 0/1/2/…) purely so a future "insert between
+// two neighbors" feature could compute a midpoint without a full rewrite —
+// nothing here relies on that yet. `orderedIds` must be every "project"
+// template currently visible in the admin grid (AdminDashboard.jsx only
+// allows dragging when no filters are active, so "visible" really does
+// mean "all") — a partial list would silently leave the rest wherever
+// their old sortOrder put them, interleaved unpredictably with the ones
+// just rewritten.
+export async function reorderTemplates(orderedIds) {
+  const results = [];
+  for (const [index, id] of orderedIds.entries()) {
+    const existing = await getTemplateById(id);
+    if (!existing) continue;
+    const next = withChecksum({ ...existing, checksum: undefined, sortOrder: index * 1000 });
+    // eslint-disable-next-line no-await-in-loop
+    await withStore("readwrite", (store) => store.put(next));
+    if (isCloudSynced(next) && next.status === "published") {
+      // eslint-disable-next-line no-await-in-loop
+      await publishTemplateToCloud(next);
+    }
+    results.push(next);
+  }
+  return results;
 }
 
 // --- usage tracking (spec §30/§50 — only after a successful use) ---
@@ -524,7 +571,7 @@ async function seedBuiltInTemplatesOnce() {
   const existingBuiltIns = await listTemplateSummaries("project");
   const existingIds = new Set(existingBuiltIns.filter((t) => t.builtIn).map((t) => t.builtInKey));
 
-  for (const seed of BUILT_IN_TEMPLATES) {
+  for (const [index, seed] of BUILT_IN_TEMPLATES.entries()) {
     if (existingIds.has(seed.builtInKey)) continue;
     const now = Date.now();
     const template = withChecksum({
@@ -559,6 +606,10 @@ async function seedBuiltInTemplatesOnce() {
       status: "published",
       publishedAt: now,
       createdBy: "system",
+      // Small index-based value (see createTemplate's own sortOrder
+      // comment) — keeps built-ins in their catalog order, ahead of any
+      // template created afterward, until an admin drags something.
+      sortOrder: index,
     });
     // eslint-disable-next-line no-await-in-loop
     await withStore("readwrite", (store) => store.put(template));

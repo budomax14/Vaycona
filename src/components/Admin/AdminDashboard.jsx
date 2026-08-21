@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Copy, Edit3, Eye, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { Copy, Edit3, Eye, GripVertical, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import {
   listTemplateSummaries,
   getTemplateById,
@@ -8,6 +8,7 @@ import {
   setTemplateFavorite,
   publishTemplate,
   unpublishTemplate,
+  reorderTemplates,
 } from "../../templateService";
 import { listAllCategories } from "../../adminTemplateCategories";
 import { exportProjectPackage, downloadBlob } from "../../projectPackage";
@@ -22,7 +23,12 @@ const STATUS_FILTERS = [
   { key: "draft", label: "Draft" },
 ];
 
+// "custom" mirrors templateService.listTemplateSummaries' own sortOrder
+// sort exactly (no extra client sort applied — see `filtered` below), so
+// it's the one option that both matches the order end users see in the
+// Designs panel AND is safe to drag-and-drop reorder.
 const SORT_OPTIONS = [
+  { key: "custom", label: "My order (drag to reorder)" },
   { key: "recent-updated", label: "Recently updated" },
   { key: "recent-created", label: "Recently created" },
   { key: "name", label: "Name" },
@@ -39,10 +45,12 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sort, setSort] = useState("recent-updated");
+  const [sort, setSort] = useState("custom");
   const [previewTemplate, setPreviewTemplate] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const categories = useMemo(() => listAllCategories(), [templates]);
 
@@ -79,9 +87,39 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
     if (sort === "recent-created") sorted.sort((a, b) => b.createdAt - a.createdAt);
     else if (sort === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === "most-used") sorted.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
-    else sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+    else if (sort === "recent-updated") sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+    // "custom": `templates` already arrives sortOrder-ascending from
+    // listTemplateSummaries — no extra sort needed, and none applied, so
+    // dragging here can safely write positions straight back.
     return sorted;
   }, [templates, query, category, statusFilter, sort]);
+
+  // Dragging only makes sense, and only stays globally consistent, when
+  // every "project" template is on screen at once — with a filter active,
+  // "drop it here" would silently reshuffle it against a subset while
+  // hidden templates keep whatever position they already had.
+  const canReorder = sort === "custom" && statusFilter === "all" && !category && !query.trim();
+
+  async function handleReorderDrop(targetId) {
+    const sourceId = dragId;
+    setDragId(null);
+    setDragOverId(null);
+    if (!canReorder || !sourceId || sourceId === targetId) return;
+    const ids = filtered.map((t) => t.id);
+    const from = ids.indexOf(sourceId);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, sourceId);
+    // Optimistic reorder so the grid doesn't visually snap back while the
+    // writes below (one per template) are in flight. canReorder guarantees
+    // `filtered` (source of `ids`) covers the exact same set as `templates`
+    // — no filters active — so this is a straight replacement, not a merge.
+    const byId = new Map(templates.map((t) => [t.id, t]));
+    setTemplates(ids.map((id) => byId.get(id)).filter(Boolean));
+    await reorderTemplates(ids);
+    refresh();
+  }
 
   async function handlePreview(id) {
     const full = await getTemplateById(id);
@@ -223,6 +261,14 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
           ))}
         </div>
 
+        {sort === "custom" && (
+          <p className="mb-4 -mt-2 text-xs text-gray-400">
+            {canReorder
+              ? "Drag a template by its handle to place it anywhere — this is the order shown in everyone's Designs panel."
+              : "Clear the search and status/category filters to drag-and-drop reorder templates."}
+          </p>
+        )}
+
         {templates === null ? (
           <p className="py-16 text-center text-sm text-gray-400">Loading templates…</p>
         ) : filtered.length === 0 ? (
@@ -235,6 +281,20 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
               <AdminTemplateCard
                 key={template.id}
                 template={template}
+                draggable={canReorder}
+                isDragging={dragId === template.id}
+                isDragOver={canReorder && dragOverId === template.id && dragId !== template.id}
+                onDragStart={() => setDragId(template.id)}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setDragOverId(null);
+                }}
+                onDragEnter={() => canReorder && dragId && setDragOverId(template.id)}
+                onDragOver={(event) => canReorder && event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  handleReorderDrop(template.id);
+                }}
                 onEdit={() => onEditTemplate(template.id)}
                 onPreview={() => handlePreview(template.id)}
                 onDuplicate={() => handleDuplicate(template.id)}
@@ -285,12 +345,43 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   );
 }
 
-function AdminTemplateCard({ template, onEdit, onPreview, onDuplicate, onPublish, onUnpublish, onDelete }) {
+function AdminTemplateCard({
+  template,
+  onEdit,
+  onPreview,
+  onDuplicate,
+  onPublish,
+  onUnpublish,
+  onDelete,
+  draggable,
+  isDragging,
+  isDragOver,
+  onDragStart,
+  onDragEnd,
+  onDragEnter,
+  onDragOver,
+  onDrop,
+}) {
   const status = template.status || "published";
   const orientation = orientationOf(template.pageWidth, template.pageHeight);
 
   return (
-    <div className="group overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <div
+      className={`group overflow-hidden rounded-xl border bg-white transition-opacity ${
+        isDragOver ? "border-amber-400 ring-2 ring-amber-300" : "border-gray-200"
+      } ${isDragging ? "opacity-40" : ""}`}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      {draggable && (
+        <div className="flex cursor-grab items-center justify-center gap-1 border-b border-gray-100 bg-gray-50 py-1 text-gray-400 active:cursor-grabbing">
+          <GripVertical size={13} />
+        </div>
+      )}
       <button className="block w-full text-left" onClick={onPreview} aria-label={`Preview ${template.name}`}>
         <div className="aspect-square w-full bg-gray-50">
           {template.thumbnail ? (
