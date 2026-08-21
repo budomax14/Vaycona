@@ -5010,7 +5010,27 @@ export default function App({ editorMode = "workspace", templateSession = null }
       clearTimeout(emptyLongPressTimerRef.current);
       emptyLongPressTimerRef.current = null;
     }
-    if (marqueeStartRef.current && marquee) {
+    // This Stage-level pointerup fires on the release of ANY gesture that
+    // bubbles to the Stage — not just its own marquee-select, which is the
+    // only thing it's actually responsible for. An item's own Konva
+    // dragend is a SEPARATE event (fired by Konva's internal drag state
+    // machine, not by this handler) for the SAME physical release, and the
+    // two aren't guaranteed to arrive in a fixed order — on touch this
+    // pointerup can bubble to the Stage before Konva has finished its own
+    // dragend processing for the item. Unconditionally resetting
+    // interactionMode to "idle" here was exactly that: it could flip
+    // interactionMode away from "dragging" a moment before the item's own
+    // onItemDragEnd runs, which lapses unclippedRenderIds' mid-drag freeze
+    // (see its own comment) and lets the actively-dragged node get
+    // reparented — and destroyed — out from under Konva's own in-flight
+    // dragend, crashing on a missing start position. Only touch what this
+    // handler actually owns: its own marquee gesture, tracked by
+    // marqueeStartRef having actually been set in handleStageMouseDown for
+    // an empty-canvas click. If it wasn't, this pointerup belongs to some
+    // other gesture (an item drag, a resize, a rotate) that owns its own
+    // interactionMode transition.
+    if (!marqueeStartRef.current) return;
+    if (marquee) {
       const { additive } = marqueeStartRef.current;
       const hasArea = marquee.width > 2 || marquee.height > 2;
       if (hasArea) {
@@ -5538,6 +5558,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const origin = dragOriginsRef.current;
     if (!origin || origin.leaderId !== id) return;
     const start = origin.startPositions.get(id);
+    if (!start) return;
     const deltaX = node.x() - start.x;
     const deltaY = node.y() - start.y;
 
@@ -5560,6 +5581,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
       // and crashing on `start.x`.
       if (!origin || origin.leaderId !== id) return;
       const start = origin.startPositions.get(id);
+      if (!start) {
+        // Defense-in-depth only — should be unreachable now that
+        // handleStageMouseUp no longer resets interactionMode out from
+        // under an in-progress item drag (see its own comment).
+        dragOriginsRef.current = null;
+        setInteractionMode("idle");
+        return;
+      }
       const deltaX = node.x() - start.x;
       const deltaY = node.y() - start.y;
 
