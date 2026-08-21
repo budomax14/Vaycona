@@ -2353,10 +2353,36 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // hanging off the page — stays visible and draggable while selected.
   // Nothing is exempted during playback/preview: that render approximates
   // the final export, which is always clipped to the page.
-  const unclippedRenderIds = useMemo(
-    () => (isPreviewPlaying ? new Set() : new Set(expandToLeafIds(displayItems, selectedIds))),
-    [displayItems, selectedIds, isPreviewPlaying]
-  );
+  //
+  // An item crossing this boundary moves to a different React/Konva parent
+  // (the page-clip Group vs. its sibling below) — a stable `key={item.id}`
+  // doesn't help there, since React never reconciles across a parent
+  // change: the old Konva node is destroyed and a new one created in the
+  // new parent. If that boundary-crossing happens to an item that Konva
+  // currently considers "being dragged" (its own selection just changed,
+  // or a group ancestor's did), Konva's own destroy() cleanup calls
+  // stopDrag() first, which synthesizes a real dragend for the OLD node —
+  // arriving after this same id's entry may have already been cleared (or
+  // overwritten by a newer drag) in dragOriginsRef, crashing onItemDragEnd
+  // on a missing start position. Freezing an in-progress drag's ids at
+  // whichever side of the boundary they started on (captured once in
+  // onItemDragStart) keeps the node's parent — and identity — stable for
+  // the entire gesture; it's free to cross again once the drag ends.
+  const unclippedRenderIds = useMemo(() => {
+    const natural = isPreviewPlaying ? new Set() : new Set(expandToLeafIds(displayItems, selectedIds));
+    if (interactionMode === "dragging" && dragOriginsRef.current) {
+      const { startPositions, frozenUnclippedIds } = dragOriginsRef.current;
+      startPositions.forEach((_pos, id) => {
+        if (frozenUnclippedIds.has(id)) natural.add(id);
+        else natural.delete(id);
+      });
+    }
+    return natural;
+  }, [displayItems, selectedIds, isPreviewPlaying, interactionMode]);
+  const unclippedRenderIdsRef = useRef(unclippedRenderIds);
+  useEffect(() => {
+    unclippedRenderIdsRef.current = unclippedRenderIds;
+  }, [unclippedRenderIds]);
   const isSelectionLocked =
     selectedItems.length > 0 && selectedItems.every((item) => isEffectivelyLocked(item, itemsById));
   const selectedBoundsContent = useMemo(() => {
@@ -5496,8 +5522,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
       const item = items.find((candidate) => candidate.id === itemId);
       if (item) startPositions.set(itemId, { x: item.x, y: item.y });
     });
+    // Snapshot which of these ids are currently rendering unclipped (see
+    // unclippedRenderIds' own comment) — the clip-membership memo freezes
+    // every dragged id at whichever side of the clip boundary it's on
+    // right now, for the rest of this gesture, so a mid-drag selection
+    // change can never destroy/recreate the Konva node this drag is
+    // actually holding onto.
+    const frozenUnclippedIds = new Set(idsToMove.filter((itemId) => unclippedRenderIdsRef.current.has(itemId)));
     const pointerStartContent = node.getStage().getRelativePointerPosition();
-    dragOriginsRef.current = { leaderId: id, startPositions, pointerStartContent };
+    dragOriginsRef.current = { leaderId: id, startPositions, pointerStartContent, frozenUnclippedIds };
     setInteractionMode("dragging");
   }, []);
 
@@ -5519,7 +5552,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const onItemDragEnd = useCallback(
     (id, node) => {
       const origin = dragOriginsRef.current;
-      if (!origin) return;
+      // Matches the identical guard already on onItemDragMove/dragBoundFunc
+      // — without it, a stray dragend from a destroyed/zombie Konva node
+      // (see unclippedRenderIds' comment on why a node can be destroyed
+      // mid-drag) can arrive after dragOriginsRef has already moved on to
+      // a different drag, finding no startPositions entry for its own id
+      // and crashing on `start.x`.
+      if (!origin || origin.leaderId !== id) return;
       const start = origin.startPositions.get(id);
       const deltaX = node.x() - start.x;
       const deltaY = node.y() - start.y;

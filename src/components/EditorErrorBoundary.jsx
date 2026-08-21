@@ -22,6 +22,10 @@ export default class EditorErrorBoundary extends React.Component {
     // and never sent anywhere external (spec §17/§22).
     // eslint-disable-next-line no-console
     console.error("Editor render error:", error, info?.componentStack);
+    // Also surfaced in the on-screen "technical details" panel (still
+    // hidden behind that toggle by default) — so a real crash can be
+    // reported accurately without anyone needing devtools access.
+    this.setState({ componentStack: info?.componentStack });
     this.props.onError?.(error);
   }
 
@@ -30,7 +34,13 @@ export default class EditorErrorBoundary extends React.Component {
   };
 
   handleCopyDetails = async () => {
-    const text = `${this.state.error?.name || "Error"}: ${this.state.error?.message || "Unknown error"}`;
+    const text = [
+      `${this.state.error?.name || "Error"}: ${this.state.error?.message || "Unknown error"}`,
+      this.state.error?.stack || "",
+      this.state.componentStack ? `Component stack:${this.state.componentStack}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -99,6 +109,16 @@ export default class EditorErrorBoundary extends React.Component {
               <p className="break-words font-mono text-xs text-gray-600">
                 {this.state.error?.name}: {this.state.error?.message}
               </p>
+              {this.state.error?.stack && (
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-[10px] leading-tight text-gray-500">
+                  {this.state.error.stack}
+                </pre>
+              )}
+              {this.state.componentStack && (
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-[10px] leading-tight text-gray-500">
+                  Component stack:{this.state.componentStack}
+                </pre>
+              )}
               <button
                 className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-600 hover:underline"
                 onClick={this.handleCopyDetails}
