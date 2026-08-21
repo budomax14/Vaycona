@@ -5037,8 +5037,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function endGuideDragListeners() {
-    window.removeEventListener("mousemove", handleGuideDragMove);
-    window.removeEventListener("mouseup", handleGuideDragUp);
+    window.removeEventListener("pointermove", handleGuideDragMove);
+    window.removeEventListener("pointerup", handleGuideDragUp);
+    window.removeEventListener("pointercancel", handleGuideDragUp);
     window.removeEventListener("keydown", handleGuideDragKeyDown);
   }
 
@@ -5096,8 +5097,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
       draggingGuideRef.current = { id: guide.id, orientation, isNew: true, originalPos: null };
       setSelectedGuideId(guide.id);
     }
-    window.addEventListener("mousemove", handleGuideDragMove);
-    window.addEventListener("mouseup", handleGuideDragUp);
+    window.addEventListener("pointermove", handleGuideDragMove);
+    window.addEventListener("pointerup", handleGuideDragUp);
+    window.addEventListener("pointercancel", handleGuideDragUp);
     window.addEventListener("keydown", handleGuideDragKeyDown);
   }
 
@@ -5116,8 +5118,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function handleLineEndpointDragUp(event) {
     const drag = lineDragRef.current;
-    window.removeEventListener("mousemove", handleLineEndpointDragMove);
-    window.removeEventListener("mouseup", handleLineEndpointDragUp);
+    window.removeEventListener("pointermove", handleLineEndpointDragMove);
+    window.removeEventListener("pointerup", handleLineEndpointDragUp);
+    window.removeEventListener("pointercancel", handleLineEndpointDragUp);
     lineDragRef.current = null;
     if (!drag) return;
     const screenPoint = clientToScreen(event.clientX, event.clientY);
@@ -5145,8 +5148,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   function beginLineEndpointDrag(item, endpoint) {
     const { start, end } = getLineEndpointsContent(item);
     lineDragRef.current = { id: item.id, endpoint, fixed: endpoint === "end" ? start : end };
-    window.addEventListener("mousemove", handleLineEndpointDragMove);
-    window.addEventListener("mouseup", handleLineEndpointDragUp);
+    window.addEventListener("pointermove", handleLineEndpointDragMove);
+    window.addEventListener("pointerup", handleLineEndpointDragUp);
+    window.addEventListener("pointercancel", handleLineEndpointDragUp);
   }
 
   function deleteGuide(id) {
@@ -6286,11 +6290,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 scaleY={RENDER_SCALE_CAP}
                 x={pasteboardMarginPx}
                 y={pasteboardMarginPx}
-                onMouseDown={handleStageMouseDown}
-                onMouseMove={handleStageMouseMove}
-                onMouseUp={handleStageMouseUp}
-                onMouseLeave={handleStageMouseLeave}
-                onTouchStart={handleStageMouseDown}
+                onPointerDown={handleStageMouseDown}
+                onPointerMove={handleStageMouseMove}
+                onPointerUp={handleStageMouseUp}
+                onPointerCancel={handleStageMouseUp}
+                onPointerLeave={handleStageMouseLeave}
                 onContextMenu={handleCanvasContextMenu}
               >
                 <Layer>

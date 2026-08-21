@@ -19,11 +19,11 @@ export default function GuideLine({ guide, viewport, selected, onDragStart, onDe
   return (
     <div
       className={`guide-line guide-${guide.orientation} ${selected ? "guide-selected" : ""} ${guide.locked ? "guide-locked" : ""}`}
-      style={style}
+      style={{ ...style, touchAction: "none" }}
       title={guide.label || undefined}
       role="separator"
       aria-label={`${guide.orientation} guide at ${Math.round(guide.pos)}px${guide.label ? `, ${guide.label}` : ""}${guide.locked ? " (locked)" : ""}`}
-      onMouseDown={(event) => {
+      onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
         onSelect?.(guide.id);

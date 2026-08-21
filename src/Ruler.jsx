@@ -111,7 +111,8 @@ export default function Ruler({ orientation, viewport, viewportLength, cursorCon
       className={`ruler ruler-${orientation} ${className}`.trim()}
       role="presentation"
       aria-hidden="true"
-      onMouseDown={(event) => {
+      style={{ touchAction: "none" }}
+      onPointerDown={(event) => {
         event.preventDefault();
         onGuideDragStart();
       }}

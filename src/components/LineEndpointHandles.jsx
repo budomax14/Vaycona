@@ -17,16 +17,16 @@ export function getLineEndpointsContent(item) {
   return { start, end };
 }
 
-function Handle({ point, viewport, onMouseDown }) {
+function Handle({ point, viewport, onPointerDown }) {
   const screen = contentToScreen(point, viewport);
   return (
     <div
       className="pointer-events-auto absolute z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-600 bg-white shadow"
-      style={{ left: screen.x, top: screen.y, cursor: "move" }}
-      onMouseDown={(event) => {
+      style={{ left: screen.x, top: screen.y, cursor: "move", touchAction: "none" }}
+      onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        onMouseDown();
+        onPointerDown();
       }}
     />
   );
@@ -37,8 +37,8 @@ export default function LineEndpointHandles({ item, viewport, onDragStart }) {
   const { start, end } = getLineEndpointsContent(item);
   return (
     <>
-      <Handle point={start} viewport={viewport} onMouseDown={() => onDragStart("start")} />
-      <Handle point={end} viewport={viewport} onMouseDown={() => onDragStart("end")} />
+      <Handle point={start} viewport={viewport} onPointerDown={() => onDragStart("start")} />
+      <Handle point={end} viewport={viewport} onPointerDown={() => onDragStart("end")} />
     </>
   );
 }

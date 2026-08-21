@@ -34,7 +34,7 @@ export default function TableEditChrome({
     return origin.y + contentY * scale;
   }
 
-  function handleCellMouseDown(row, col, event) {
+  function handleCellPointerDown(row, col, event) {
     event.preventDefault();
     event.stopPropagation();
     onCellSelect(row, col, { additive: false });
@@ -47,11 +47,13 @@ export default function TableEditChrome({
     }
     function handleUp() {
       dragRef.current = null;
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
     }
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
   }
 
   function handleColumnResizeStart(index, event) {
@@ -64,12 +66,14 @@ export default function TableEditChrome({
       onColumnResizeLive(index, Math.max(MIN_COL_WIDTH, startWidth + deltaContent));
     }
     function handleUp() {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
       onColumnResizeCommit();
     }
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
   }
 
   function handleRowResizeStart(index, event) {
@@ -82,12 +86,14 @@ export default function TableEditChrome({
       onRowResizeLive(index, Math.max(MIN_ROW_HEIGHT, startHeight + deltaContent));
     }
     function handleUp() {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
       onRowResizeCommit();
     }
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
   }
 
   const sel = cellSelection ? normalizeRange(cellSelection) : null;
@@ -115,7 +121,7 @@ export default function TableEditChrome({
           data-table-cell
           data-row={r}
           data-col={c}
-          onMouseDown={(event) => handleCellMouseDown(r, c, event)}
+          onPointerDown={(event) => handleCellPointerDown(r, c, event)}
           onDoubleClick={(event) => {
             event.stopPropagation();
             onCellDblClick(r, c);
@@ -127,6 +133,7 @@ export default function TableEditChrome({
             width: rect.width * scale,
             height: rect.height * scale,
             cursor: "cell",
+            touchAction: "none",
           }}
         />
       );
@@ -139,7 +146,7 @@ export default function TableEditChrome({
     columnHandles.push(
       <div
         key={`colhandle-${i}`}
-        onMouseDown={(event) => handleColumnResizeStart(i, event)}
+        onPointerDown={(event) => handleColumnResizeStart(i, event)}
         style={{
           position: "absolute",
           left: toScreenX(x) - 4,
@@ -148,6 +155,7 @@ export default function TableEditChrome({
           height: layout.totalHeight * scale + 10,
           cursor: "col-resize",
           zIndex: 25,
+          touchAction: "none",
         }}
       />
     );
@@ -159,7 +167,7 @@ export default function TableEditChrome({
     rowHandles.push(
       <div
         key={`rowhandle-${i}`}
-        onMouseDown={(event) => handleRowResizeStart(i, event)}
+        onPointerDown={(event) => handleRowResizeStart(i, event)}
         style={{
           position: "absolute",
           left: toScreenX(0) - 10,
@@ -168,6 +176,7 @@ export default function TableEditChrome({
           height: 8,
           cursor: "row-resize",
           zIndex: 25,
+          touchAction: "none",
         }}
       />
     );

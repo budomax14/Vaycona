@@ -386,15 +386,17 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     };
     const onUp = () => {
       dragRef.current = null;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       onMoveCommit();
     };
     drag.onMove = onMove;
     drag.onUp = onUp;
     dragRef.current = drag;
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   // Guards against the overlay unmounting mid-drag (e.g. Escape pressed
@@ -403,8 +405,9 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     return () => {
       const drag = dragRef.current;
       if (!drag) return;
-      window.removeEventListener("mousemove", drag.onMove);
-      window.removeEventListener("mouseup", drag.onUp);
+      window.removeEventListener("pointermove", drag.onMove);
+      window.removeEventListener("pointerup", drag.onUp);
+      window.removeEventListener("pointercancel", drag.onUp);
     };
   }, []);
 
@@ -440,7 +443,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           event, reaches this. */}
       <div
         data-text-toolbar-safe
-        onMouseDown={handleFrameMouseDown}
+        onPointerDown={handleFrameMouseDown}
         style={{
           position: "absolute",
           left: overlayLeft - DRAG_MARGIN,
@@ -449,6 +452,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           height: overlayHeight + DRAG_MARGIN * 2,
           cursor: "move",
           zIndex: 24,
+          touchAction: "none",
         }}
       />
       <div
