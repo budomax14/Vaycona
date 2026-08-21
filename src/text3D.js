@@ -136,6 +136,7 @@ function normalizeVec(v) {
 // deep effect stays cheap to draw (see useText3DCache.js for the bitmap
 // cache that makes steady-state redraw cost independent of this entirely).
 export function getText3DSteps(text3D) {
+  if (!text3D.enabled) return [];
   const depth = text3D.depth ?? 0;
   if (depth <= 0) return [];
   const angleRad = (text3D.angle * Math.PI) / 180;
@@ -175,6 +176,7 @@ export function getText3DSteps(text3D) {
 // between the front face and the extrusion. Deliberately not real
 // geometry (see investigation notes); null when bevel is 0.
 export function getText3DBevelRim(text3D) {
+  if (!text3D.enabled) return null;
   const bevel = text3D.bevel ?? 0;
   if (bevel <= 0) return null;
   const angleRad = (text3D.angle * Math.PI) / 180;

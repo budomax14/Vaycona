@@ -331,6 +331,13 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     const block = container?.closest("div,li");
     if (!block) return;
     const existingList = block.closest("ol,ul");
+
+    // Capture the caret as a character offset before the DOM gets rebuilt
+    // below (replaceWith() detaches the nodes the current Range points
+    // into, which otherwise silently strands the caret — same pattern
+    // applyFormat already uses for its own DOM rewrite).
+    const offsets = sel.rangeCount > 0 ? getCharacterOffsets(root, sel.getRangeAt(0)) : null;
+
     if (existingList && ((existingList.tagName === "OL") === (listType === "numbered"))) {
       const div = document.createElement("div");
       div.innerHTML = block.innerHTML;
@@ -343,9 +350,10 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
       list.appendChild(li);
       (existingList || block).replaceWith(list);
     }
+    root.focus();
+    if (offsets) restoreSelectionFromOffsets(root, offsets);
     serializeAndSync();
     flush();
-    root.focus();
   }
 
   useImperativeHandle(ref, () => ({ applyFormat, toggleList, indent, flush }));
@@ -468,7 +476,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
         onCompositionEnd={handleCompositionEnd}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}
-        className="cursor-text outline-none"
+        className="text-edit-overlay cursor-text outline-none"
         style={{
           position: "absolute",
           left: overlayLeft,

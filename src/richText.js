@@ -168,15 +168,31 @@ export function domToRichText(root, fontSizeScale = 1) {
     hasContent = false;
   }
 
+  function flushListItem(li) {
+    if (hasContent) flush();
+    current.align = li.style.textAlign || null;
+    const parentList = li.closest("ol,ul");
+    current.listType = parentList?.tagName === "OL" ? "numbered" : "bullet";
+    current.listLevel = Math.min(MAX_LIST_LEVEL, Number(li.dataset.level || 0));
+    li.childNodes.forEach((child) => walkInline(child, current.runs, {}));
+    hasContent = true;
+    flush();
+  }
+
   root.childNodes.forEach((node) => {
+    // toggleList (TextEditOverlay.jsx) always wraps list paragraphs in a
+    // <ul>/<ol> — an <li> is never a direct child of root, so it has to be
+    // descended into here; the BLOCK_TAGS branch below only ever sees UL/OL
+    // itself, never LI, and so could never actually record listType.
+    if (node.nodeType === 1 && (node.tagName === "UL" || node.tagName === "OL")) {
+      Array.from(node.children).forEach((child) => {
+        if (child.tagName === "LI") flushListItem(child);
+      });
+      return;
+    }
     if (node.nodeType === 1 && BLOCK_TAGS.has(node.tagName)) {
       if (hasContent) flush();
       current.align = node.style.textAlign || null;
-      if (node.tagName === "LI") {
-        const parentList = node.closest("ol,ul");
-        current.listType = parentList?.tagName === "OL" ? "numbered" : "bullet";
-        current.listLevel = Math.min(MAX_LIST_LEVEL, Number(node.dataset.level || 0));
-      }
       node.childNodes.forEach((child) => walkInline(child, current.runs, {}));
       hasContent = true;
       flush();
@@ -219,21 +235,45 @@ function runStyleAttr(run, fontSizeScale) {
 // richText -> HTML string, used only when (re)mounting the contenteditable
 // overlay — never called while it has focus (see the "golden rule" in the
 // plan: live DOM is never rewritten while the user is actively editing it).
+// List paragraphs are grouped into a real <ul>/<ol> wrapper around their
+// <li>s — the exact shape toggleList()/indent() (TextEditOverlay.jsx) build
+// live in the DOM — so domToRichText's reverse walk (which reads listType
+// off the enclosing <ul>/<ol>, not the <li> itself) round-trips correctly
+// when a previously-listed paragraph is reopened for editing, and so
+// bulleted vs numbered survives instead of only ever reading back as
+// "bullet" (a bare <li> carries no such distinction on its own).
 export function richTextToHTML(richText, fontSizeScale = 1) {
-  return richText
-    .map((p) => {
-      const inner =
-        p.runs
-          .map((r) =>
-            r.break ? "<br>" : `<span style="${runStyleAttr(r, fontSizeScale)}">${escapeHtml(r.text)}</span>`
-          )
-          .join("") || "<br>";
-      const tag = p.listType ? "li" : "div";
+  let html = "";
+  let openListTag = null; // "ul" | "ol" | null — the list currently being built
+
+  function closeList() {
+    if (openListTag) html += `</${openListTag}>`;
+    openListTag = null;
+  }
+
+  richText.forEach((p) => {
+    const inner =
+      p.runs
+        .map((r) => (r.break ? "<br>" : `<span style="${runStyleAttr(r, fontSizeScale)}">${escapeHtml(r.text)}</span>`))
+        .join("") || "<br>";
+    if (p.listType) {
+      const listTag = p.listType === "numbered" ? "ol" : "ul";
+      if (openListTag !== listTag) {
+        closeList();
+        html += `<${listTag}>`;
+        openListTag = listTag;
+      }
+      const level = p.listLevel || 0;
+      const styleAttr = ` style="margin-left:${level * 24 * fontSizeScale}px${p.align ? `;text-align:${p.align}` : ""}"`;
+      html += `<li${styleAttr} data-level="${level}">${inner}</li>`;
+    } else {
+      closeList();
       const styleAttr = p.align ? ` style="text-align:${p.align}"` : "";
-      const dataLevel = p.listType ? ` data-level="${p.listLevel || 0}"` : "";
-      return `<${tag}${styleAttr}${dataLevel}>${inner}</${tag}>`;
-    })
-    .join("");
+      html += `<div${styleAttr}>${inner}</div>`;
+    }
+  });
+  closeList();
+  return html;
 }
 
 // ---------------------------------------------------------------------
@@ -261,6 +301,17 @@ function measureRunText(ctx, run, text, letterSpacing) {
   return text.length ? width - letterSpacing : 0;
 }
 
+// Mirrors SimpleTextNode.jsx/CurvedTextNode.jsx's textTransformContent —
+// applied only to the text measured/drawn by layoutRichText, never to the
+// stored run text itself, so toggling the case option back to "none" always
+// recovers exactly what was typed.
+function applyTextTransform(text, textTransform) {
+  if (textTransform === "uppercase") return text.toUpperCase();
+  if (textTransform === "lowercase") return text.toLowerCase();
+  if (textTransform === "capitalize") return text.replace(/\b\w/g, (ch) => ch.toUpperCase());
+  return text;
+}
+
 const LIST_INDENT_PER_LEVEL = 24;
 const BULLET_GLYPH = "•";
 
@@ -275,7 +326,7 @@ function listPrefixFor(paragraph, index) {
 // totalHeight } — `lines` is consumed by the draw path, totals by the
 // auto-size path.
 export function layoutRichText(paragraphs, opts) {
-  const { maxWidth, autoWidth, lineHeight = 1.2, align: defaultAlign = "left", letterSpacing = 0, paragraphSpacing = 0 } = opts;
+  const { maxWidth, autoWidth, lineHeight = 1.2, align: defaultAlign = "left", letterSpacing = 0, paragraphSpacing = 0, textTransform = "none" } = opts;
   const ctx = getMeasureContext();
   const lines = [];
   let y = 0;
@@ -300,7 +351,8 @@ export function layoutRichText(paragraphs, opts) {
         tokens.push({ forceBreak: true });
         return;
       }
-      run.text.split(/(\s+)/).filter(Boolean).forEach((text) => {
+      run.text.split(/(\s+)/).filter(Boolean).forEach((rawText) => {
+        const text = applyTextTransform(rawText, textTransform);
         tokens.push({ run, text, width: measureRunText(ctx, run, text, letterSpacing) });
       });
     });
@@ -369,6 +421,7 @@ export function measureAutoHeight(item, richText) {
     align: item.align || "left",
     letterSpacing: item.letterSpacing || 0,
     paragraphSpacing: item.paragraphSpacing || 0,
+    textTransform: item.textTransform || "none",
   });
   return Math.max(20, totalHeight + padding * 2);
 }

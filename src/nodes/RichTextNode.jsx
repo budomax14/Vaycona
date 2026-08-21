@@ -109,13 +109,14 @@ export default function RichTextNode({ item, commonProps }) {
         align: item.align || "left",
         letterSpacing: item.letterSpacing || 0,
         paragraphSpacing: item.paragraphSpacing || 0,
+        textTransform: item.textTransform || "none",
       }),
     // fontsReady is intentionally in this dependency list: canvas silently
     // falls back to a default font at draw time until the real font
     // finishes loading, which changes measured widths — this forces a
     // fresh layout pass (and therefore a redraw with correct wrapping)
     // once the font actually becomes available.
-    [richText, width, item.autoSize, item.lineHeight, item.align, item.letterSpacing, item.paragraphSpacing, item.padding, fontsReady]
+    [richText, width, item.autoSize, item.lineHeight, item.align, item.letterSpacing, item.paragraphSpacing, item.padding, item.textTransform, fontsReady]
   );
 
   const padding = item.padding ?? 4;
