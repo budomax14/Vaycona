@@ -6846,6 +6846,21 @@ export default function App({ editorMode = "workspace", templateSession = null }
     );
   }
 
+  // Insertion panels (Elements/Text/Chart/Table/Icons/Uploads/Illustrations)
+  // stay open after adding something on desktop — a normal flex sidebar
+  // that never covers the canvas, so adding several items in a row doesn't
+  // need reopening it each time. On tablet/mobile the same panel is a full
+  // overlay (see LeftSidebar's tier-driven behavior) that can completely
+  // hide the very item just placed at page-center and auto-selected, with
+  // no visual cue anything happened. Auto-close it there only, so the new
+  // item is immediately visible — desktop's behavior is untouched.
+  function addAndCloseIfCompact(addFn) {
+    return (...args) => {
+      addFn(...args);
+      if (isCompact) setActiveSidebarSection(null);
+    };
+  }
+
   return (
     <RecentColorsProvider>
     <DocumentColorsProvider items={items}>
@@ -7070,22 +7085,28 @@ export default function App({ editorMode = "workspace", templateSession = null }
           {activeSidebarSection === "uploads" && (
             <UploadsPanel
               onUploadFile={uploadFileToLibrary}
-              onAddFromAsset={(assetId) => addImageItem(assetId)}
+              onAddFromAsset={addAndCloseIfCompact((assetId) => addImageItem(assetId))}
               onRemoveAsset={removeAssetFromLibrary}
               usedAssetIds={usedAssetIds}
             />
           )}
-          {activeSidebarSection === "text" && <TextPanel onAddPreset={(key) => addText(key)} />}
-          {activeSidebarSection === "chart" && <ChartPanel onAddChart={addChart} />}
-          {activeSidebarSection === "table" && <TablePanel onAddTable={addTable} />}
+          {activeSidebarSection === "text" && <TextPanel onAddPreset={addAndCloseIfCompact((key) => addText(key))} />}
+          {activeSidebarSection === "chart" && <ChartPanel onAddChart={addAndCloseIfCompact(addChart)} />}
+          {activeSidebarSection === "table" && <TablePanel onAddTable={addAndCloseIfCompact(addTable)} />}
           {activeSidebarSection === "elements" && (
-            <ElementsPanel onAddShape={addShape} onAddLine={addLine} onAddFrame={addFrame} onAddChart={addChart} onAddTable={addTable} />
+            <ElementsPanel
+              onAddShape={addAndCloseIfCompact(addShape)}
+              onAddLine={addAndCloseIfCompact(addLine)}
+              onAddFrame={addAndCloseIfCompact(addFrame)}
+              onAddChart={addAndCloseIfCompact(addChart)}
+              onAddTable={addAndCloseIfCompact(addTable)}
+            />
           )}
-          {activeSidebarSection === "icons" && <IconsPanel onAddIcon={addIcon} />}
+          {activeSidebarSection === "icons" && <IconsPanel onAddIcon={addAndCloseIfCompact(addIcon)} />}
           {activeSidebarSection === "illustrations" && (
             <IllustrationsPanel
               onRegisterAsset={(file, options) => uploadFileToLibrary(file, options)}
-              onAddToCanvas={(assetId) => addImageItem(assetId)}
+              onAddToCanvas={addAndCloseIfCompact((assetId) => addImageItem(assetId))}
               onStatus={(message) => {
                 setStatus(message);
                 window.setTimeout(() => setStatus(""), 3000);
