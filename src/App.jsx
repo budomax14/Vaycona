@@ -5991,8 +5991,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setHasManualZoomOrPan(false);
   }
 
-  function addPage(direction = "after") {
-    const source = activePage;
+  function addPage(pageId = activePageId, direction = "after") {
+    const source = pages.find((page) => page.id === pageId) || activePage;
     const newPage = {
       id: crypto.randomUUID(),
       name: `Page ${pages.length + 1}`,
@@ -6001,7 +6001,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       background: "#ffffff",
       ...defaultPagePrecision(),
     };
-    const index = pages.findIndex((page) => page.id === activePageId);
+    const index = pages.findIndex((page) => page.id === pageId);
     const insertAt = direction === "before" ? index : index + 1;
     commitPages((prev) => [...prev.slice(0, insertAt), newPage, ...prev.slice(insertAt)], {
       type: "add-page",
@@ -7075,6 +7075,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onManualInteraction={() => setHasManualZoomOrPan(true)}
               isSpaceDown={isSpaceDown}
               renderActivePage={renderActivePage}
+              onAddPageAfter={addPage}
               // Rulers are editor chrome, not part of the page/canvas-frame —
               // Workspace positions them around the workspace viewport itself.
               // Phase 12 spec §46: an actively-playing preview excludes

@@ -29,6 +29,7 @@ const Workspace = forwardRef(function Workspace(
     onManualInteraction,
     isSpaceDown,
     renderActivePage,
+    onAddPageAfter,
     showRulers = false,
     unit = "px",
     cursorContentPos = null,
@@ -296,6 +297,7 @@ const Workspace = forwardRef(function Workspace(
                     scale={scale}
                     items={items}
                     onActivate={() => onActivatePage(page.id)}
+                    onAddPage={onAddPageAfter ? () => onAddPageAfter(page.id) : undefined}
                   >
                     {isActive ? renderActivePage(page, scale) : null}
                   </PageSlot>
