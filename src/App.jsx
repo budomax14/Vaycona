@@ -107,7 +107,7 @@ import GuideManagerDialog from "./components/GuideManagerDialog";
 import PrecisionSettingsDialog from "./components/PrecisionSettingsDialog";
 import { isTypingTarget, useKeyboardShortcuts } from "./useKeyboardShortcuts";
 import { useMediaQuery } from "./useMediaQuery";
-import { putAsset, deleteAsset, getAssetBlob, getAssetMeta, listAssetIndex, listAssets, regenerateAssetThumbnail } from "./assetStore";
+import { putAsset, putAssetWithId, deleteAsset, getAssetBlob, getAssetMeta, listAssetIndex, listAssets, regenerateAssetThumbnail } from "./assetStore";
 import { createAutosaveService, SAVE_STATUS, readSavedRecord, checkStorageQuota } from "./autosaveService";
 import {
   createSnapshot,
@@ -1572,6 +1572,36 @@ export default function App({ editorMode = "workspace", templateSession = null }
     window.setTimeout(() => setStatus(""), 2500);
   }
 
+  // A template published from a DIFFERENT browser (any admin-edited
+  // template, since this browser never uploaded those pictures itself) only
+  // carries `assetId` references in `data` — the actual bytes live in
+  // template.assetUrls (Firebase Storage, see templateAssetStorage.js).
+  // Downloads and caches into this browser's own local assetStore.js
+  // IndexedDB anything the template needs that isn't there yet, so the
+  // normal assetId -> useAsset() -> <img> rendering path just works with no
+  // changes of its own. Best-effort per asset: a failed download just means
+  // that one picture still shows the existing "missing image" placeholder.
+  async function ensureTemplateAssetsAvailable(template) {
+    const assetIds = template.assetIds || [];
+    if (!assetIds.length || !template.assetUrls) return;
+    await Promise.all(
+      assetIds.map(async (assetId) => {
+        const url = template.assetUrls[assetId];
+        if (!url) return;
+        const existing = await getAssetMeta(assetId);
+        if (existing) return;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) return;
+          const blob = await response.blob();
+          await putAssetWithId(assetId, blob, { sourceType: "template-sync" });
+        } catch {
+          // best-effort — see comment above
+        }
+      })
+    );
+  }
+
   async function useTemplate(templateId) {
     const template = (await getTemplateById(templateId)) || (await getPublishedTemplateFromCloud(templateId));
     if (!template || !isTemplateShapeValid(template)) {
@@ -1579,6 +1609,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       window.setTimeout(() => setStatus(""), 3000);
       return;
     }
+    await ensureTemplateAssetsAvailable(template);
     const report = validateProject(template.data);
     if (report.status === "fatal") {
       setStatus("This template's data is invalid and can't be used.");

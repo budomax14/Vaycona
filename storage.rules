@@ -1,0 +1,14 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Images an admin uploads while editing a template (see
+    // src/templateAssetStorage.js) — any signed-in user needs to read them
+    // to use the template; only the admin account may write/replace them.
+    // Mirrors firestore.rules' publishedTemplates rule.
+    match /templateAssets/{templateId}/{assetId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'budomax1995@gmail.com';
+    }
+  }
+}

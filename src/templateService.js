@@ -14,12 +14,37 @@ import { PROJECT_SCHEMA_VERSION } from "./constants";
 import { BUILT_IN_TEMPLATES } from "./builtinTemplates";
 import { validateProject } from "./projectValidator";
 import { publishTemplateToCloud, removeTemplateFromCloud } from "./firestoreTemplates";
+import { getAssetBlob, getAssetMeta } from "./assetStore";
+import { deleteTemplateAssets, uploadTemplateAsset } from "./templateAssetStorage";
 
 // Published "project" templates additionally mirror to Firestore (see
 // firestoreTemplates.js) so every user's browser sees admin changes live —
 // personal reusable content (page/section kinds, drafts) never does.
 function isCloudSynced(template) {
   return template?.kind === "project" && !template.builtIn;
+}
+
+// Uploads any locally-stored image a cloud-synced, published template
+// references but hasn't uploaded to Storage yet (keyed by assetId, so a
+// re-save only uploads what's new), and returns the merged
+// `{ assetId: downloadURL }` map to store on the record. Per-asset
+// best-effort: one failed upload must not block saving/publishing the rest
+// of the template — useTemplate() in App.jsx simply can't prefetch that one
+// asset later, same as if it had never been uploaded.
+async function syncTemplateAssetsToCloud(template) {
+  const assetUrls = { ...(template.assetUrls || {}) };
+  for (const assetId of template.assetIds || []) {
+    if (assetUrls[assetId]) continue;
+    try {
+      const [blob, meta] = await Promise.all([getAssetBlob(assetId), getAssetMeta(assetId)]);
+      if (!blob) continue;
+      // eslint-disable-next-line no-await-in-loop
+      assetUrls[assetId] = await uploadTemplateAsset(template.id, assetId, blob, meta?.mimeType);
+    } catch {
+      // best-effort — see comment above
+    }
+  }
+  return assetUrls;
 }
 
 const TEMPLATE_DB_NAME = "personal-canva-templates-v1";
@@ -264,7 +289,7 @@ export async function updateTemplateSettings(id, { name, description, category, 
     background !== undefined && existing.data?.pages?.length
       ? { ...existing.data, pages: existing.data.pages.map((page, i) => (i === 0 ? { ...page, background } : page)) }
       : existing.data;
-  const next = withChecksum({
+  let next = withChecksum({
     ...existing,
     checksum: undefined,
     name: name !== undefined ? (name || "").trim().slice(0, MAX_TEMPLATE_NAME_LENGTH) || existing.name : existing.name,
@@ -277,6 +302,9 @@ export async function updateTemplateSettings(id, { name, description, category, 
     thumbnail: thumbnail !== undefined ? thumbnail : existing.thumbnail,
     updatedAt: Date.now(),
   });
+  if (isCloudSynced(next) && next.status === "published") {
+    next = withChecksum({ ...next, checksum: undefined, assetUrls: await syncTemplateAssetsToCloud(next) });
+  }
   await withStore("readwrite", (store) => store.put(next));
   if (isCloudSynced(next) && next.status === "published") await publishTemplateToCloud(next);
   return next;
@@ -298,7 +326,7 @@ export async function setTemplateFavorite(id, favorite) {
 export async function updateTemplatePayload(id, { data, assetIds, pageCount, objectCount, groupCount, thumbnail, pageWidth, pageHeight }) {
   const existing = await getTemplateById(id);
   if (!existing) return null;
-  const next = withChecksum({
+  let next = withChecksum({
     ...existing,
     checksum: undefined,
     data,
@@ -313,6 +341,12 @@ export async function updateTemplatePayload(id, { data, assetIds, pageCount, obj
     pageHeight: pageHeight ?? data?.pages?.[0]?.height ?? existing.pageHeight,
     updatedAt: Date.now(),
   });
+  // Any image the admin uploaded/replaced while editing this template needs
+  // to reach Storage before other browsers can render it — see
+  // syncTemplateAssetsToCloud's own comment for why this is best-effort.
+  if (isCloudSynced(next) && next.status === "published") {
+    next = withChecksum({ ...next, checksum: undefined, assetUrls: await syncTemplateAssetsToCloud(next) });
+  }
   await withStore("readwrite", (store) => store.put(next));
   if (isCloudSynced(next) && next.status === "published") await publishTemplateToCloud(next);
   return next;
@@ -348,7 +382,10 @@ export async function publishTemplate(id) {
   if (existing.builtIn) return { ok: false, error: "Built-in templates are always published and can't be changed here." };
   const reason = templatePublishBlockedReason(existing);
   if (reason) return { ok: false, error: reason };
-  const next = withChecksum({ ...existing, checksum: undefined, status: "published", publishedAt: Date.now() });
+  let next = withChecksum({ ...existing, checksum: undefined, status: "published", publishedAt: Date.now() });
+  if (isCloudSynced(next)) {
+    next = withChecksum({ ...next, checksum: undefined, assetUrls: await syncTemplateAssetsToCloud(next) });
+  }
   await withStore("readwrite", (store) => store.put(next));
   if (isCloudSynced(next)) await publishTemplateToCloud(next);
   return { ok: true, template: next };
@@ -357,9 +394,15 @@ export async function publishTemplate(id) {
 export async function unpublishTemplate(id) {
   const existing = await getTemplateById(id);
   if (!existing || existing.builtIn) return null;
-  const next = withChecksum({ ...existing, checksum: undefined, status: "draft", publishedAt: null });
+  // Clear assetUrls along with the Storage objects they point to — leaving
+  // stale entries would make a later republish's syncTemplateAssetsToCloud
+  // skip re-uploading images it thinks are already there.
+  const next = withChecksum({ ...existing, checksum: undefined, status: "draft", publishedAt: null, assetUrls: {} });
   await withStore("readwrite", (store) => store.put(next));
-  if (isCloudSynced(next)) await removeTemplateFromCloud(id);
+  if (isCloudSynced(next)) {
+    await removeTemplateFromCloud(id);
+    await deleteTemplateAssets(id, existing.assetIds);
+  }
   return next;
 }
 
@@ -389,7 +432,10 @@ export async function deleteTemplate(id) {
   if (existing?.builtIn || existing?.protected) return false;
   await withStore("readwrite", (store) => store.delete(id));
   await removeFromRecent(id);
-  if (isCloudSynced(existing) && existing.status === "published") await removeTemplateFromCloud(id);
+  if (isCloudSynced(existing) && existing.status === "published") {
+    await removeTemplateFromCloud(id);
+    await deleteTemplateAssets(id, existing.assetIds);
+  }
   return true;
 }
 
