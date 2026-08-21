@@ -3,8 +3,12 @@ import { AlertTriangle, X } from "lucide-react";
 
 // Shared delete-confirmation modal — used by both the admin dashboard and
 // (via App.jsx) the existing end-user "My templates" delete action, so
-// there's exactly one place this warning is worded.
-export default function ConfirmDeleteTemplateDialog({ isOpen, templateName, onConfirm, onCancel }) {
+// there's exactly one place this warning is worded. `isBuiltIn` is only
+// ever passed from the admin dashboard (the end-user "My templates" flow
+// never offers built-ins for deletion in the first place) — it swaps in a
+// stronger warning since a built-in delete removes it from every user's
+// gallery, not just this browser's own copy.
+export default function ConfirmDeleteTemplateDialog({ isOpen, templateName, isBuiltIn, onConfirm, onCancel }) {
   const confirmRef = useRef(null);
 
   useEffect(() => {
@@ -37,7 +41,9 @@ export default function ConfirmDeleteTemplateDialog({ isOpen, templateName, onCo
           Delete {templateName ? `"${templateName}"` : "this template"}?
         </h2>
         <p className="mt-1.5 text-sm text-gray-500">
-          Are you sure you want to permanently delete this template? This action cannot be undone.
+          {isBuiltIn
+            ? "This is a built-in starter template — deleting it removes it from every user's Designs panel, not just this browser. This action cannot be undone."
+            : "Are you sure you want to permanently delete this template? This action cannot be undone."}
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onCancel}>

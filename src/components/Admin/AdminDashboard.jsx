@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Copy, Edit3, Eye, GripVertical, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import {
+  ensureBuiltInTemplatesSeeded,
   listTemplateSummaries,
   getTemplateById,
   duplicateTemplate,
@@ -60,7 +61,13 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   }
 
   useEffect(() => {
-    refresh();
+    // The dashboard can be the very first thing an admin opens this
+    // session (going straight to #/admin, never mounting the regular
+    // editor's own <App/> instance) — that's normally what runs
+    // ensureBuiltInTemplatesSeeded(), which also carries the built-in
+    // id-stabilization migration reorder/delete depend on, so it needs to
+    // run here too before the first listTemplateSummaries() read.
+    ensureBuiltInTemplatesSeeded().then(refresh);
   }, []);
 
   function showToast(message) {
@@ -163,7 +170,7 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   async function handleUnpublish(id) {
     const result = await unpublishTemplate(id);
     if (!result) {
-      showToast("Built-in templates are always published and can't be changed here.");
+      showToast("Template not found.");
       return;
     }
     showToast("Unpublished — removed from the gallery, not deleted.");
@@ -332,6 +339,7 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
       <ConfirmDeleteTemplateDialog
         isOpen={!!deleteTarget}
         templateName={deleteTarget?.name}
+        isBuiltIn={deleteTarget?.builtIn}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
@@ -430,21 +438,18 @@ function AdminTemplateCard({
           <button className="flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100" onClick={onDuplicate}>
             <Copy size={11} /> Duplicate
           </button>
-          {!template.builtIn &&
-            (status === "published" ? (
-              <button className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100" onClick={onUnpublish}>
-                <X size={11} /> Unpublish
-              </button>
-            ) : (
-              <button className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100" onClick={onPublish}>
-                <Upload size={11} /> Publish
-              </button>
-            ))}
-          {!template.builtIn && (
-            <button className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100" onClick={onDelete}>
-              <Trash2 size={11} /> Delete
+          {status === "published" ? (
+            <button className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100" onClick={onUnpublish}>
+              <X size={11} /> Unpublish
+            </button>
+          ) : (
+            <button className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100" onClick={onPublish}>
+              <Upload size={11} /> Publish
             </button>
           )}
+          <button className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100" onClick={onDelete}>
+            <Trash2 size={11} /> Delete
+          </button>
         </div>
       </div>
     </div>

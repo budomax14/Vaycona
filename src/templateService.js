@@ -19,9 +19,14 @@ import { deleteTemplateAssets, uploadTemplateAsset } from "./templateAssetStorag
 
 // Published "project" templates additionally mirror to Firestore (see
 // firestoreTemplates.js) so every user's browser sees admin changes live —
-// personal reusable content (page/section kinds, drafts) never does.
+// personal reusable content (page/section kinds, drafts) never does. This
+// now includes built-ins: they're seeded fresh into every browser's own
+// local IndexedDB independently (seedBuiltInTemplatesOnce, stable
+// `builtin-${builtInKey}` id), so an admin's reorder/unpublish/delete of
+// one only reaches other users by also mirroring to Firestore, the same
+// as any other admin-published template.
 function isCloudSynced(template) {
-  return template?.kind === "project" && !template.builtIn;
+  return template?.kind === "project";
 }
 
 // Uploads any locally-stored image a cloud-synced, published template
@@ -50,7 +55,7 @@ async function syncTemplateAssetsToCloud(template) {
 const TEMPLATE_DB_NAME = "personal-canva-templates-v1";
 const TEMPLATE_STORE = "templates";
 export const TEMPLATE_FORMAT_VERSION = 1;
-export const BUILT_IN_SEED_VERSION = 2; // bumped for the personal_canva_template_starter_pack/ 50-template addition
+export const BUILT_IN_SEED_VERSION = 3; // v3: migrates built-in ids to the stable `builtin-${builtInKey}` form (see seedBuiltInTemplatesOnce)
 const SEED_FLAG_KEY = "personal-canva-templates-seed-v1";
 const RECENT_TEMPLATES_KEY = "personal-canva-recent-templates-v1";
 export const MAX_RECENT_TEMPLATES = 15;
@@ -386,7 +391,6 @@ export function templatePublishBlockedReason(template) {
 export async function publishTemplate(id) {
   const existing = await getTemplateById(id);
   if (!existing) return { ok: false, error: "Template not found." };
-  if (existing.builtIn) return { ok: false, error: "Built-in templates are always published and can't be changed here." };
   const reason = templatePublishBlockedReason(existing);
   if (reason) return { ok: false, error: reason };
   let next = withChecksum({ ...existing, checksum: undefined, status: "published", publishedAt: Date.now() });
@@ -400,15 +404,30 @@ export async function publishTemplate(id) {
 
 export async function unpublishTemplate(id) {
   const existing = await getTemplateById(id);
-  if (!existing || existing.builtIn) return null;
+  if (!existing) return null;
   // Clear assetUrls along with the Storage objects they point to — leaving
   // stale entries would make a later republish's syncTemplateAssetsToCloud
   // skip re-uploading images it thinks are already there.
   const next = withChecksum({ ...existing, checksum: undefined, status: "draft", publishedAt: null, assetUrls: {} });
   await withStore("readwrite", (store) => store.put(next));
-  if (isCloudSynced(next)) {
-    await removeTemplateFromCloud(id);
-    await deleteTemplateAssets(id, existing.assetIds);
+  try {
+    if (existing.builtIn) {
+      // A built-in is re-seeded fresh (status:"published") into every OTHER
+      // browser's own local IndexedDB independently — removing the
+      // Firestore doc (as below) would leave nothing to override that
+      // local fallback with, so it'd stay visible everywhere else. A
+      // published "draft" tombstone under its own stable id is what
+      // templateSummaries' cloud-wins-for-built-ins merge rule (App.jsx)
+      // picks up to actually hide it.
+      await publishTemplateToCloud(next);
+    } else if (isCloudSynced(next)) {
+      await removeTemplateFromCloud(id);
+      await deleteTemplateAssets(id, existing.assetIds);
+    }
+  } catch {
+    // Best-effort — local unpublish already succeeded above; a failed
+    // cloud mirror (e.g. a non-admin session, offline) shouldn't surface
+    // as a broken action for whoever clicked it.
   }
   return next;
 }
@@ -448,12 +467,26 @@ export async function getTemplateById(id) {
 
 export async function deleteTemplate(id) {
   const existing = await getTemplateById(id);
-  if (existing?.builtIn || existing?.protected) return false;
+  if (!existing) return false;
   await withStore("readwrite", (store) => store.delete(id));
   await removeFromRecent(id);
-  if (isCloudSynced(existing) && existing.status === "published") {
-    await removeTemplateFromCloud(id);
-    await deleteTemplateAssets(id, existing.assetIds);
+  try {
+    if (existing.builtIn) {
+      // See unpublishTemplate's own comment — a built-in needs an explicit
+      // cloud tombstone, not a Firestore doc removal, to actually disappear
+      // from OTHER browsers (each has its own independently re-seeded local
+      // copy to otherwise fall back to).
+      await publishTemplateToCloud(withChecksum({ ...existing, checksum: undefined, status: "draft", publishedAt: null }));
+    } else if (isCloudSynced(existing) && (existing.status || "published") === "published") {
+      await removeTemplateFromCloud(id);
+      await deleteTemplateAssets(id, existing.assetIds);
+    }
+  } catch {
+    // Best-effort — this browser's own copy is already gone (the point of
+    // "delete" for whoever clicked it); a failed cloud mirror (e.g. a
+    // non-admin deleting their own personal template, which Firestore's
+    // rules never let write to publishedTemplates in the first place)
+    // shouldn't surface as a broken delete action.
   }
   return true;
 }
@@ -499,8 +532,13 @@ export async function reorderTemplates(orderedIds) {
     // eslint-disable-next-line no-await-in-loop
     await withStore("readwrite", (store) => store.put(next));
     if (isCloudSynced(next) && next.status === "published") {
-      // eslint-disable-next-line no-await-in-loop
-      await publishTemplateToCloud(next);
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await publishTemplateToCloud(next);
+      } catch {
+        // Best-effort per template — one failed mirror write shouldn't
+        // abort reordering the rest of the drag.
+      }
     }
     results.push(next);
   }
@@ -569,13 +607,38 @@ async function seedBuiltInTemplatesOnce() {
   if (seededVersion >= BUILT_IN_SEED_VERSION) return;
 
   const existingBuiltIns = await listTemplateSummaries("project");
-  const existingIds = new Set(existingBuiltIns.filter((t) => t.builtIn).map((t) => t.builtInKey));
+  const existingByKey = new Map(existingBuiltIns.filter((t) => t.builtIn).map((t) => [t.builtInKey, t]));
+
+  // v3 migration: a built-in seeded before ids were stable has a random
+  // crypto.randomUUID() id — move it to `builtin-${builtInKey}` (delete +
+  // reinsert, since `id` is the IndexedDB keyPath) so it lines up with
+  // every other browser's copy of the same built-in and an admin's
+  // Firestore-mirrored override can find it. Carries over anything
+  // browser-local about the record (favorite, usageCount, an already
+  // manually-set sortOrder, …) instead of resetting it.
+  for (const [key, summary] of existingByKey) {
+    const stableId = `builtin-${key}`;
+    if (summary.id === stableId) continue;
+    const full = await getTemplateById(summary.id);
+    if (!full) continue;
+    const migrated = withChecksum({ ...full, checksum: undefined, id: stableId });
+    // eslint-disable-next-line no-await-in-loop
+    await withStore("readwrite", (store) => store.delete(summary.id));
+    // eslint-disable-next-line no-await-in-loop
+    await withStore("readwrite", (store) => store.put(migrated));
+    existingByKey.set(key, migrated);
+  }
 
   for (const [index, seed] of BUILT_IN_TEMPLATES.entries()) {
-    if (existingIds.has(seed.builtInKey)) continue;
+    if (existingByKey.has(seed.builtInKey)) continue;
     const now = Date.now();
     const template = withChecksum({
-      id: crypto.randomUUID(),
+      // Stable, not random — every browser seeds this exact same id for
+      // the same built-in, which is what lets an admin's Firestore-mirrored
+      // reorder/unpublish/delete (isCloudSynced now covers built-ins too)
+      // actually override this browser's own independently-seeded local
+      // default when templateSummaries merges the two (App.jsx).
+      id: `builtin-${seed.builtInKey}`,
       builtInKey: seed.builtInKey,
       kind: "project",
       templateFormatVersion: TEMPLATE_FORMAT_VERSION,

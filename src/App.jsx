@@ -780,7 +780,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [cloudTemplateSummaries, setCloudTemplateSummaries] = useState([]);
   const templateSummaries = useMemo(() => {
     const merged = new Map(cloudTemplateSummaries.map((t) => [t.id, t]));
-    localTemplateSummaries.forEach((t) => merged.set(t.id, t)); // local wins on id collision (this browser's own freshest copy)
+    localTemplateSummaries.forEach((t) => {
+      // Built-ins are re-seeded fresh (default order/status, stable
+      // `builtin-${builtInKey}` id — templateService.js) into every
+      // browser's own local IndexedDB independently. Once the admin has
+      // published a cloud override for one (reorder/unpublish/delete), that
+      // override must win here; only a non-built-in's LOCAL copy (this
+      // browser's own draft/edit in progress) should ever take precedence
+      // over what's mirrored to Firestore.
+      if (t.builtIn && merged.has(t.id)) return;
+      merged.set(t.id, t); // local wins on id collision (this browser's own freshest copy)
+    });
     // Admin-controlled display order (templateService.reorderTemplates) —
     // missing sortOrder (pre-migration records) sorts last, tie-broken by
     // recency, matching this list's behavior before manual ordering existed.
