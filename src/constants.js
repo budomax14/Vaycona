@@ -15,6 +15,11 @@ export const ZOOM_STEP = 1.05;
 export const BUTTON_ZOOM_STEP = 1.2;
 export const ZOOM_PRESETS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 4, 8];
 
+// Extra invisible hit-region padding (screen px, scale-compensated) added
+// around each Transformer resize/rotate anchor on touch devices only — see
+// App.jsx's anchorStyleFunc. Anchors' drawn/visual size is untouched.
+export const TOUCH_ANCHOR_HIT_PAD = 10;
+
 export const WORKSPACE_PAGE_GAP = 60;
 export const WORKSPACE_FIT_PADDING = 48;
 

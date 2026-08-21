@@ -106,7 +106,8 @@ import { loadPrecisionPrefs, savePrecisionPrefs, normalizePrecisionPrefs } from 
 import GuideManagerDialog from "./components/GuideManagerDialog";
 import PrecisionSettingsDialog from "./components/PrecisionSettingsDialog";
 import { isTypingTarget, useKeyboardShortcuts } from "./useKeyboardShortcuts";
-import { useMediaQuery } from "./useMediaQuery";
+import { useBreakpoint } from "./useBreakpoint";
+import { usePointerCapability } from "./usePointerCapability";
 import { putAsset, putAssetWithId, deleteAsset, getAssetBlob, getAssetMeta, listAssetIndex, listAssets, regenerateAssetThumbnail } from "./assetStore";
 import { createAutosaveService, SAVE_STATUS, readSavedRecord, checkStorageQuota } from "./autosaveService";
 import {
@@ -189,6 +190,7 @@ import {
   PROJECT_SCHEMA_VERSION,
   AUTOSAVE_DEBOUNCE_MS,
   MAX_IMAGE_DIMENSION,
+  TOUCH_ANCHOR_HIT_PAD,
 } from "./constants";
 
 // --- Phase 11: Brand Kit / design tokens ---
@@ -702,6 +704,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const draggingGuideRef = useRef(null);
   const lineDragRef = useRef(null);
   const marqueeStartRef = useRef(null);
+  const emptyLongPressTimerRef = useRef(null);
+  const emptyLongPressStartRef = useRef(null);
   // Captures each selected group's bounds + line-member ids at gesture
   // start, so handleTransformEnd can carry line/arrow descendants along
   // via a computed delta (they opt out of the shared Transformer).
@@ -921,7 +925,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [contextMenu, setContextMenu] = useState(null);
 
   const [activeSidebarSection, setActiveSidebarSection] = useState(null);
-  const isCompact = useMediaQuery("(max-width: 1024px)");
+  const breakpoint = useBreakpoint();
+  const { isCompact } = breakpoint;
+  const { hasCoarsePointer } = usePointerCapability();
+  useEffect(() => {
+    document.documentElement.classList.toggle("touch-input", hasCoarsePointer);
+  }, [hasCoarsePointer]);
 
   // Inline text-edit mode — parallel to selectedIds (the item stays
   // selected while its edit-mode id is set), see enterTextEdit/exitTextEdit.
@@ -4912,6 +4921,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function handleStageMouseDown(event) {
+    if (workspaceRef.current?.isGestureActive?.()) return;
     setContextMenu(null);
     if (isSpaceDown || event.evt.button === 1) return;
     if (!isEmptyClickTarget(event)) return;
@@ -4924,12 +4934,39 @@ export default function App({ editorMode = "workspace", templateSession = null }
     marqueeStartRef.current = { start: pointer, additive };
     setMarquee({ x: pointer.x, y: pointer.y, width: 0, height: 0 });
     setInteractionMode("marquee");
+
+    // Long-press-to-open-context-menu on empty canvas, touch/pen only — a
+    // native `contextmenu` event doesn't reliably fire from a long-press on
+    // a Konva canvas, so this is the only path to the background menu on
+    // touch. Cancelled by any real movement (handleStageMouseMove) or by
+    // lifting before the delay (handleStageMouseUp), same as a normal tap.
+    if (hasCoarsePointer && event.evt.pointerType !== "mouse") {
+      const clientX = event.evt.clientX;
+      const clientY = event.evt.clientY;
+      emptyLongPressStartRef.current = { clientX, clientY };
+      emptyLongPressTimerRef.current = setTimeout(() => {
+        emptyLongPressTimerRef.current = null;
+        marqueeStartRef.current = null;
+        setMarquee(null);
+        setInteractionMode("idle");
+        setContextMenu({ x: clientX, y: clientY });
+      }, 500);
+    }
   }
 
-  function handleStageMouseMove() {
+  function handleStageMouseMove(event) {
     const stage = stageRef.current;
     const pointer = stage.getRelativePointerPosition();
     if (pointer) setCursorPos(pointer);
+
+    if (emptyLongPressTimerRef.current && emptyLongPressStartRef.current) {
+      const dx = event.evt.clientX - emptyLongPressStartRef.current.clientX;
+      const dy = event.evt.clientY - emptyLongPressStartRef.current.clientY;
+      if (Math.hypot(dx, dy) > 10) {
+        clearTimeout(emptyLongPressTimerRef.current);
+        emptyLongPressTimerRef.current = null;
+      }
+    }
 
     if (marqueeStartRef.current && pointer) {
       const { start } = marqueeStartRef.current;
@@ -4943,6 +4980,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function handleStageMouseUp() {
+    if (emptyLongPressTimerRef.current) {
+      clearTimeout(emptyLongPressTimerRef.current);
+      emptyLongPressTimerRef.current = null;
+    }
     if (marqueeStartRef.current && marquee) {
       const { additive } = marqueeStartRef.current;
       const hasArea = marquee.width > 2 || marquee.height > 2;
@@ -6400,22 +6441,41 @@ export default function App({ editorMode = "workspace", templateSession = null }
                   // step with GAP to keep clearing it at every zoom level
                   // rather than drifting into it the way a zoom-invariant
                   // offset would.
-                  rotateAnchorOffset={32}
+                  rotateAnchorOffset={hasCoarsePointer ? 40 : 32}
                   anchorSize={8 / scale}
                   // Give the rotate handle its own look (round + amber)
                   // instead of the plain white squares every resize handle
-                  // uses, so it actually reads as a distinct control.
+                  // uses, so it actually reads as a distinct control. On
+                  // touch devices we ALSO give every anchor (rotate +
+                  // resize) a bigger invisible hit region via a custom
+                  // hitFunc, independent of its drawn size — so fingers get
+                  // an easier target without the handles looking visually
+                  // oversized, and mouse users (hasCoarsePointer false,
+                  // regardless of window width) see byte-identical visuals
+                  // and hit-testing to before.
                   anchorStyleFunc={(anchor) => {
-                    if (!anchor.hasName("rotater")) return;
-                    const size = (8 / scale) * 1.3;
-                    anchor.width(size);
-                    anchor.height(size);
-                    anchor.offsetX(size / 2);
-                    anchor.offsetY(size / 2);
-                    anchor.cornerRadius(size / 2);
-                    anchor.fill("#d97706");
-                    anchor.stroke("#ffffff");
-                    anchor.strokeWidth(1.5 / scale);
+                    const isRotater = anchor.hasName("rotater");
+                    if (isRotater) {
+                      const size = (8 / scale) * 1.3;
+                      anchor.width(size);
+                      anchor.height(size);
+                      anchor.offsetX(size / 2);
+                      anchor.offsetY(size / 2);
+                      anchor.cornerRadius(size / 2);
+                      anchor.fill("#d97706");
+                      anchor.stroke("#ffffff");
+                      anchor.strokeWidth(1.5 / scale);
+                    }
+                    if (hasCoarsePointer) {
+                      const visualSize = anchor.width();
+                      const touchPad = TOUCH_ANCHOR_HIT_PAD / scale;
+                      anchor.hitFunc((context) => {
+                        context.beginPath();
+                        context.rect(-touchPad, -touchPad, visualSize + touchPad * 2, visualSize + touchPad * 2);
+                        context.closePath();
+                        context.fillStrokeShape(anchor);
+                      });
+                    }
                   }}
                   borderStrokeWidth={1.5 / scale}
                   boundBoxFunc={(oldBox, newBox) => {
@@ -6458,6 +6518,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 viewport={KONVA_VIEWPORT}
                 frameSize={{ width: konvaWidth, height: konvaHeight }}
                 isLocked={isSelectionLocked}
+                onCopy={copySelection}
+                onPaste={clipboardRef.current.length > 0 ? pasteClipboard : undefined}
                 onDuplicate={duplicateSelection}
                 onDelete={removeSelection}
                 onForward={() => reorderSelection("forward")}
@@ -6719,7 +6781,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   return (
     <RecentColorsProvider>
     <DocumentColorsProvider items={items}>
-    <div className="flex h-screen flex-col overflow-hidden bg-gray-100 text-gray-900">
+    <div
+      className="flex h-screen flex-col overflow-hidden bg-gray-100 text-gray-900"
+      style={{
+        paddingTop: "var(--safe-top)",
+        paddingBottom: "var(--safe-bottom)",
+        paddingLeft: "var(--safe-left)",
+        paddingRight: "var(--safe-right)",
+      }}
+    >
       {editorMode === "template" && templateSession ? (
         <AdminTemplateEditorToolbar
           templateName={templateSession.templateName}
@@ -6927,7 +6997,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         <LeftSidebar
           activeSection={activeSidebarSection}
           onSectionChange={(key) => (key === "templates" ? openTemplateBrowser() : setActiveSidebarSection(key))}
-          isCompact={isCompact}
+          tier={breakpoint.tier}
         >
           {activeSidebarSection === "uploads" && (
             <UploadsPanel

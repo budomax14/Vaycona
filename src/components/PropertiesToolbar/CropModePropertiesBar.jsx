@@ -1,6 +1,7 @@
 import React from "react";
 import { Check, Crop, Maximize2, Minimize2, RotateCcw, StretchHorizontal, X } from "lucide-react";
 import { GroupedSliderField, IconButton, IconToggleButton, ToolbarDivider } from "./toolbarUi";
+import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import { normalizeCrop } from "../../imageCrop";
 
 // The specific ratio buttons requested for the crop toolbar — a curated
@@ -33,53 +34,67 @@ export default function CropModePropertiesBar({
   const crop = normalizeCrop(item.crop);
 
   return (
-    <>
-      <span data-crop-toolbar-safe className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
-        <Crop size={14} className="mr-1.5 inline" /> Cropping
-      </span>
+    <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
+      <OverflowToolbar.Item keepOnMobile>
+        <span data-crop-toolbar-safe className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
+          <Crop size={14} className="mr-1.5 inline" /> Cropping
+        </span>
+      </OverflowToolbar.Item>
 
-      <ToolbarDivider />
+      <OverflowToolbar.Item>
+        <>
+          <ToolbarDivider />
+          <div data-crop-toolbar-safe className="flex shrink-0 items-center gap-1">
+            <IconToggleButton icon={StretchHorizontal} active={crop.fit === "stretch"} onClick={() => onCropCommit({ ...crop, fit: "stretch" })} title="Stretch — show the whole image, may distort" />
+            <IconToggleButton icon={Maximize2} active={crop.fit === "fill"} onClick={() => onCropCommit({ ...crop, fit: "fill" })} title="Fill — cover the whole box, crop excess" />
+            <IconToggleButton icon={Minimize2} active={crop.fit === "fit"} onClick={() => onCropCommit({ ...crop, fit: "fit" })} title="Fit — show the whole image, may letterbox" />
+          </div>
+        </>
+      </OverflowToolbar.Item>
 
-      <div data-crop-toolbar-safe className="flex shrink-0 items-center gap-1">
-        <IconToggleButton icon={StretchHorizontal} active={crop.fit === "stretch"} onClick={() => onCropCommit({ ...crop, fit: "stretch" })} title="Stretch — show the whole image, may distort" />
-        <IconToggleButton icon={Maximize2} active={crop.fit === "fill"} onClick={() => onCropCommit({ ...crop, fit: "fill" })} title="Fill — cover the whole box, crop excess" />
-        <IconToggleButton icon={Minimize2} active={crop.fit === "fit"} onClick={() => onCropCommit({ ...crop, fit: "fit" })} title="Fit — show the whole image, may letterbox" />
-      </div>
+      <OverflowToolbar.Item>
+        <>
+          <ToolbarDivider />
+          <div data-crop-toolbar-safe className="flex shrink-0 items-center gap-1 overflow-x-auto">
+            {CROP_TOOLBAR_ASPECTS.map((preset) => (
+              <button
+                key={preset.key}
+                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-amber-50 hover:text-amber-700"
+                onClick={() => onSetAspect(preset.ratio === "original" ? naturalWidth / Math.max(1, naturalHeight) : preset.ratio)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </>
+      </OverflowToolbar.Item>
 
-      <ToolbarDivider />
+      <OverflowToolbar.Item>
+        <>
+          <ToolbarDivider />
+          <div data-crop-toolbar-safe>
+            <GroupedSliderField
+              label="Zoom"
+              value={crop.zoom}
+              min={1}
+              max={8}
+              step={0.05}
+              onLiveChange={onZoomLiveChange}
+              onCommit={onZoomCommit}
+            />
+          </div>
 
-      <div data-crop-toolbar-safe className="flex shrink-0 items-center gap-1 overflow-x-auto">
-        {CROP_TOOLBAR_ASPECTS.map((preset) => (
-          <button
-            key={preset.key}
-            className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-amber-50 hover:text-amber-700"
-            onClick={() => onSetAspect(preset.ratio === "original" ? naturalWidth / Math.max(1, naturalHeight) : preset.ratio)}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
+          <IconButton icon={RotateCcw} label="Reset" title="Reset crop to the original, uncropped image" onClick={onReset} />
+        </>
+      </OverflowToolbar.Item>
 
-      <ToolbarDivider />
-
-      <div data-crop-toolbar-safe>
-        <GroupedSliderField
-          label="Zoom"
-          value={crop.zoom}
-          min={1}
-          max={8}
-          step={0.05}
-          onLiveChange={onZoomLiveChange}
-          onCommit={onZoomCommit}
-        />
-      </div>
-
-      <IconButton icon={RotateCcw} label="Reset" title="Reset crop to the original, uncropped image" onClick={onReset} />
-
-      <ToolbarDivider />
-
-      <IconButton icon={X} label="Cancel" onClick={onCancel} />
-      <IconButton icon={Check} label="Done" onClick={onApply} title="Apply crop (Enter)" active />
-    </>
+      <OverflowToolbar.Item keepOnMobile>
+        <>
+          <ToolbarDivider />
+          <IconButton icon={X} label="Cancel" onClick={onCancel} />
+          <IconButton icon={Check} label="Done" onClick={onApply} title="Apply crop (Enter)" active />
+        </>
+      </OverflowToolbar.Item>
+    </OverflowToolbar>
   );
 }

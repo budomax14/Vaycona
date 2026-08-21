@@ -13,6 +13,7 @@ import {
   MAX_LIST_LEVEL,
   richTextToHTML,
 } from "../richText";
+import { usePointerCapability } from "../usePointerCapability";
 
 const TYPING_COMMIT_DEBOUNCE_MS = 1000;
 
@@ -134,6 +135,42 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   const debounceRef = useRef(null);
   const dragRef = useRef(null);
   const fontSizeScale = viewport.scale;
+  const { hasCoarsePointer } = usePointerCapability();
+
+  // On iOS/Android, focusing this contentEditable (see the mount effect
+  // below) opens the on-screen keyboard, which shrinks the VISUAL viewport
+  // without resizing the LAYOUT viewport (`.canvas-area`'s own clientHeight
+  // is computed from the layout viewport, so it stays the same — this is
+  // the standard mobile "keyboard covers the input" problem). If the box
+  // would end up under the keyboard, scroll the workspace's own scrollable
+  // container (native scroll, same mechanism Workspace.jsx's pan already
+  // uses) so it stays visible — never touches item.x/y (document
+  // coordinates), only which part of the canvas is currently scrolled into
+  // view on this screen.
+  useEffect(() => {
+    if (!hasCoarsePointer || typeof window === "undefined" || !window.visualViewport) return undefined;
+    const vv = window.visualViewport;
+
+    function keepAboveKeyboard() {
+      const root = rootRef.current;
+      const scrollContainer = root?.closest(".canvas-area");
+      if (!root || !scrollContainer) return;
+      const rect = root.getBoundingClientRect();
+      const visibleBottom = vv.offsetTop + vv.height;
+      const overflow = rect.bottom - visibleBottom;
+      if (overflow > 0) scrollContainer.scrollTop += overflow + 16;
+    }
+
+    // The keyboard animates in, so the first resize event can land before
+    // it's fully open — a short follow-up check catches the settled state.
+    keepAboveKeyboard();
+    const timeoutId = setTimeout(keepAboveKeyboard, 350);
+    vv.addEventListener("resize", keepAboveKeyboard);
+    return () => {
+      clearTimeout(timeoutId);
+      vv.removeEventListener("resize", keepAboveKeyboard);
+    };
+  }, [hasCoarsePointer]);
 
   const flush = useCallback(() => {
     clearTimeout(debounceRef.current);

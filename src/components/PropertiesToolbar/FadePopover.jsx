@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Blend, MousePointer2 } from "lucide-react";
 import { GroupedSliderField, IconButton, IconToggleButton, LabeledField } from "./toolbarUi";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import { DEFAULT_OPACITY_MASK, LINEAR_DIRECTION_PRESETS, normalizeOpacityMask } from "../../opacityMask";
 
 // Partial Opacity / Fade — a separate control from the existing whole-
@@ -27,7 +27,7 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={Blend} label="Fade" onClick={() => setOpen((v) => !v)} active={open || current.enabled} />
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg" data-fade-toolbar-safe>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Fade</p>
 
@@ -136,7 +136,7 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
             </>
           )}
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

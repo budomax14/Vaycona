@@ -18,6 +18,7 @@ import {
   Unlock,
   MousePointerClick,
 } from "lucide-react";
+import { clampPositionToViewport } from "../clampToViewport";
 
 // Reuses the same .context-menu / .context-menu-divider CSS already used
 // by the canvas right-click menu (ContextMenu.jsx) for visual consistency,
@@ -33,9 +34,7 @@ export default function LayerContextMenu({ item, pages, activePageId, position, 
     const el = menuRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const maxX = window.innerWidth - rect.width - 8;
-    const maxY = window.innerHeight - rect.height - 8;
-    setClampedPos({ x: Math.max(8, Math.min(position.x, maxX)), y: Math.max(8, Math.min(position.y, maxY)) });
+    setClampedPos(clampPositionToViewport(position, rect));
   }, [position, movePageOpen]);
 
   useEffect(() => {

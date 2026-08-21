@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { IconButton } from "./toolbarUi";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import AnimateMenuItem from "./AnimateMenuItem";
 
 // Fallback selection-level "More" menu — only rendered for selections that
@@ -18,7 +18,7 @@ export default function SelectionMoreMenu({ animationPanelOpen, onToggleAnimatio
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={MoreHorizontal} label="More" onClick={() => setOpen((v) => !v)} active={open} />
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
         <div className="w-56 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg" data-text-toolbar-safe>
           <AnimateMenuItem
             animationPanelOpen={animationPanelOpen}
@@ -29,7 +29,7 @@ export default function SelectionMoreMenu({ animationPanelOpen, onToggleAnimatio
             hasAnimations={hasAnimations}
           />
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

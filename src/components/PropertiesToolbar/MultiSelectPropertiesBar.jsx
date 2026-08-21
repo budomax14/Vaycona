@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowDown, ArrowUp, Group, Trash2, Ungroup } from "lucide-react";
 import { ColorField, IconButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
+import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import PositionMenu from "./PositionMenu";
 import AlignMenu from "./AlignMenu";
 import DistributeMenu from "./DistributeMenu";
@@ -58,66 +59,89 @@ export default function MultiSelectPropertiesBar({
   const groupBounds = items && items.length > 0 ? unionBounds(items.map(getItemBounds)) : null;
 
   return (
-    <>
-      <span className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
-        {count} objects selected
-      </span>
+    <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
+      <OverflowToolbar.Item keepOnMobile>
+        <span className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
+          {count} objects selected
+        </span>
+      </OverflowToolbar.Item>
 
-      {groupBounds && onTransformBounds && (
+      {/* Position menu + the dynamic per-field widgets (fill/stroke/etc.)
+          are grouped as one unit since their count/composition varies with
+          whatever's actually shared across the current mixed selection. */}
+      <OverflowToolbar.Item>
         <>
-          <PositionMenu bounds={groupBounds} unit={unit} onTransformBounds={onTransformBounds} />
-          {rows.length > 0 && <ToolbarDivider />}
+          {groupBounds && onTransformBounds && (
+            <>
+              <PositionMenu bounds={groupBounds} unit={unit} onTransformBounds={onTransformBounds} />
+              {rows.length > 0 && <ToolbarDivider />}
+            </>
+          )}
+
+          {rows.map(({ key, field, value, mixed }) => {
+            const { Widget, props } = FIELD_WIDGETS[key];
+            return (
+              <Widget
+                key={key}
+                {...props}
+                value={mixed ? "" : value}
+                mixed={mixed}
+                onChange={(next) => onUpdateItems(items.map((item) => item.id), { [field]: next })}
+              />
+            );
+          })}
         </>
-      )}
+      </OverflowToolbar.Item>
 
-      {rows.map(({ key, field, value, mixed }) => {
-        const { Widget, props } = FIELD_WIDGETS[key];
-        return (
-          <Widget
-            key={key}
-            {...props}
-            value={mixed ? "" : value}
-            mixed={mixed}
-            onChange={(next) => onUpdateItems(items.map((item) => item.id), { [field]: next })}
-          />
-        );
-      })}
-
-      <ToolbarDivider />
-
-      {/* §5/§6 Smart Spacing + arrange controls are grouped one-button-per-
-          cluster (AlignMenu/DistributeMenu/ImageAdjustMenu) rather than
-          loose on the row — this bar gets crowded fast once several
-          multi-select items overlap. */}
-      <AlignMenu onAlign={onAlign} />
-      <DistributeMenu items={items} canDistribute={canDistribute} onDistribute={onDistribute} />
-
-      <ToolbarDivider />
-
-      <IconButton icon={ArrowUp} label="Forward" onClick={onForward} />
-      <IconButton icon={ArrowDown} label="Backward" onClick={onBackward} />
-
-      {allImageLike && (
+      <OverflowToolbar.Item>
         <>
           <ToolbarDivider />
-          <ImageAdjustMenu imageLikeIds={imageLikeIds} onBulkFlip={onBulkFlip} onBulkFilterPreset={onBulkFilterPreset} />
+          {/* §5/§6 Smart Spacing + arrange controls are grouped one-button-per-
+              cluster (AlignMenu/DistributeMenu/ImageAdjustMenu) rather than
+              loose on the row — this bar gets crowded fast once several
+              multi-select items overlap. */}
+          <AlignMenu onAlign={onAlign} />
+          <DistributeMenu items={items} canDistribute={canDistribute} onDistribute={onDistribute} />
         </>
+      </OverflowToolbar.Item>
+
+      <OverflowToolbar.Item>
+        <>
+          <ToolbarDivider />
+          <IconButton icon={ArrowUp} label="Forward" onClick={onForward} />
+          <IconButton icon={ArrowDown} label="Backward" onClick={onBackward} />
+        </>
+      </OverflowToolbar.Item>
+
+      {allImageLike && (
+        <OverflowToolbar.Item>
+          <>
+            <ToolbarDivider />
+            <ImageAdjustMenu imageLikeIds={imageLikeIds} onBulkFlip={onBulkFlip} onBulkFilterPreset={onBulkFilterPreset} />
+          </>
+        </OverflowToolbar.Item>
       )}
 
-      <ToolbarDivider />
+      <OverflowToolbar.Item keepOnMobile>
+        <>
+          <ToolbarDivider />
+          <IconButton icon={Group} label="Group" onClick={onGroup} />
+          {hasGroupedSelection && <IconButton icon={Ungroup} label="Ungroup" onClick={onUngroup} />}
+          <SelectionMoreMenu
+            animationPanelOpen={animationPanelOpen}
+            onToggleAnimationPanel={onToggleAnimationPanel}
+            hasAnimations={hasAnimations}
+            pushRight={false}
+          />
+        </>
+      </OverflowToolbar.Item>
 
-      <IconButton icon={Group} label="Group" onClick={onGroup} />
-      {hasGroupedSelection && <IconButton icon={Ungroup} label="Ungroup" onClick={onUngroup} />}
-      <SelectionMoreMenu
-        animationPanelOpen={animationPanelOpen}
-        onToggleAnimationPanel={onToggleAnimationPanel}
-        hasAnimations={hasAnimations}
-        pushRight={false}
-      />
-
-      <ToolbarDivider />
-
-      <IconButton icon={Trash2} label="Delete" onClick={onDelete} />
-    </>
+      <OverflowToolbar.Item keepOnMobile>
+        <>
+          <ToolbarDivider />
+          <IconButton icon={Trash2} label="Delete" onClick={onDelete} />
+        </>
+      </OverflowToolbar.Item>
+    </OverflowToolbar>
   );
 }

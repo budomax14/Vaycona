@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { ColorField, GroupedSliderField, IconButton } from "./toolbarUi";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import { DEFAULT_ADJUSTMENTS, FILTER_PRESETS, normalizeAdjustments } from "../../imageEffects";
 
 // Cheap CSS-filter approximation used ONLY for the small preset preview
@@ -50,7 +50,7 @@ export default function FiltersPopover({ adjustments, previewSrc, onChange, onLi
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={Sparkles} label="Filters" onClick={() => setOpen((v) => !v)} active={open} />
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Filters</p>
           <div className="mb-4 grid grid-cols-4 gap-2">
@@ -164,7 +164,7 @@ export default function FiltersPopover({ adjustments, previewSrc, onChange, onLi
             Reset all
           </button>
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

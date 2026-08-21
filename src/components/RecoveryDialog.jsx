@@ -83,7 +83,7 @@ export default function RecoveryDialog({
         aria-modal="true"
         aria-labelledby="recovery-dialog-title"
         aria-describedby="recovery-dialog-desc"
-        className="w-full max-w-md rounded-2xl bg-white shadow-2xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl"
       >
         <div className="flex items-start gap-3 border-b border-gray-200 px-5 py-4">
           <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">

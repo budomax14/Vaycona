@@ -19,7 +19,7 @@ import {
   NumberField,
   ToolbarDivider,
 } from "./toolbarUi";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import ObjectTransformFields from "./ObjectTransformFields";
 import AnimateMenuItem from "./AnimateMenuItem";
 import { DEFAULT_PROJECT_TEXT_STYLES } from "../../textStyles";
@@ -69,7 +69,7 @@ export default function TextMoreMenu({
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={MoreHorizontal} label="More" onClick={() => setOpen((v) => !v)} active={open} />
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
         <div className="flex max-h-[70vh] w-80 flex-col gap-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
           {onToggleAnimationPanel && (
             <AnimateMenuItem
@@ -241,7 +241,7 @@ export default function TextMoreMenu({
             <IconButton icon={Eraser} label="Clear formatting" onClick={onClearTextFormatting} />
           </Section>
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

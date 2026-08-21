@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ImagePlus, Link2, Unlink } from "lucide-react";
 import { useBrandKits } from "../../brandKitContext";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 
 // Image-style equivalent of ObjectStylePicker.jsx (spec §40-41/§56-58) —
 // adjustments/border/cornerRadius/shadow/opacity presets, non-destructive
@@ -26,7 +26,7 @@ export default function ImageStylePicker({ style: brand }) {
           <ImagePlus size={15} /> Styles
         </button>
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="w-56 rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
           {linkedStyleId && (
             <button
@@ -56,7 +56,7 @@ export default function ImageStylePicker({ style: brand }) {
             + Save current edits as style
           </button>
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Bold, Check, Italic, Type, Underline } from "lucide-react";
 import { IconButton, IconToggleButton, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
+import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import FontFamilyPicker from "./FontFamilyPicker";
 import TextColorPanel from "./TextColorPanel";
 import TextAlignMenu from "./TextAlignMenu";
@@ -51,97 +52,121 @@ export default function TextPropertiesBar({
 
   return (
     <>
-      <IconToggleButton
-        icon={isEditingText ? Check : Type}
-        active={isEditingText}
-        onClick={onEditText}
-        title={isEditingText ? "Done editing" : "Edit text"}
-      />
+      <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
+        <OverflowToolbar.Item keepOnMobile>
+          <IconToggleButton
+            icon={isEditingText ? Check : Type}
+            active={isEditingText}
+            onClick={onEditText}
+            title={isEditingText ? "Done editing" : "Edit text"}
+          />
+        </OverflowToolbar.Item>
 
-      <ToolbarDivider />
-
-      <FontFamilyPicker value={item.fontFamily} onChange={(fontFamily) => onApplyFormat("fontFamily", fontFamily)} />
-
-      <NumberField
-        label="Size"
-        value={item.fontSize || 24}
-        min={1}
-        max={800}
-        onChange={(value) => onApplyFormat("fontSize", value)}
-      />
-
-      <ToolbarDivider />
-
-      <IconToggleButton icon={Bold} active={item.fontWeight === "bold"} onClick={() => onApplyFormat("bold")} title="Bold (Cmd/Ctrl+B)" />
-      <IconToggleButton icon={Italic} active={!!item.italic} onClick={() => onApplyFormat("italic")} title="Italic (Cmd/Ctrl+I)" />
-      <IconToggleButton icon={Underline} active={!!item.underline} onClick={() => onApplyFormat("underline")} title="Underline (Cmd/Ctrl+U)" />
-
-      <ToolbarDivider />
-
-      <div className="relative shrink-0" data-text-toolbar-safe>
-        <button
-          type="button"
-          className={`h-8 w-10 shrink-0 cursor-pointer rounded-lg border p-0.5 ${isColorPanelOpen ? "border-amber-400 ring-2 ring-amber-100" : "border-gray-200"}`}
-          style={{ background: item.fillImage?.assetId || item.fillGradient ? undefined : item.fill || "#111827" }}
-          title="Text color"
-          aria-label="Text color"
-          onClick={() => setIsColorPanelOpen((v) => !v)}
-        >
-          {item.fillImage?.assetId ? (
-            fillImagePreviewUrl && (
-              <span
-                className="block h-full w-full rounded-md bg-cover bg-center"
-                style={{ backgroundImage: `url(${fillImagePreviewUrl})` }}
-              />
-            )
-          ) : item.fillGradient ? (
-            <span
-              className="block h-full w-full rounded-md"
-              style={{ background: `linear-gradient(90deg, ${item.fillGradient.stops.map((s) => s.color).join(", ")})` }}
+        <OverflowToolbar.Item keepOnMobile>
+          <>
+            <ToolbarDivider />
+            <FontFamilyPicker value={item.fontFamily} onChange={(fontFamily) => onApplyFormat("fontFamily", fontFamily)} />
+            <NumberField
+              label="Size"
+              value={item.fontSize || 24}
+              min={1}
+              max={800}
+              onChange={(value) => onApplyFormat("fontSize", value)}
             />
-          ) : null}
-        </button>
-      </div>
+          </>
+        </OverflowToolbar.Item>
 
-      <ToolbarDivider />
+        <OverflowToolbar.Item keepOnMobile>
+          <>
+            <ToolbarDivider />
+            <IconToggleButton icon={Bold} active={item.fontWeight === "bold"} onClick={() => onApplyFormat("bold")} title="Bold (Cmd/Ctrl+B)" />
+            <IconToggleButton icon={Italic} active={!!item.italic} onClick={() => onApplyFormat("italic")} title="Italic (Cmd/Ctrl+I)" />
+            <IconToggleButton icon={Underline} active={!!item.underline} onClick={() => onApplyFormat("underline")} title="Underline (Cmd/Ctrl+U)" />
+          </>
+        </OverflowToolbar.Item>
 
-      <TextAlignMenu item={item} onChange={onChange} />
+        <OverflowToolbar.Item keepOnMobile>
+          <>
+            <ToolbarDivider />
+            <div className="relative shrink-0" data-text-toolbar-safe>
+              <button
+                type="button"
+                className={`h-8 w-10 shrink-0 cursor-pointer rounded-lg border p-0.5 ${isColorPanelOpen ? "border-amber-400 ring-2 ring-amber-100" : "border-gray-200"}`}
+                style={{ background: item.fillImage?.assetId || item.fillGradient ? undefined : item.fill || "#111827" }}
+                title="Text color"
+                aria-label="Text color"
+                onClick={() => setIsColorPanelOpen((v) => !v)}
+              >
+                {item.fillImage?.assetId ? (
+                  fillImagePreviewUrl && (
+                    <span
+                      className="block h-full w-full rounded-md bg-cover bg-center"
+                      style={{ backgroundImage: `url(${fillImagePreviewUrl})` }}
+                    />
+                  )
+                ) : item.fillGradient ? (
+                  <span
+                    className="block h-full w-full rounded-md"
+                    style={{ background: `linear-gradient(90deg, ${item.fillGradient.stops.map((s) => s.color).join(", ")})` }}
+                  />
+                ) : null}
+              </button>
+            </div>
+          </>
+        </OverflowToolbar.Item>
 
-      <ToolbarDivider />
+        <OverflowToolbar.Item>
+          <>
+            <ToolbarDivider />
+            <TextAlignMenu item={item} onChange={onChange} />
+          </>
+        </OverflowToolbar.Item>
 
-      <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
+        <OverflowToolbar.Item>
+          <>
+            <ToolbarDivider />
+            <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
+          </>
+        </OverflowToolbar.Item>
 
-      <ToolbarDivider />
+        <OverflowToolbar.Item>
+          <>
+            <ToolbarDivider />
+            <TextListMenu onApplyListFormat={onApplyListFormat} />
+            <TextEffectsMenu item={item} onChange={onChange} onApplyFormat={onApplyFormat} />
+            <Text3DMenu item={item} onChange={onChange} />
+            <TextCurveMenu item={item} onChange={onChange} />
+          </>
+        </OverflowToolbar.Item>
 
-      <TextListMenu onApplyListFormat={onApplyListFormat} />
-      <TextEffectsMenu item={item} onChange={onChange} onApplyFormat={onApplyFormat} />
-      <Text3DMenu item={item} onChange={onChange} />
-      <TextCurveMenu item={item} onChange={onChange} />
-
-      <ToolbarDivider />
-
-      <TextMoreMenu
-        item={item}
-        unit={unit}
-        onChange={onChange}
-        onApplyFormat={onApplyFormat}
-        onCopyTextStyle={onCopyTextStyle}
-        onPasteTextStyle={onPasteTextStyle}
-        hasCopiedTextStyle={hasCopiedTextStyle}
-        onClearTextFormatting={onClearTextFormatting}
-        onApplyProjectTextStyle={onApplyProjectTextStyle}
-        onDuplicate={onDuplicate}
-        onDelete={onDelete}
-        onForward={onForward}
-        onBackward={onBackward}
-        onToggleLock={onToggleLock}
-        onToggleHidden={onToggleHidden}
-        onAlignToPage={onAlignToPage}
-        brand={brand}
-        animationPanelOpen={animationPanelOpen}
-        onToggleAnimationPanel={onToggleAnimationPanel}
-        hasAnimations={hasAnimations}
-      />
+        <OverflowToolbar.Item keepOnMobile>
+          <>
+            <ToolbarDivider />
+            <TextMoreMenu
+              item={item}
+              unit={unit}
+              onChange={onChange}
+              onApplyFormat={onApplyFormat}
+              onCopyTextStyle={onCopyTextStyle}
+              onPasteTextStyle={onPasteTextStyle}
+              hasCopiedTextStyle={hasCopiedTextStyle}
+              onClearTextFormatting={onClearTextFormatting}
+              onApplyProjectTextStyle={onApplyProjectTextStyle}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onForward={onForward}
+              onBackward={onBackward}
+              onToggleLock={onToggleLock}
+              onToggleHidden={onToggleHidden}
+              onAlignToPage={onAlignToPage}
+              brand={brand}
+              animationPanelOpen={animationPanelOpen}
+              onToggleAnimationPanel={onToggleAnimationPanel}
+              hasAnimations={hasAnimations}
+            />
+          </>
+        </OverflowToolbar.Item>
+      </OverflowToolbar>
 
       <TextColorPanel
         isOpen={isColorPanelOpen}

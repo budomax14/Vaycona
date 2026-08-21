@@ -1,5 +1,6 @@
 import React, { forwardRef, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { clampHorizontalShift, getViewportSize } from "../../clampToViewport";
 
 const VIEWPORT_MARGIN = 8;
 
@@ -25,10 +26,7 @@ const PopoverPortal = forwardRef(function PopoverPortal({ anchorRect, align = "l
     setShift(0);
     if (!anchorRect || !innerRef.current) return;
     const rect = innerRef.current.getBoundingClientRect();
-    let adjust = 0;
-    if (rect.right > window.innerWidth - VIEWPORT_MARGIN) adjust = window.innerWidth - VIEWPORT_MARGIN - rect.right;
-    if (rect.left + adjust < VIEWPORT_MARGIN) adjust = VIEWPORT_MARGIN - rect.left;
-    setShift(adjust);
+    setShift(clampHorizontalShift(rect, VIEWPORT_MARGIN));
     // Re-measures only when the anchor moves/reopens — the panel's own
     // size doesn't change after mount for these popovers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -36,14 +34,15 @@ const PopoverPortal = forwardRef(function PopoverPortal({ anchorRect, align = "l
 
   if (!anchorRect) return null;
 
+  const viewport = getViewportSize();
   const style = {
     position: "fixed",
-    bottom: window.innerHeight - anchorRect.top + 8,
+    bottom: viewport.height - anchorRect.top + 8,
     zIndex: 60,
     transform: shift ? `translateX(${shift}px)` : undefined,
   };
   if (align === "right") {
-    style.right = window.innerWidth - anchorRect.right;
+    style.right = viewport.width - anchorRect.right;
   } else {
     style.left = anchorRect.left;
   }

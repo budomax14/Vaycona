@@ -14,6 +14,7 @@ import {
   Eraser,
   Loader2,
 } from "lucide-react";
+import { clampPositionToViewport } from "./clampToViewport";
 
 export default function ContextMenu({
   position,
@@ -83,12 +84,10 @@ export default function ContextMenu({
   useLayoutEffect(() => {
     const menu = menuRef.current;
     if (!menu) return;
-    const margin = 8;
     const rect = menu.getBoundingClientRect();
-    const maxLeft = window.innerWidth - rect.width - margin;
-    const maxTop = window.innerHeight - rect.height - margin;
-    menu.style.left = `${Math.max(margin, Math.min(position.x, maxLeft))}px`;
-    menu.style.top = `${Math.max(margin, Math.min(position.y, maxTop))}px`;
+    const clamped = clampPositionToViewport(position, rect);
+    menu.style.left = `${clamped.x}px`;
+    menu.style.top = `${clamped.y}px`;
   }, [position]);
 
   // Portaled to document.body — this is rendered from inside the canvas's

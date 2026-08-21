@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ArrowDown, ArrowDownLeft, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpLeft, ArrowUpRight, Box } from "lucide-react";
 import { ColorField, IconButton, IconToggleButton, LabeledField, NumberField, SliderField } from "./toolbarUi";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import { resolveText3D, TEXT3D_DIRECTIONS, TEXT3D_SHADING_OPTIONS, TEXT3D_LIGHT_DIRECTIONS } from "../../text3D";
 import { TEXT3D_PRESETS, applyText3DPreset } from "../../text3DPresets";
 
@@ -16,7 +16,7 @@ const DIRECTION_ICONS = {
   "bottom-right": ArrowDownRight,
 };
 
-// Text Effects → 3D. Same ToolbarPopover + onChange({ text3D }) contract as
+// Text Effects → 3D. Same ResponsiveSheet + onChange({ text3D }) contract as
 // TextEffectsMenu.jsx's shadow/glow/outline controls — text3D is just
 // another item-level effect object (see text3D.js), so it rides the exact
 // same commit/undo/save path with zero new plumbing.
@@ -34,7 +34,7 @@ export default function Text3DMenu({ item, onChange }) {
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={Box} label="3D" onClick={() => setOpen((v) => !v)} active={open || text3D.enabled} />
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-72 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-700">3D Text</span>
@@ -120,7 +120,7 @@ export default function Text3DMenu({ item, onChange }) {
             </>
           )}
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useLanguage } from "../languageContext";
 import { STRINGS } from "../i18n";
 import { navigateTo } from "../adminRoute";
 import ToolbarPopover from "./PropertiesToolbar/ToolbarPopover";
+import OverflowToolbar from "./OverflowToolbar/OverflowToolbar";
 
 // Tailwind's built-in `md:` variant only reads viewport WIDTH — a landscape
 // phone is wide (>768px) but short (~375-440px tall), so `md:` alone can't
@@ -53,7 +54,7 @@ function MenuDropdown({ label, children }) {
     <div className="relative shrink-0">
       <div ref={anchorRef} className="inline-flex">
         <button
-          className={`flex items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 ${
+          className={`flex items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 sm:px-2.5 ${
             open ? "bg-gray-100 text-gray-900" : ""
           }`}
           onClick={() => setOpen((v) => !v)}
@@ -386,96 +387,116 @@ export default function TopNavBar({
       </nav>
 
       <input
-        className="ml-1 w-full max-w-30 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 md:ml-2 md:max-w-xs"
+        className="ml-1 w-full max-w-20 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 sm:max-w-30 md:ml-2 lg:max-w-xs"
         value={projectName}
         onChange={(event) => onProjectNameChange(event.target.value)}
         aria-label={t.projectNameLabel}
       />
 
-      <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-1.5">
-        <button
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-          onClick={onOpenResize}
-          title={t.resizePage}
-          aria-label={t.resizePage}
-        >
-          <Scaling size={17} />
-        </button>
-        <button
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
-          onClick={onUndo}
-          disabled={!canUndo}
-          title={undoLabel ? t.undoWithLabel(undoLabel) : t.undo}
-          aria-label={undoLabel ? t.undoWithLabel(undoLabel) : t.undo}
-        >
-          <Undo2 size={17} />
-        </button>
-        <button
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
-          onClick={onRedo}
-          disabled={!canRedo}
-          title={redoLabel ? t.redoWithLabel(redoLabel) : t.redo}
-          aria-label={redoLabel ? t.redoWithLabel(redoLabel) : t.redo}
-        >
-          <Redo2 size={17} />
-        </button>
-        <button
-          className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium hover:bg-gray-100 md:px-3 ${
-            saveStatus === "error" ? "text-red-600" : "text-gray-600"
-          }`}
-          onClick={saveStatus === "error" ? onRetrySave : onSave}
-          title={saveTitle}
-          aria-label={saveTitle}
-          aria-live="polite"
-        >
-          {saveStatus === "saving" ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : saveStatus === "error" ? (
-            <AlertTriangle size={16} />
-          ) : (
-            <Save size={16} />
-          )}
-          <span className="hidden md:inline">{saveStatus === "error" ? t.retrySave : saveLabel}</span>
-        </button>
-        <button
-          className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-2.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 md:px-3.5"
-          onClick={onOpenExport}
-          title={t.exportTitle}
-          aria-label={t.exportAriaLabel}
-        >
-          <Download size={16} /> <span className="hidden md:inline">{t.exportButton}</span>
-        </button>
-        <button
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-          onClick={onShareDesign}
-          title={t.shareDesign}
-          aria-label={t.shareDesign}
-        >
-          <Share2 size={17} />
-        </button>
-        {tier === "free" && (
+      <OverflowToolbar className="ml-auto items-center" innerClassName="justify-end gap-1 md:gap-1.5">
+        <OverflowToolbar.Item>
           <button
-            className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 md:px-3"
-            onClick={onOpenPricing}
-            title="Upgrade"
-            aria-label="Upgrade"
+            className="toolbar-hit-target rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+            onClick={onOpenResize}
+            title={t.resizePage}
+            aria-label={t.resizePage}
           >
-            <Crown size={16} /> <span className="hidden md:inline">Upgrade</span>
+            <Scaling size={17} />
           </button>
+        </OverflowToolbar.Item>
+        <OverflowToolbar.Item keepOnMobile>
+          <button
+            className="toolbar-hit-target rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title={undoLabel ? t.undoWithLabel(undoLabel) : t.undo}
+            aria-label={undoLabel ? t.undoWithLabel(undoLabel) : t.undo}
+          >
+            <Undo2 size={17} />
+          </button>
+        </OverflowToolbar.Item>
+        <OverflowToolbar.Item keepOnMobile>
+          <button
+            className="toolbar-hit-target rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title={redoLabel ? t.redoWithLabel(redoLabel) : t.redo}
+            aria-label={redoLabel ? t.redoWithLabel(redoLabel) : t.redo}
+          >
+            <Redo2 size={17} />
+          </button>
+        </OverflowToolbar.Item>
+        <OverflowToolbar.Item keepOnMobile>
+          <button
+            className={`toolbar-hit-target flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium hover:bg-gray-100 md:px-3 ${
+              saveStatus === "error" ? "text-red-600" : "text-gray-600"
+            }`}
+            onClick={saveStatus === "error" ? onRetrySave : onSave}
+            title={saveTitle}
+            aria-label={saveTitle}
+            aria-live="polite"
+          >
+            {saveStatus === "saving" ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : saveStatus === "error" ? (
+              <AlertTriangle size={16} />
+            ) : (
+              <Save size={16} />
+            )}
+            <span className="hidden lg:inline">{saveStatus === "error" ? t.retrySave : saveLabel}</span>
+          </button>
+        </OverflowToolbar.Item>
+        <OverflowToolbar.Item keepOnMobile>
+          <button
+            className="toolbar-hit-target flex items-center gap-1.5 rounded-lg bg-amber-600 px-2.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 md:px-3.5"
+            onClick={onOpenExport}
+            title={t.exportTitle}
+            aria-label={t.exportAriaLabel}
+          >
+            <Download size={16} /> <span className="hidden lg:inline">{t.exportButton}</span>
+          </button>
+        </OverflowToolbar.Item>
+        <OverflowToolbar.Item>
+          <button
+            className="toolbar-hit-target rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+            onClick={onShareDesign}
+            title={t.shareDesign}
+            aria-label={t.shareDesign}
+          >
+            <Share2 size={17} />
+          </button>
+        </OverflowToolbar.Item>
+        {tier === "free" && (
+          <OverflowToolbar.Item>
+            <button
+              className="toolbar-hit-target flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 md:px-3"
+              onClick={onOpenPricing}
+              title="Upgrade"
+              aria-label="Upgrade"
+            >
+              <Crown size={16} /> <span className="hidden md:inline">Upgrade</span>
+            </button>
+          </OverflowToolbar.Item>
         )}
         {isAdmin && (
-          <button
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 md:px-3"
-            onClick={() => navigateTo("#/admin")}
-            title={t.adminPanel}
-            aria-label={t.adminPanel}
-          >
-            <ShieldCheck size={16} /> <span className="hidden md:inline">{t.adminPanel}</span>
-          </button>
+          <OverflowToolbar.Item>
+            <button
+              className="toolbar-hit-target flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 md:px-3"
+              onClick={() => navigateTo("#/admin")}
+              title={t.adminPanel}
+              aria-label={t.adminPanel}
+            >
+              <ShieldCheck size={16} /> <span className="hidden md:inline">{t.adminPanel}</span>
+            </button>
+          </OverflowToolbar.Item>
         )}
-        <SettingsMenu />
-        <AccountMenu />
-      </div>
+        <OverflowToolbar.Item>
+          <SettingsMenu />
+        </OverflowToolbar.Item>
+        <OverflowToolbar.Item>
+          <AccountMenu />
+        </OverflowToolbar.Item>
+      </OverflowToolbar>
     </header>
   );
 }

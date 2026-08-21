@@ -55,7 +55,7 @@ export default function ChartColorsPanel({ isOpen, onClose, item, onChange }) {
       ref={panelRef}
       role="dialog"
       aria-label="Chart colors"
-      className="fixed right-0 top-32 bottom-9 z-40 flex w-72 flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-2xl"
+      className="fixed right-0 top-32 bottom-9 z-40 flex w-full max-w-[85vw] flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-2xl sm:w-72 sm:max-w-none"
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
         <h2 className="text-sm font-semibold text-gray-900">{isPie ? "Slice colors" : "Series colors"}</h2>

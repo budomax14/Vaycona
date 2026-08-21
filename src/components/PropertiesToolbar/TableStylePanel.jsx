@@ -55,7 +55,7 @@ export default function TableStylePanel({ isOpen, onClose, item, onChange }) {
     <div
       data-toolbar-popover
       ref={panelRef}
-      className="fixed right-0 top-32 bottom-9 z-40 w-80 overflow-y-auto border-l border-gray-200 bg-white p-4 shadow-xl"
+      className="fixed right-0 top-32 bottom-9 z-40 w-full max-w-[85vw] overflow-y-auto border-l border-gray-200 bg-white p-4 shadow-xl sm:w-80 sm:max-w-none"
     >
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900">Table Style</h3>

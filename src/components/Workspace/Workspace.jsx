@@ -43,6 +43,14 @@ const Workspace = forwardRef(function Workspace(
   const panStateRef = useRef(null);
   const pendingZoomAnchorRef = useRef(null);
   const programmaticScrollRef = useRef(false);
+  // Two-finger pinch/pan gesture tracking — see the dedicated effect below.
+  // gestureActiveRef is read by App.jsx's handleStageMouseDown (via
+  // isGestureActive in the imperative handle) so a second finger touching
+  // empty canvas starts a pinch/pan instead of corrupting marquee-select.
+  const activeTouchPointersRef = useRef(new Map());
+  const gestureStateRef = useRef(null);
+  const gestureActiveRef = useRef(false);
+  const gestureEndTimeoutRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
   // Screen-space position of the active page's top-left corner relative to
   // this container's own top-left — this is what lets rulers stay put in the
@@ -168,6 +176,7 @@ const Workspace = forwardRef(function Workspace(
       },
       fitToScreen,
       scrollToActivePage,
+      isGestureActive: () => gestureActiveRef.current,
     }),
     [scale, zoomAroundPoint, fitToScreen, scrollToActivePage]
   );
@@ -195,6 +204,102 @@ const Workspace = forwardRef(function Workspace(
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
   }, [scale, zoomAroundPoint]);
+
+  // Two-finger pinch-to-zoom + two-finger pan. Attached manually (not JSX
+  // onPointer*) with a non-passive pointermove so preventDefault() actually
+  // stops the browser's native touch-scroll from fighting our own scroll
+  // assignment mid-gesture — same reasoning as the wheel handler above.
+  // Reuses zoomAroundPoint (the same anchor-preserving math the wheel/
+  // button zoom already use) for the zoom component; the pan component is
+  // applied as a direct scrollLeft/scrollTop delta only on frames where the
+  // pinch distance didn't meaningfully change, since zoomAroundPoint's own
+  // re-anchoring (using this frame's current midpoint as the target) already
+  // absorbs any simultaneous pan when a zoom IS happening — applying both
+  // would double-count the same translation.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    function point(event) {
+      return { x: event.clientX, y: event.clientY };
+    }
+    function distanceBetween(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    function midpointOf(a, b) {
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+
+    function handlePointerDown(event) {
+      if (event.pointerType === "mouse") return;
+      activeTouchPointersRef.current.set(event.pointerId, point(event));
+      if (activeTouchPointersRef.current.size === 2) {
+        if (gestureEndTimeoutRef.current) {
+          clearTimeout(gestureEndTimeoutRef.current);
+          gestureEndTimeoutRef.current = null;
+        }
+        const [a, b] = Array.from(activeTouchPointersRef.current.values());
+        gestureStateRef.current = { startDistance: distanceBetween(a, b), startScale: scale, lastMid: midpointOf(a, b) };
+        gestureActiveRef.current = true;
+        onManualInteraction();
+        try {
+          container.setPointerCapture(event.pointerId);
+        } catch {
+          // Some browsers disallow capturing a second pointer id; the
+          // gesture still works without it, just without guaranteed
+          // delivery if a finger drifts outside the container's bounds.
+        }
+      }
+    }
+
+    function handlePointerMove(event) {
+      if (!activeTouchPointersRef.current.has(event.pointerId)) return;
+      activeTouchPointersRef.current.set(event.pointerId, point(event));
+      const state = gestureStateRef.current;
+      if (activeTouchPointersRef.current.size !== 2 || !state) return;
+      event.preventDefault();
+      const [a, b] = Array.from(activeTouchPointersRef.current.values());
+      const mid = midpointOf(a, b);
+      const distanceRatio = distanceBetween(a, b) / state.startDistance;
+      const newScale = clamp(state.startScale * distanceRatio, MIN_SCALE, MAX_SCALE);
+      const rect = container.getBoundingClientRect();
+      const scaleChanged = Math.abs(newScale - scale) > 0.001;
+      if (scaleChanged) {
+        zoomAroundPoint(newScale, mid.x - rect.left, mid.y - rect.top);
+      } else {
+        container.scrollLeft -= mid.x - state.lastMid.x;
+        container.scrollTop -= mid.y - state.lastMid.y;
+        measurePageOrigin();
+      }
+      state.lastMid = mid;
+    }
+
+    function handlePointerEnd(event) {
+      activeTouchPointersRef.current.delete(event.pointerId);
+      if (activeTouchPointersRef.current.size < 2 && gestureStateRef.current) {
+        gestureStateRef.current = null;
+        // Delayed clear (not immediate) — the trailing single finger lifting
+        // last would otherwise land on Konva's onPointerUp in the same tick
+        // and be read as a stray single-finger tap/marquee-start.
+        gestureEndTimeoutRef.current = setTimeout(() => {
+          gestureActiveRef.current = false;
+        }, 200);
+      }
+    }
+
+    container.addEventListener("pointerdown", handlePointerDown, { passive: true });
+    container.addEventListener("pointermove", handlePointerMove, { passive: false });
+    container.addEventListener("pointerup", handlePointerEnd, { passive: true });
+    container.addEventListener("pointercancel", handlePointerEnd, { passive: true });
+    return () => {
+      container.removeEventListener("pointerdown", handlePointerDown);
+      container.removeEventListener("pointermove", handlePointerMove);
+      container.removeEventListener("pointerup", handlePointerEnd);
+      container.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  }, [scale, zoomAroundPoint, onManualInteraction, measurePageOrigin]);
+
+  useEffect(() => () => clearTimeout(gestureEndTimeoutRef.current), []);
 
   function beginPan(startClientX, startClientY) {
     const container = containerRef.current;

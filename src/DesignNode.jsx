@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { getRenderer } from "./objectRegistry";
+import { useLongPress } from "./useLongPress";
 
 function DesignNode({
   item,
@@ -16,6 +17,18 @@ function DesignNode({
   registerNode,
 }) {
   const shapeRef = useRef(null);
+
+  // Touch/pen equivalent of the onContextMenu wired below — a native
+  // `contextmenu` event doesn't reliably fire from a long-press on a Konva
+  // canvas, so this is the only way to reach the (right-click) context menu
+  // on a touch device. No-ops on a real mouse (see useLongPress).
+  const longPress = useLongPress(
+    (point) => {
+      onSelect(item.id, { additive: false });
+      onContextMenu(item.id, { clientX: point.x, clientY: point.y, metaKey: false, ctrlKey: false });
+    },
+    { getPoint: (event) => ({ x: event.evt.clientX, y: event.evt.clientY }) }
+  );
 
   // isEditingText is a dependency here (not just item.id/registerNode)
   // because it gates the early return below: when it flips, the Konva node
@@ -73,6 +86,10 @@ function DesignNode({
     onDragStart: () => onDragStart(item.id, shapeRef.current),
     onDragMove: () => onDragMove(item.id, shapeRef.current),
     onDragEnd: () => onDragEnd(item.id, shapeRef.current),
+    onPointerDown: longPress.onPointerDown,
+    onPointerMove: longPress.onPointerMove,
+    onPointerUp: longPress.onPointerUp,
+    onPointerCancel: longPress.onPointerCancel,
     // Wired for every type, not just text — a double-click first tries to
     // drill one level deeper into a group hierarchy (Phase 5 decision 6);
     // only once there's no more group to enter does App.jsx's handler fall

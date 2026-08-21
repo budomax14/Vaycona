@@ -1,15 +1,16 @@
 import React, { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { ColorField, IconButton, IconToggleButton, LabeledField, NumberField } from "./toolbarUi";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
 
 // Promoted out of TextMoreMenu.jsx to a top-level toolbar control (shadow/
 // glow/outline are common enough to earn their own button). Same
 // onChange({ effects }) contract as before — nothing about how effects are
 // stored or rendered changed, only where the controls live. Opens via
-// ToolbarPopover (portalled) — PropertiesToolbar's row clips ordinary
-// anchored dropdowns, see that component's comment.
+// ResponsiveSheet (an anchored, portalled ToolbarPopover on tablet/desktop;
+// a bottom sheet on mobile) — PropertiesToolbar's row clips ordinary
+// anchored dropdowns, see ToolbarPopover's own comment.
 //
 // Outline color/thickness route through onApplyFormat (same "color"
 // command TextColorPanel.jsx already uses) instead of always calling
@@ -38,7 +39,7 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={Sparkles} label="Effects" onClick={() => setOpen((v) => !v)} active={open || hasAnyEffect} />
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-72 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
           <div className="flex flex-col gap-2">
             <LabeledField label="Shadow">
@@ -180,7 +181,7 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
             )}
           </div>
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

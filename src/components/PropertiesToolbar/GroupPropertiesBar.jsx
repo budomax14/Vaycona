@@ -13,6 +13,7 @@ import {
   Unlock,
 } from "lucide-react";
 import { IconButton, IconToggleButton, LabeledField, NumberField, SliderField, ToolbarDivider } from "./toolbarUi";
+import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import { computeCurrentGap, inferDistributeAxis } from "../../alignment";
 import ImageAssetPickerModal from "../ImageAssetPickerModal";
 
@@ -58,82 +59,105 @@ export default function GroupPropertiesBar({
 
   return (
     <>
-      <LabeledField label="Name" width={140}>
-        <input
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
-          value={item.name || "Group"}
-          maxLength={80}
-          onChange={(event) => onChange({ name: event.target.value })}
-        />
-      </LabeledField>
+      <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
+        <OverflowToolbar.Item keepOnMobile>
+          <LabeledField label="Name" width={140}>
+            <input
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
+              value={item.name || "Group"}
+              maxLength={80}
+              onChange={(event) => onChange({ name: event.target.value })}
+            />
+          </LabeledField>
+        </OverflowToolbar.Item>
 
-      <ToolbarDivider />
+        <OverflowToolbar.Item>
+          <>
+            <ToolbarDivider />
+            <NumberField label="X" value={Math.round(item.x)} onChange={(value) => onMoveBy(value - item.x, 0)} />
+            <NumberField label="Y" value={Math.round(item.y)} onChange={(value) => onMoveBy(0, value - item.y)} />
+            <NumberField label="Width" value={Math.round(item.width)} width={64} onChange={() => {}} />
+            <NumberField label="Height" value={Math.round(item.height)} width={64} onChange={() => {}} />
+          </>
+        </OverflowToolbar.Item>
 
-      <NumberField label="X" value={Math.round(item.x)} onChange={(value) => onMoveBy(value - item.x, 0)} />
-      <NumberField label="Y" value={Math.round(item.y)} onChange={(value) => onMoveBy(0, value - item.y)} />
-      <NumberField label="Width" value={Math.round(item.width)} width={64} onChange={() => {}} />
-      <NumberField label="Height" value={Math.round(item.height)} width={64} onChange={() => {}} />
+        <OverflowToolbar.Item>
+          <>
+            <ToolbarDivider />
+            <IconToggleButton
+              icon={item.locked ? Lock : Unlock}
+              active={!!item.locked}
+              onClick={onToggleLock}
+              title={item.locked ? "Unlock group" : "Lock group"}
+            />
+            <IconToggleButton
+              icon={item.hidden ? EyeOff : Eye}
+              active={!!item.hidden}
+              onClick={onToggleHidden}
+              title={item.hidden ? "Show group" : "Hide group"}
+            />
+            <IconButton icon={Copy} onClick={onDuplicate} title="Duplicate" aria-label="Duplicate" />
+            <IconButton icon={ArrowUp} onClick={onForward} title="Bring forward" aria-label="Bring forward" />
+            <IconButton icon={ArrowDown} onClick={onBackward} title="Send backward" aria-label="Send backward" />
+            <IconButton icon={Trash2} onClick={onDelete} title="Delete" aria-label="Delete" />
+          </>
+        </OverflowToolbar.Item>
 
-      <ToolbarDivider />
+        <OverflowToolbar.Item>
+          <>
+            <ToolbarDivider />
+            <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={onSetGroupOpacity} />
+          </>
+        </OverflowToolbar.Item>
 
-      <IconToggleButton
-        icon={item.locked ? Lock : Unlock}
-        active={!!item.locked}
-        onClick={onToggleLock}
-        title={item.locked ? "Unlock group" : "Lock group"}
-      />
-      <IconToggleButton
-        icon={item.hidden ? EyeOff : Eye}
-        active={!!item.hidden}
-        onClick={onToggleHidden}
-        title={item.hidden ? "Show group" : "Hide group"}
-      />
-      <IconButton icon={Copy} onClick={onDuplicate} title="Duplicate" aria-label="Duplicate" />
-      <IconButton icon={ArrowUp} onClick={onForward} title="Bring forward" aria-label="Bring forward" />
-      <IconButton icon={ArrowDown} onClick={onBackward} title="Send backward" aria-label="Send backward" />
-      <IconButton icon={Trash2} onClick={onDelete} title="Delete" aria-label="Delete" />
+        {canSpace && (
+          <OverflowToolbar.Item>
+            <>
+              <ToolbarDivider />
+              <NumberField
+                label="Gap"
+                value={gapValue != null ? Math.round(gapValue) : 0}
+                min={0}
+                width={64}
+                onChange={(value) => onDistributeChildren(spacingAxis, Math.max(0, value))}
+              />
+              <IconToggleButton
+                icon={Magnet}
+                active={!!item.lockSpacing}
+                onClick={onToggleLockSpacing}
+                title={item.lockSpacing ? "Unlock spacing" : "Lock spacing while resizing"}
+              />
+            </>
+          </OverflowToolbar.Item>
+        )}
 
-      <ToolbarDivider />
+        {canFillWithImage && (
+          <OverflowToolbar.Item>
+            <>
+              <ToolbarDivider />
+              <IconButton icon={ImageIcon} label="Fill with image" onClick={() => setIsPickerOpen(true)} />
+            </>
+          </OverflowToolbar.Item>
+        )}
 
-      <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={onSetGroupOpacity} />
-
-      {canSpace && (
-        <>
-          <ToolbarDivider />
-          <NumberField
-            label="Gap"
-            value={gapValue != null ? Math.round(gapValue) : 0}
-            min={0}
-            width={64}
-            onChange={(value) => onDistributeChildren(spacingAxis, Math.max(0, value))}
-          />
-          <IconToggleButton
-            icon={Magnet}
-            active={!!item.lockSpacing}
-            onClick={onToggleLockSpacing}
-            title={item.lockSpacing ? "Unlock spacing" : "Lock spacing while resizing"}
-          />
-        </>
-      )}
+        <OverflowToolbar.Item keepOnMobile>
+          <>
+            <ToolbarDivider />
+            <IconButton icon={UngroupIcon} label="Ungroup" onClick={onUngroup} />
+          </>
+        </OverflowToolbar.Item>
+      </OverflowToolbar>
 
       {canFillWithImage && (
-        <>
-          <ToolbarDivider />
-          <IconButton icon={ImageIcon} label="Fill with image" onClick={() => setIsPickerOpen(true)} />
-          <ImageAssetPickerModal
-            isOpen={isPickerOpen}
-            onClose={() => setIsPickerOpen(false)}
-            onPick={(assetId) => {
-              setIsPickerOpen(false);
-              onFillWithImage(assetId);
-            }}
-          />
-        </>
+        <ImageAssetPickerModal
+          isOpen={isPickerOpen}
+          onClose={() => setIsPickerOpen(false)}
+          onPick={(assetId) => {
+            setIsPickerOpen(false);
+            onFillWithImage(assetId);
+          }}
+        />
       )}
-
-      <ToolbarDivider />
-
-      <IconButton icon={UngroupIcon} label="Ungroup" onClick={onUngroup} />
     </>
   );
 }

@@ -1,8 +1,13 @@
 import React from "react";
-import { ArrowDown, ArrowUp, Copy, ImagePlus, Lock, Trash2, Unlock } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardCopy, ClipboardPaste, Copy, ImagePlus, Lock, Trash2, Unlock } from "lucide-react";
 import { contentToScreen } from "../viewport";
 
-const TOOLBAR_WIDTH = 328;
+// Bumped from 328 to fit the new Copy/Paste buttons (see App.jsx's
+// onCopy/onPaste props below) — the only deliberate desktop-visual change
+// in the mobile-responsiveness pass, needed because Copy/Paste previously
+// had no on-screen button anywhere (only reachable via the right-click
+// menu, which doesn't work via long-press on touch — see useLongPress.js).
+const TOOLBAR_WIDTH = 418;
 const TOOLBAR_HEIGHT = 50;
 // Large enough to clear the Transformer's rotate handle — both this GAP and
 // App.jsx's `rotateAnchorOffset` live in the same raw Konva-unit space
@@ -34,6 +39,8 @@ export default function SelectionToolbar({
   viewport,
   frameSize,
   isLocked,
+  onCopy,
+  onPaste,
   onDuplicate,
   onDelete,
   onForward,
@@ -52,6 +59,14 @@ export default function SelectionToolbar({
       {onOpenShapeFill && (
         <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenShapeFill} title="Shape fill">
           <ImagePlus size={24} />
+        </button>
+      )}
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onCopy} title="Copy (Cmd/Ctrl+C)">
+        <ClipboardCopy size={24} />
+      </button>
+      {onPaste && (
+        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onPaste} title="Paste (Cmd/Ctrl+V)">
+          <ClipboardPaste size={24} />
         </button>
       )}
       <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onDuplicate} title="Duplicate">

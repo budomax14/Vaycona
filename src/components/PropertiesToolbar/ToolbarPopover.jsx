@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { clampHorizontalShift, getViewportSize } from "../../clampToViewport";
 
 // PropertiesToolbar.jsx's row is `overflow-x-auto` — per the CSS overflow
 // spec, setting overflow-x to anything but `visible` forces overflow-y to
@@ -33,10 +34,7 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
     setShift(0);
     if (!rect || !popoverRef.current) return;
     const panelRect = popoverRef.current.getBoundingClientRect();
-    let adjust = 0;
-    if (panelRect.right > window.innerWidth - VIEWPORT_MARGIN) adjust = window.innerWidth - VIEWPORT_MARGIN - panelRect.right;
-    if (panelRect.left + adjust < VIEWPORT_MARGIN) adjust = VIEWPORT_MARGIN - panelRect.left;
-    setShift(adjust);
+    setShift(clampHorizontalShift(panelRect, VIEWPORT_MARGIN));
   }, [rect, align]);
 
   useEffect(() => {
@@ -94,7 +92,7 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
     zIndex: 60,
     transform: shift ? `translateX(${shift}px)` : undefined,
   };
-  if (align === "right") style.right = window.innerWidth - rect.right;
+  if (align === "right") style.right = getViewportSize().width - rect.right;
   else style.left = rect.left;
 
   return createPortal(

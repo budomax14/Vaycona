@@ -57,7 +57,7 @@ export default function ImportProjectDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="import-dialog-title"
-        className="flex w-full max-w-md flex-col rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <h2 id="import-dialog-title" className="text-base font-semibold text-gray-900">

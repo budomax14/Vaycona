@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { FlipHorizontal, FlipVertical, MoreHorizontal, RotateCcw, RotateCw } from "lucide-react";
 import { IconButton, IconToggleButton } from "./toolbarUi";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import ObjectTransformFields from "./ObjectTransformFields";
 import AnimateMenuItem from "./AnimateMenuItem";
 
@@ -34,7 +34,7 @@ export default function ObjectMoreMenu({
       <div ref={anchorRef} className="inline-flex">
         <IconButton icon={MoreHorizontal} label="More" onClick={() => setOpen((v) => !v)} active={open} />
       </div>
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-96 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
           {onToggleAnimationPanel && (
             <AnimateMenuItem
@@ -80,7 +80,7 @@ export default function ObjectMoreMenu({
             </Section>
           )}
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }
