@@ -193,6 +193,9 @@ export default function TopNavBar({
   onOpenVersionHistory,
   onOpenTemplateBrowser,
   onOpenSaveAsTemplate,
+  onSaveProject,
+  onSaveProjectAsNew,
+  hasSavedProject,
   onOpenBrandManager,
   onSaveSelectionAsSection,
   onSaveActivePageAsReusable,
@@ -281,6 +284,8 @@ export default function TopNavBar({
       <nav className="flex shrink-0 items-center gap-0.5 border-l border-gray-200 pl-2 md:pl-3">
         <MenuDropdown label={t.fileMenu}>
           <MenuItem label={t.newDesign} onClick={onOpenTemplateBrowser} />
+          <MenuItem label={hasSavedProject ? t.saveProject : t.saveProjectFirst} onClick={onSaveProject} />
+          {hasSavedProject && <MenuItem label={t.saveProjectAsNew} onClick={onSaveProjectAsNew} />}
           <MenuItem label={t.saveAsTemplate} onClick={onOpenSaveAsTemplate} />
           <MenuItem label={t.print} shortcut="Ctrl/Cmd+P" onClick={onPrint} />
           <MenuSubmenu label={t.exportAs}>

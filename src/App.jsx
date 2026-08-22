@@ -169,6 +169,16 @@ import {
   publishTemplate,
 } from "./templateService";
 import { subscribeToPublishedTemplates, getPublishedTemplateFromCloud } from "./firestoreTemplates";
+import {
+  createSavedProject,
+  updateSavedProject,
+  renameSavedProject,
+  deleteSavedProject,
+  listSavedProjectSummaries,
+  getSavedProjectById,
+  isSavedProjectShapeValid,
+} from "./savedProjectsService";
+import ProjectsPanel from "./components/LeftSidebar/panels/ProjectsPanel";
 import { cloneWorkspaceDataWithNewIds, cloneItemsForInsertion, cloneGuidesForPage, recenterItems } from "./idRemap";
 import TemplateBrowser from "./components/TemplateBrowser";
 import HomePage from "./components/HomePage";
@@ -563,6 +573,8 @@ function buildFallbackWorkspace() {
     snapToGuides: true,
     preferredUnit: undefined,
     presentationSettings: defaultPresentationSettings(),
+    projectName: null,
+    savedProjectId: null,
   };
 }
 
@@ -593,6 +605,8 @@ function normalizeParsedWorkspace(parsed) {
     snapToGuides: parsed.snapToGuides ?? true,
     preferredUnit: isSupportedUnit(parsed.preferredUnit) ? parsed.preferredUnit : undefined,
     presentationSettings: clampPresentationSettings(parsed.presentationSettings),
+    projectName: typeof parsed.projectName === "string" ? parsed.projectName : null,
+    savedProjectId: parsed.savedProjectId ?? null,
   };
 }
 
@@ -729,7 +743,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // label/timestamp/affected ids), a no-op guard, and a size limit — see
   // history.js.
   const [historyState, setHistoryState] = useState(() => createHistory(initialWorkspace.items, initialWorkspace.pages, initialWorkspace.guides));
-  const [projectName, setProjectName] = useState("My Design");
+  const [projectName, setProjectName] = useState(initialWorkspace.projectName || "My Design");
+  // Which entry in the personal "My Projects" store (savedProjectsService.js)
+  // the live workspace is currently linked to, if any — null means the
+  // workspace has never been saved as a named project (or was created via
+  // "New design"/a template, which never link one). Persisted through
+  // autosave/reload via buildCurrentProjectData/normalizeParsedWorkspace so
+  // "Save project" keeps updating the SAME record across sessions instead
+  // of silently starting a fresh one every reload.
+  const [savedProjectId, setSavedProjectId] = useState(initialWorkspace.savedProjectId ?? null);
+  const [savedProjects, setSavedProjects] = useState([]);
   const [status, setStatus] = useState("");
   // Centralized autosave's reported status (Phase 7B) — see autosaveRef
   // below, the single source of truth for what gets written to
@@ -820,6 +843,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   useEffect(() => {
     if (editorMode === "workspace") refreshTemplateLists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // "My Projects" (personal saved projects) is a workspace-only concept —
+  // an admin's template-draft session (editorMode:"template") never touches
+  // the personal saved-projects store, same guard as createRecoverySnapshotNow.
+  useEffect(() => {
+    if (editorMode === "workspace") refreshSavedProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -932,6 +963,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     document.documentElement.classList.toggle("touch-input", hasCoarsePointer);
   }, [hasCoarsePointer]);
 
+
   // Inline text-edit mode — parallel to selectedIds (the item stays
   // selected while its edit-mode id is set), see enterTextEdit/exitTextEdit.
   const [editingTextId, setEditingTextId] = useState(null);
@@ -1017,6 +1049,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const editingTableIdRef = useRef(editingTableId);
   const tableCellSelectionRef = useRef(tableCellSelection);
   const interactionModeRef = useRef(interactionMode);
+  const projectNameRef = useRef(projectName);
+  const savedProjectIdRef = useRef(savedProjectId);
   // Mirrors historyState, but also updated SYNCHRONOUSLY by commit/
   // commitPages/commitBoth/undo/redo (not just after render, like the
   // mirrors above) — needed so a flush-then-undo happening in the same
@@ -1028,6 +1062,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   pagesRef.current = pages;
   activePageRef.current = activePage;
   activePageIdRef.current = activePageId;
+  projectNameRef.current = projectName;
+  savedProjectIdRef.current = savedProjectId;
   guidesRef.current = guides;
   snapToGuidesRef.current = snapToGuides;
   preferredUnitRef.current = preferredUnit;
@@ -1239,6 +1275,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
       snapToGuides: snapToGuidesRef.current,
       preferredUnit: preferredUnitRef.current,
       presentationSettings: presentationSettingsRef.current,
+      projectName: projectNameRef.current,
+      savedProjectId: savedProjectIdRef.current,
     };
   }
 
@@ -1436,14 +1474,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   async function findUnusedAssetIds() {
-    const [allAssets, recoverySummaries, versionSummaries] = await Promise.all([
+    const [allAssets, recoverySummaries, versionSummaries, savedProjectSummaries] = await Promise.all([
       listAssets(),
       listSnapshotSummaries(),
       listVersionSummaries(),
+      editorMode === "workspace" ? listSavedProjectSummaries() : Promise.resolve([]),
     ]);
     const referenced = new Set(usedAssetIdsFrom(itemsRef.current));
     recoverySummaries.forEach((s) => (s.assetIds || []).forEach((id) => referenced.add(id)));
     versionSummaries.forEach((v) => (v.assetIds || []).forEach((id) => referenced.add(id)));
+    // Assets used by a saved project that isn't the one currently open
+    // (spec-equivalent of the two lines above) — otherwise "Delete unused
+    // assets" could silently break images in every OTHER saved project.
+    savedProjectSummaries.forEach((p) => (p.assetIds || []).forEach((id) => referenced.add(id)));
     return allAssets.filter((asset) => !referenced.has(asset.id));
   }
 
@@ -1568,12 +1611,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // — used by both blank-design creation and create-project-from-template,
   // matching the safety pattern project import's replace/open-as-new
   // already uses (flush, protect, fresh workspace identity, fresh history).
-  async function replaceWorkspaceWith(data, { projectName: nextProjectName }) {
+  async function replaceWorkspaceWith(data, { projectName: nextProjectName, savedProjectId: nextSavedProjectId } = {}) {
     autosaveRef.current.flush();
     await createRecoverySnapshotNow("before-replacement", true);
     resetWorkspaceId();
-    loadWorkspaceDataIntoEditor(data);
+    loadWorkspaceDataIntoEditor(data, { savedProjectId: nextSavedProjectId });
     setProjectName(nextProjectName);
+    projectNameRef.current = nextProjectName;
     autosaveRef.current.markDirty();
     autosaveRef.current.saveNow();
     return autosaveRef.current.getStatus();
@@ -1716,6 +1760,162 @@ export default function App({ editorMode = "workspace", templateSession = null }
       // this whole function — a failure here can't affect it either.
       setSaveTemplateError(`Could not save template: ${err?.message || "storage error"}.`);
     }
+  }
+
+  // --- Personal "My Projects" (savedProjectsService.js) ---
+  // Private, per-browser saved projects — separate from "Save as template"
+  // above (kind:"project" templates are shareable/published to every user
+  // via Firestore; a saved project here never leaves this browser). Shown
+  // in LeftSidebar's Projects panel.
+
+  async function refreshSavedProjects() {
+    setSavedProjects(await listSavedProjectSummaries());
+  }
+
+  // Updates the linked saved project in place, or — the first time a
+  // workspace is saved — asks for a name and creates one, linking the live
+  // workspace to it (see savedProjectIdRef/buildCurrentProjectData).
+  async function handleSaveProject() {
+    autosaveRef.current.flush();
+    const data = buildCurrentProjectData();
+    const report = validateProject(data);
+    if (report.status === "fatal") {
+      setStatus("This project has an issue and can't be saved right now.");
+      window.setTimeout(() => setStatus(""), 3000);
+      return;
+    }
+    const assetIds = usedAssetIdsFrom(data.items);
+    let thumbnail = null;
+    try {
+      thumbnail = captureStagePng();
+    } catch {
+      // Thumbnail is best-effort, same as handleSaveAsTemplate above.
+    }
+
+    const existing = savedProjectIdRef.current ? await getSavedProjectById(savedProjectIdRef.current) : null;
+    if (existing) {
+      await updateSavedProject(existing.id, {
+        data,
+        assetIds,
+        thumbnail,
+        pageCount: data.pages.length,
+        objectCount: data.items.length,
+      });
+      setStatus(`"${existing.name}" saved.`);
+      window.setTimeout(() => setStatus(""), 2500);
+      refreshSavedProjects();
+      return;
+    }
+
+    const name = window.prompt("Name this project:", projectName || "My Design");
+    if (!name || !name.trim()) return;
+    const created = await createSavedProject({
+      name: name.trim(),
+      data,
+      assetIds,
+      thumbnail,
+      pageCount: data.pages.length,
+      objectCount: data.items.length,
+    });
+    savedProjectIdRef.current = created.id;
+    setSavedProjectId(created.id);
+    projectNameRef.current = created.name;
+    setProjectName(created.name);
+    autosaveRef.current.markDirty();
+    autosaveRef.current.saveNow();
+    setStatus(`"${created.name}" saved to My Projects.`);
+    window.setTimeout(() => setStatus(""), 2500);
+    refreshSavedProjects();
+  }
+
+  // Always creates a fresh record (never updates the linked one) and
+  // re-links the live workspace to the new copy — mirrors a normal
+  // file browser's "Save As."
+  async function handleSaveProjectAsNew() {
+    autosaveRef.current.flush();
+    const data = buildCurrentProjectData();
+    const report = validateProject(data);
+    if (report.status === "fatal") {
+      setStatus("This project has an issue and can't be saved right now.");
+      window.setTimeout(() => setStatus(""), 3000);
+      return;
+    }
+    const name = window.prompt("Name this new project:", projectName || "My Design");
+    if (!name || !name.trim()) return;
+    const assetIds = usedAssetIdsFrom(data.items);
+    let thumbnail = null;
+    try {
+      thumbnail = captureStagePng();
+    } catch {
+      // best-effort
+    }
+    const created = await createSavedProject({
+      name: name.trim(),
+      data,
+      assetIds,
+      thumbnail,
+      pageCount: data.pages.length,
+      objectCount: data.items.length,
+    });
+    savedProjectIdRef.current = created.id;
+    setSavedProjectId(created.id);
+    projectNameRef.current = created.name;
+    setProjectName(created.name);
+    autosaveRef.current.markDirty();
+    autosaveRef.current.saveNow();
+    setStatus(`Saved as new project "${created.name}".`);
+    window.setTimeout(() => setStatus(""), 2500);
+    refreshSavedProjects();
+  }
+
+  async function handleOpenSavedProject(id) {
+    const record = await getSavedProjectById(id);
+    if (!record || !isSavedProjectShapeValid(record)) {
+      setStatus("That project could not be validated and was skipped.");
+      window.setTimeout(() => setStatus(""), 3000);
+      return;
+    }
+    const report = validateProject(record.data);
+    if (report.status === "fatal") {
+      setStatus("This project's data is invalid and can't be opened.");
+      window.setTimeout(() => setStatus(""), 3000);
+      return;
+    }
+    const safeData = report.repairs.length > 0 ? repairProject(record.data) : record.data;
+    const normalized = normalizeParsedWorkspace(safeData);
+    if (!normalized) {
+      setStatus("This project's data could not be loaded.");
+      window.setTimeout(() => setStatus(""), 3000);
+      return;
+    }
+    const result = await replaceWorkspaceWith(normalized, { projectName: record.name, savedProjectId: record.id });
+    setActiveSidebarSection(null);
+    setStatus(result.status === SAVE_STATUS.SAVED ? `Opened "${record.name}".` : "Opened, but saving failed.");
+    window.setTimeout(() => setStatus(""), 3000);
+  }
+
+  async function handleRenameSavedProjectAction(id, name) {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return;
+    await renameSavedProject(id, trimmed);
+    if (savedProjectIdRef.current === id) {
+      projectNameRef.current = trimmed;
+      setProjectName(trimmed);
+    }
+    refreshSavedProjects();
+  }
+
+  async function handleDeleteSavedProjectAction(id) {
+    const target = savedProjects.find((p) => p.id === id);
+    if (!window.confirm(`Delete "${target?.name || "this project"}"? This cannot be undone.`)) return;
+    await deleteSavedProject(id);
+    if (savedProjectIdRef.current === id) {
+      savedProjectIdRef.current = null;
+      setSavedProjectId(null);
+      autosaveRef.current.markDirty();
+      autosaveRef.current.saveNow();
+    }
+    refreshSavedProjects();
   }
 
   // --- Template Management Admin: template-editor save/publish/preview/cancel ---
@@ -1919,7 +2119,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // live document — shared by recovery restore, project import, and
   // version restore, so the exact same "replace everything, fresh
   // history, mark unsaved" sequence can't drift apart between them.
-  function loadWorkspaceDataIntoEditor(normalized) {
+  // `savedProjectId` override: explicit callers (opening a saved project)
+  // pass the target record's id directly rather than relying on whatever
+  // `normalized.savedProjectId` happens to carry — a saved project's stored
+  // `data` payload was captured at SAVE time and may itself be stale/null,
+  // while the record's own `id` is always the source of truth for "what
+  // will Save-project update now."
+  function loadWorkspaceDataIntoEditor(normalized, { savedProjectId: savedProjectIdOverride } = {}) {
+    const nextSavedProjectId = savedProjectIdOverride !== undefined ? savedProjectIdOverride : normalized.savedProjectId ?? null;
+    setSavedProjectId(nextSavedProjectId);
+    savedProjectIdRef.current = nextSavedProjectId;
     setPages(normalized.pages);
     pagesRef.current = normalized.pages;
     setItems(normalized.items);
@@ -6911,6 +7120,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onOpenVersionHistory={openVersionHistory}
         onOpenTemplateBrowser={openTemplateBrowser}
         onOpenSaveAsTemplate={openSaveAsTemplateDialog}
+        onSaveProject={handleSaveProject}
+        onSaveProjectAsNew={handleSaveProjectAsNew}
+        hasSavedProject={Boolean(savedProjectId)}
         onOpenBrandManager={() => setIsBrandManagerOpen(true)}
         onSaveSelectionAsSection={saveSelectionAsReusableSection}
         onSaveActivePageAsReusable={() => savePageAsReusable(activePageId)}
@@ -7208,10 +7420,24 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onApplyTransitionToAll={applyTransitionToAllPages}
             />
           )}
+          {activeSidebarSection === "projects" && editorMode === "workspace" && (
+            <ProjectsPanel
+              projects={savedProjects}
+              activeProjectId={savedProjectId}
+              onSaveProject={handleSaveProject}
+              onSaveProjectAsNew={handleSaveProjectAsNew}
+              onOpen={handleOpenSavedProject}
+              onRename={handleRenameSavedProjectAction}
+              onDelete={handleDeleteSavedProjectAction}
+            />
+          )}
           {activeSidebarSection &&
             !["uploads", "text", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand"].includes(
               activeSidebarSection
-            ) && <ComingSoonPanel title={SECTIONS.find((section) => section.key === activeSidebarSection)?.label} />}
+            ) &&
+            !(activeSidebarSection === "projects" && editorMode === "workspace") && (
+              <ComingSoonPanel title={SECTIONS.find((section) => section.key === activeSidebarSection)?.label} />
+            )}
         </LeftSidebar>
 
         <div className="relative flex flex-1 flex-col overflow-hidden">
