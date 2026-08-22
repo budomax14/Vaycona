@@ -6807,6 +6807,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     ? () => setShapeFillOpenRequest((n) => n + 1)
                     : undefined
                 }
+                onOpenContextMenu={
+                  hasCoarsePointer && selectedIds.length > 0
+                    ? () => handleItemContextMenu(selectedIds[0], { metaKey: false, ctrlKey: false, clientX: 0, clientY: 0 })
+                    : undefined
+                }
               />
             )}
 
@@ -7339,7 +7344,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
               items={items}
               pages={pages}
               onOpenManager={() => setIsBrandManagerOpen(true)}
-              onInsertLogo={insertBrandLogo}
+              onInsertLogo={addAndCloseIfCompact(insertBrandLogo)}
               onUploadLogo={uploadLogoToBrandKit}
               onApplyTypography={(styleId) => applyTypographyStyleToSelection(selectedItems[0]?.id, styleId)}
               onCreateTypographyFromSelection={() => createTypographyStyleFromSelection(selectedItems[0]?.id)}

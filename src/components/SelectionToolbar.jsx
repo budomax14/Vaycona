@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowDown, ArrowUp, ClipboardCopy, ClipboardPaste, Copy, ImagePlus, Lock, Trash2, Unlock } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardCopy, ClipboardPaste, Copy, ImagePlus, Lock, MoreVertical, Trash2, Unlock } from "lucide-react";
 import { contentToScreen } from "../viewport";
 
 // Bumped from 328 to fit the new Copy/Paste buttons (see App.jsx's
@@ -7,7 +7,10 @@ import { contentToScreen } from "../viewport";
 // in the mobile-responsiveness pass, needed because Copy/Paste previously
 // had no on-screen button anywhere (only reachable via the right-click
 // menu, which doesn't work via long-press on touch — see useLongPress.js).
-const TOOLBAR_WIDTH = 418;
+// Bumped again for the touch-only "more options" button (onOpenContextMenu)
+// that opens the full ContextMenu — the sole way to reach it on touch now
+// that DesignNode.jsx no longer has a double-tap gesture for it.
+const TOOLBAR_WIDTH = 418 + 48;
 const TOOLBAR_HEIGHT = 50;
 // Large enough to clear the Transformer's rotate handle — both this GAP and
 // App.jsx's `rotateAnchorOffset` live in the same raw Konva-unit space
@@ -47,6 +50,7 @@ export default function SelectionToolbar({
   onBackward,
   onToggleLock,
   onOpenShapeFill,
+  onOpenContextMenu,
 }) {
   if (!selectionBoundsContent) return null;
   const { left, top } = getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize);
@@ -88,6 +92,11 @@ export default function SelectionToolbar({
       <button className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={onDelete} title="Delete">
         <Trash2 size={24} />
       </button>
+      {onOpenContextMenu && (
+        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenContextMenu} title="More options">
+          <MoreVertical size={24} />
+        </button>
+      )}
     </div>
   );
 }

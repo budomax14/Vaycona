@@ -1,13 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import { getRenderer } from "./objectRegistry";
-import { usePointerCapability } from "./usePointerCapability";
-
-// A second tap arriving faster than this still counts as the existing
-// rapid double-tap (onDblTap below — enters text edit / drills into a
-// group), left completely alone. Only a slower, more deliberate second
-// tap — still within TAP_MENU_MAX_GAP_MS — opens the context menu instead.
-const TAP_MENU_MIN_GAP_MS = 400;
-const TAP_MENU_MAX_GAP_MS = 2000;
 
 function DesignNode({
   item,
@@ -24,26 +16,9 @@ function DesignNode({
   registerNode,
 }) {
   const shapeRef = useRef(null);
-  const { hasCoarsePointer } = usePointerCapability();
-  const lastTapAtRef = useRef(0);
 
-  // Touch/pen equivalent of the onContextMenu wired below — a native
-  // `contextmenu` event doesn't reliably fire from any touch gesture on a
-  // Konva canvas, so tapping the object twice (400ms-2s apart) is the only
-  // way to reach the (right-click) context menu on a touch device. No-ops
-  // on a real mouse (hasCoarsePointer gates it, a device capability, not
-  // viewport width).
-  function handleTap(event) {
+  function handleTap() {
     onSelect(item.id, { additive: false });
-    if (!hasCoarsePointer) return;
-    const now = Date.now();
-    const gap = now - lastTapAtRef.current;
-    if (gap >= TAP_MENU_MIN_GAP_MS && gap <= TAP_MENU_MAX_GAP_MS) {
-      lastTapAtRef.current = 0;
-      onContextMenu(item.id, { clientX: event.evt.clientX, clientY: event.evt.clientY, metaKey: false, ctrlKey: false });
-    } else {
-      lastTapAtRef.current = now;
-    }
   }
 
   // isEditingText is a dependency here (not just item.id/registerNode)
