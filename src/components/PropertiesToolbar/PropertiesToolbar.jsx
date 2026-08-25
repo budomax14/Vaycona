@@ -52,6 +52,7 @@ export default function PropertiesToolbar({
   tableEdit,
   onApplyFormat,
   onApplyListFormat,
+  activeListType,
   onCopyTextStyle,
   onPasteTextStyle,
   hasCopiedTextStyle,
@@ -221,8 +222,21 @@ export default function PropertiesToolbar({
         <Bar
           {...transformProps}
           onChange={(changes) => {
-            if (changes.width !== undefined && changes.height === undefined && textUsesAutoHeight(single)) {
-              changes = { ...changes, height: measureAutoHeight({ ...single, width: changes.width }, ensureRichText(single)) };
+            // Anything that can change how the text wraps (box width, or —
+            // via TextMoreMenu's Spacing/Case sections — line height,
+            // letter spacing, paragraph spacing, text-transform) needs an
+            // auto-height box to grow/shrink to match, the same way typing
+            // already does. fontSize/bold/italic/fontFamily route through
+            // onApplyFormat instead (see App.jsx's applyTextFormat, which
+            // does its own equivalent recompute).
+            const heightAffectingFields = ["width", "lineHeight", "letterSpacing", "paragraphSpacing", "textTransform"];
+            if (
+              changes.height === undefined &&
+              textUsesAutoHeight(single) &&
+              heightAffectingFields.some((field) => changes[field] !== undefined)
+            ) {
+              const nextItem = { ...single, ...changes };
+              changes = { ...changes, height: measureAutoHeight(nextItem, ensureRichText(nextItem)) };
             }
             onUpdateItem(single.id, changes);
           }}
@@ -249,6 +263,7 @@ export default function PropertiesToolbar({
           }
           onApplyFormat={single.type === "text" ? (key, value) => onApplyFormat(single.id, key, value) : undefined}
           onApplyListFormat={single.type === "text" ? (listType) => onApplyListFormat(single.id, listType) : undefined}
+          activeListType={single.type === "text" ? activeListType : undefined}
           onCopyTextStyle={single.type === "text" ? () => onCopyTextStyle(single.id) : undefined}
           onPasteTextStyle={single.type === "text" ? () => onPasteTextStyle(single.id) : undefined}
           hasCopiedTextStyle={hasCopiedTextStyle}

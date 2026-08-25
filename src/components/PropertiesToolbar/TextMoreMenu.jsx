@@ -118,11 +118,16 @@ export default function TextMoreMenu({
             <IconToggleButton icon={Strikethrough} active={!!item.strikethrough} onClick={() => onApplyFormat("strikethrough")} title="Strikethrough" />
           </Section>
 
-          <Section title="Vertical align">
-            <IconToggleButton icon={AlignStartHorizontal} active={item.verticalAlign === "top"} onClick={() => onChange({ verticalAlign: "top" })} title="Top" />
-            <IconToggleButton icon={AlignCenterHorizontal} active={(item.verticalAlign || "middle") === "middle"} onClick={() => onChange({ verticalAlign: "middle" })} title="Middle" />
-            <IconToggleButton icon={AlignEndHorizontal} active={item.verticalAlign === "bottom"} onClick={() => onChange({ verticalAlign: "bottom" })} title="Bottom" />
-          </Section>
+          {/* CurvedTextNode always centers arc text both ways and never
+              reads verticalAlign — showing this control for curved text
+              would let it look "active" while doing nothing. */}
+          {!item.curve && (
+            <Section title="Vertical align">
+              <IconToggleButton icon={AlignStartHorizontal} active={item.verticalAlign === "top"} onClick={() => onChange({ verticalAlign: "top" })} title="Top" />
+              <IconToggleButton icon={AlignCenterHorizontal} active={(item.verticalAlign || "middle") === "middle"} onClick={() => onChange({ verticalAlign: "middle" })} title="Middle" />
+              <IconToggleButton icon={AlignEndHorizontal} active={item.verticalAlign === "bottom"} onClick={() => onChange({ verticalAlign: "bottom" })} title="Bottom" />
+            </Section>
+          )}
 
           <Section title="Spacing (× font size / px)">
             <NumberField label="Line height" value={item.lineHeight ?? 1} step={0.1} min={0.5} max={3} onChange={(v) => onChange({ lineHeight: v })} />

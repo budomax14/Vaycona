@@ -10,7 +10,7 @@ import ToolbarPopover from "./ToolbarPopover";
 // applyTextListFormat in App.jsx). Opens via ToolbarPopover (portalled) —
 // PropertiesToolbar's row clips ordinary anchored dropdowns, see that
 // component's comment.
-export default function TextListMenu({ onApplyListFormat }) {
+export default function TextListMenu({ onApplyListFormat, activeListType }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
 
@@ -21,9 +21,11 @@ export default function TextListMenu({ onApplyListFormat }) {
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-max items-center gap-1 rounded-xl border border-gray-200 bg-white p-2 shadow-lg" data-text-toolbar-safe>
-          <IconToggleButton icon={List} active={false} onClick={() => onApplyListFormat("bullet")} title="Bulleted list" />
-          <IconToggleButton icon={ListOrdered} active={false} onClick={() => onApplyListFormat("numbered")} title="Numbered list" />
+          <IconToggleButton icon={List} active={activeListType === "bullet"} onClick={() => onApplyListFormat("bullet")} title="Bulleted list" />
+          <IconToggleButton icon={ListOrdered} active={activeListType === "numbered"} onClick={() => onApplyListFormat("numbered")} title="Numbered list" />
           <div className="mx-0.5 h-6 w-px bg-gray-200" />
+          {/* Indent/outdent are momentary nudges, not a persistent toggle
+              state, so they never show "active" — same as before. */}
           <IconToggleButton icon={Outdent} active={false} onClick={() => onApplyListFormat("outdent")} title="Decrease indent" />
           <IconToggleButton icon={Indent} active={false} onClick={() => onApplyListFormat("indent")} title="Increase indent" />
         </div>

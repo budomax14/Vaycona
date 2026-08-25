@@ -34,6 +34,7 @@ export default function TextPropertiesBar({
   onEditText,
   onApplyFormat,
   onApplyListFormat,
+  activeListType,
   onCopyTextStyle,
   onPasteTextStyle,
   hasCopiedTextStyle,
@@ -115,12 +116,14 @@ export default function TextPropertiesBar({
           </>
         </OverflowToolbar.Item>
 
-        <OverflowToolbar.Item>
-          <>
-            <ToolbarDivider />
-            <TextAlignMenu item={item} onChange={onChange} />
-          </>
-        </OverflowToolbar.Item>
+        {!item.curve && (
+          <OverflowToolbar.Item>
+            <>
+              <ToolbarDivider />
+              <TextAlignMenu item={item} onChange={onChange} />
+            </>
+          </OverflowToolbar.Item>
+        )}
 
         <OverflowToolbar.Item>
           <>
@@ -132,7 +135,7 @@ export default function TextPropertiesBar({
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <TextListMenu onApplyListFormat={onApplyListFormat} />
+            <TextListMenu onApplyListFormat={onApplyListFormat} activeListType={activeListType} />
             <TextEffectsMenu item={item} onChange={onChange} onApplyFormat={onApplyFormat} />
             <Text3DMenu item={item} onChange={onChange} />
             <TextCurveMenu item={item} onChange={onChange} />

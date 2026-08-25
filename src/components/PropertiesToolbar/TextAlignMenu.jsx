@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight } from "lucide-react";
 import { IconButton, IconToggleButton } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
+import { isRichText } from "../../richText";
 
 const ALIGN_ICONS = { left: AlignLeft, center: AlignCenter, right: AlignRight, justify: AlignJustify };
 
@@ -15,6 +16,11 @@ export default function TextAlignMenu({ item, onChange }) {
   const anchorRef = useRef(null);
   const current = item.align || "left";
   const CurrentIcon = ALIGN_ICONS[current] || AlignLeft;
+  // RichTextNode's custom layout doesn't implement justify yet — it draws
+  // it identically to left (see alignOffset's comment in RichTextNode.jsx)
+  // — so offering it as a selectable, "active"-looking option on rich-
+  // formatted/list text would be visibly misleading.
+  const justifyUnsupported = isRichText(item);
 
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
@@ -26,7 +32,13 @@ export default function TextAlignMenu({ item, onChange }) {
           <IconToggleButton icon={AlignLeft} active={current === "left"} onClick={() => onChange({ align: "left" })} title="Align left" />
           <IconToggleButton icon={AlignCenter} active={current === "center"} onClick={() => onChange({ align: "center" })} title="Align center" />
           <IconToggleButton icon={AlignRight} active={current === "right"} onClick={() => onChange({ align: "right" })} title="Align right" />
-          <IconToggleButton icon={AlignJustify} active={current === "justify"} onClick={() => onChange({ align: "justify" })} title="Justify" />
+          <IconToggleButton
+            icon={AlignJustify}
+            active={current === "justify" && !justifyUnsupported}
+            disabled={justifyUnsupported}
+            onClick={() => onChange({ align: "justify" })}
+            title={justifyUnsupported ? "Justify isn't supported on rich-formatted text yet" : "Justify"}
+          />
         </div>
       </ToolbarPopover>
     </div>

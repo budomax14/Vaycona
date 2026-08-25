@@ -991,6 +991,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Inline text-edit mode — parallel to selectedIds (the item stays
   // selected while its edit-mode id is set), see enterTextEdit/exitTextEdit.
   const [editingTextId, setEditingTextId] = useState(null);
+  // Which list type (bullet/numbered/null) the text caret currently sits
+  // inside, kept in sync by TextEditOverlay while editing — backs
+  // TextListMenu's active-state indicator (see onSelectionListStateChange
+  // below); reset whenever edit mode isn't active so a stale value never
+  // lingers once the overlay unmounts.
+  const [activeListType, setActiveListType] = useState(null);
   const pendingCaretPointRef = useRef(null);
   const overlayRef = useRef(null);
   const [copiedTextStyle, setCopiedTextStyle] = useState(null);
@@ -3250,6 +3256,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (!editingTextId) return;
     overlayRef.current?.flush();
     setEditingTextId(null);
+    setActiveListType(null);
   }
 
   // Auto-grow-height applies to the common "auto-height" box (also the
@@ -3939,7 +3946,32 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (styleKey === "bold" && value === undefined) nextValue = item.fontWeight === "bold" ? "normal" : "bold";
     else if (["italic", "underline", "strikethrough"].includes(styleKey) && value === undefined) nextValue = !item[field];
     else if (styleKey === "bold") nextValue = value ? "bold" : "normal";
-    updateItem(itemId, { [field]: nextValue }, true, { type: "text-format", label: "Format text", itemIds: [itemId] });
+
+    const updates = { [field]: nextValue };
+    // A whole-object formatting command from the toolbar (not actively
+    // editing) needs to apply uniformly even on a box that already has
+    // divergent per-run richText (e.g. one word was bolded earlier while
+    // editing) — otherwise RichTextNode keeps rendering the old per-run
+    // mix while the flat field (and the toolbar's own toggle state) says
+    // something else, i.e. the click has no visible effect at all.
+    if (Array.isArray(item.richText) && item.richText.length) {
+      const runValue = styleKey === "bold" ? nextValue === "bold" : nextValue;
+      updates.richText = item.richText.map((p) => ({
+        ...p,
+        runs: p.runs.map((r) => (r.break ? r : { ...r, [styleKey]: runValue })),
+      }));
+    }
+    // fontSize/fontFamily/bold/italic can change how the text wraps
+    // (glyph metrics feed layoutRichText's measurement) — an auto-height
+    // box needs to grow/shrink to match, same as it already does for a
+    // live-typing edit or a width-drag resize (see textUsesAutoHeight's
+    // other call sites). underline/strikethrough/color never affect
+    // layout, so they're deliberately excluded.
+    if (["fontSize", "fontFamily", "bold", "italic"].includes(styleKey) && textUsesAutoHeight(item)) {
+      const nextItem = { ...item, ...updates };
+      updates.height = measureAutoHeight(nextItem, ensureRichText(nextItem));
+    }
+    updateItem(itemId, updates, true, { type: "text-format", label: "Format text", itemIds: [itemId] });
   }
 
   function applyTextListFormat(itemId, listType) {
@@ -3994,7 +4026,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       const plain = plainTextOf(ensureRichText(item));
       updateItem(
         itemId,
-        { text: plain, richText: undefined, fontWeight: "normal", italic: false, underline: false },
+        { text: plain, richText: undefined, fontWeight: "normal", italic: false, underline: false, strikethrough: false },
         true,
         { type: "text-format", label: "Clear text formatting", itemIds: [itemId] }
       );
@@ -4003,7 +4035,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     }
     updateItem(
       itemId,
-      { richText: undefined, fontWeight: "normal", italic: false, underline: false },
+      { richText: undefined, fontWeight: "normal", italic: false, underline: false, strikethrough: false },
       true,
       { type: "text-format", label: "Clear text formatting", itemIds: [itemId] }
     );
@@ -6958,6 +6990,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     onRequestExit={exitTextEdit}
                     onMoveLiveChange={moveEditingTextLive}
                     onMoveCommit={commitEditingTextMove}
+                    onSelectionListStateChange={setActiveListType}
                   />
                 );
               })()}
@@ -7288,6 +7321,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         tableEdit={tableEdit}
         onApplyFormat={applyTextFormat}
         onApplyListFormat={applyTextListFormat}
+        activeListType={activeListType}
         onCopyTextStyle={copyTextStyle}
         onPasteTextStyle={pasteTextStyle}
         hasCopiedTextStyle={!!copiedTextStyle}

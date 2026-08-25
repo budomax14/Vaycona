@@ -126,6 +126,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     onRequestExit,
     onMoveLiveChange,
     onMoveCommit,
+    onSelectionListStateChange,
   },
   ref
 ) {
@@ -225,6 +226,28 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reports which list type (bullet/numbered/none) the caret currently
+  // sits inside, so TextListMenu's toggle buttons can show accurate
+  // active state instead of always reading as "off" — see toggleList's
+  // own <li>/<ol>/<ul> shape below, which this mirrors read-only.
+  // document-level "selectionchange" (rather than only reacting to this
+  // component's own edits) is what catches the common case of just
+  // clicking around inside already-listed text with no typing involved.
+  useEffect(() => {
+    if (!onSelectionListStateChange) return undefined;
+    function handleSelectionChange() {
+      const root = rootRef.current;
+      const sel = window.getSelection();
+      if (!root || !sel?.anchorNode || !root.contains(sel.anchorNode)) return;
+      const container = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+      const list = container?.closest("li")?.closest("ol,ul");
+      onSelectionListStateChange(list ? (list.tagName === "OL" ? "numbered" : "bullet") : null);
+    }
+    document.addEventListener("selectionchange", handleSelectionChange);
+    handleSelectionChange();
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [onSelectionListStateChange]);
+
   function handleInput(event) {
     if (isComposingRef.current) return;
     serializeAndSync();
@@ -311,11 +334,21 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   function applyFormat(styleKey, explicitValue) {
     const root = rootRef.current;
     const sel = window.getSelection();
-    if (!root || !sel || sel.rangeCount === 0 || sel.isCollapsed) return;
-    const range = sel.getRangeAt(0);
-    if (!root.contains(range.commonAncestorContainer)) return;
+    if (!root || !sel || sel.rangeCount === 0) return;
+    if (!root.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
 
-    const offsets = getCharacterOffsets(root, range);
+    // A collapsed selection (just a caret, nothing highlighted) has no
+    // "style the next typed character" state machine in this direct-DOM
+    // implementation — rather than doing nothing (the previous, silently
+    // broken behavior for the very common "click in, then click Bold"
+    // flow), fall back to formatting the whole box and restore the caret
+    // to its original spot afterward so typing continues right there.
+    const isCollapsed = sel.isCollapsed;
+    const caretOffsets = isCollapsed ? getCharacterOffsets(root, sel.getRangeAt(0)) : null;
+    const range = isCollapsed ? document.createRange() : sel.getRangeAt(0);
+    if (isCollapsed) range.selectNodeContents(root);
+
+    const offsets = isCollapsed ? caretOffsets : getCharacterOffsets(root, range);
 
     // Split boundary text nodes so the range's start/end line up exactly
     // with node edges before extracting — required for extractContents()
@@ -333,13 +366,24 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     // eslint-disable-next-line no-cond-assign
     while ((n = walker.nextNode())) textNodes.push(n);
 
+    const isBooleanToggle = ["bold", "italic", "underline", "strikethrough"].includes(styleKey);
+    // For a toggle command with no explicit value, decide ONE target state
+    // for the whole selection up front — turn it on unless every run in
+    // the selection already has it (in which case turn it off) — rather
+    // than inverting each run independently, which scrambles a mixed
+    // selection (part bold, part not) instead of normalizing it.
+    const toggleTarget =
+      explicitValue === undefined && isBooleanToggle
+        ? !textNodes.every((textNode) => collectRunStyleAt(textNode.parentElement)[styleKey])
+        : undefined;
+
     textNodes.forEach((textNode) => {
       const current = collectRunStyleAt(textNode.parentElement);
       const next = { ...current };
       if (explicitValue !== undefined) {
         next[styleKey] = explicitValue;
-      } else if (styleKey === "bold" || styleKey === "italic" || styleKey === "underline" || styleKey === "strikethrough") {
-        next[styleKey] = !current[styleKey];
+      } else if (isBooleanToggle) {
+        next[styleKey] = toggleTarget;
       } else {
         next[styleKey] = explicitValue;
       }
