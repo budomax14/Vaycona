@@ -18,5 +18,15 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false;
     }
+
+    // Metadata for a user's own uploaded images (see
+    // src/cloudAssetStorage.js) — the bytes live in Firebase Storage at
+    // userUploads/{uid}/{assetId} (see storage.rules); this doc just
+    // records the download URL + dimensions/size/etc so it can be found
+    // again after this browser's local IndexedDB cache is cleared. Only
+    // the uploader can read or write their own asset docs.
+    match /users/{uid}/assets/{assetId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

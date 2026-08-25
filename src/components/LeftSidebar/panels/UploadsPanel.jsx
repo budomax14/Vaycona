@@ -26,8 +26,11 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
   async function handleFiles(files) {
     for (const file of Array.from(files)) {
       const localId = crypto.randomUUID();
-      setPending((prev) => [{ localId, name: file.name, status: "uploading", errorMessage: null }, ...prev]);
-      const result = await onUploadFile(file);
+      setPending((prev) => [{ localId, name: file.name, status: "uploading", errorMessage: null, progress: 0 }, ...prev]);
+      const result = await onUploadFile(file, {
+        onProgress: (fraction) =>
+          setPending((prev) => prev.map((p) => (p.localId === localId ? { ...p, progress: fraction } : p))),
+      });
       setPending((prev) => {
         if (result?.status === "error") {
           return prev.map((p) => (p.localId === localId ? { ...p, status: "error", errorMessage: result.errorMessage } : p));
@@ -109,7 +112,11 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
           {pending.map((p) => (
             <div key={p.localId} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${p.status === "error" ? "bg-red-50 text-red-600" : "bg-gray-50 text-gray-500"}`}>
               {p.status === "uploading" ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <AlertCircle size={14} className="shrink-0" />}
-              <span className="min-w-0 flex-1 truncate">{p.status === "error" ? p.errorMessage : `Uploading ${p.name}…`}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {p.status === "error"
+                  ? p.errorMessage
+                  : `Uploading ${p.name}${p.progress > 0 ? ` ${Math.round(p.progress * 100)}%` : "…"}`}
+              </span>
               {p.status === "error" && (
                 <>
                   <button className="shrink-0 font-semibold underline" onClick={() => retryPending(p.localId)}>
@@ -171,8 +178,8 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
                 title={asset.status === "ready" ? "Click to add, or drag onto the canvas" : asset.errorMessage || "Upload failed"}
                 aria-label={asset.status === "ready" ? `Add ${asset.name || "uploaded image"} to the page` : `${asset.name || "Upload"} — ${asset.errorMessage || "error"}`}
               >
-                {asset.thumbDataUrl ? (
-                  <img src={asset.thumbDataUrl} alt={asset.name || "Upload"} className="h-full w-full object-cover" />
+                {asset.thumbDataUrl || asset.cloudUrl ? (
+                  <img src={asset.thumbDataUrl || asset.cloudUrl} alt={asset.name || "Upload"} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-gray-300">
                     <ImagePlus size={20} />

@@ -108,7 +108,20 @@ import PrecisionSettingsDialog from "./components/PrecisionSettingsDialog";
 import { isTypingTarget, useKeyboardShortcuts } from "./useKeyboardShortcuts";
 import { useBreakpoint } from "./useBreakpoint";
 import { usePointerCapability } from "./usePointerCapability";
-import { putAsset, putAssetWithId, deleteAsset, getAssetBlob, getAssetMeta, listAssetIndex, listAssets, regenerateAssetThumbnail } from "./assetStore";
+import {
+  putAsset,
+  putAssetWithId,
+  deleteAsset,
+  getAssetBlob,
+  getAssetMeta,
+  listAssetIndex,
+  listAssets,
+  regenerateAssetThumbnail,
+  migrateLocalAssetsToCloud,
+  syncAssetIndexFromCloud,
+} from "./assetStore";
+import { deleteUserAssetCloud } from "./cloudAssetStorage";
+import { auth } from "./firebase";
 import { createAutosaveService, SAVE_STATUS, readSavedRecord, checkStorageQuota } from "./autosaveService";
 import {
   createSnapshot,
@@ -674,6 +687,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
   useEffect(() => {
     canEditRef.current = canEdit;
   }, [canEdit]);
+
+  // Runs once when the editor mounts (AppRoot's Gate only renders App once
+  // signed in, so a user is always present here). syncAssetIndexFromCloud
+  // repopulates the Uploads panel's list from this user's permanent
+  // library if the local cache is empty/was cleared; migrateLocalAssetsToCloud
+  // backs up any asset that predates this migration (or whose cloud sync
+  // failed earlier) — see assetStore.js for why both are safe to re-run.
+  useEffect(() => {
+    syncAssetIndexFromCloud();
+    migrateLocalAssetsToCloud();
+  }, []);
 
   // Shadows the imported isEffectivelyLocked for every call site in this
   // file (all ~18 of them: drag, text/crop/table edit entry, delete/
@@ -1473,9 +1497,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
     window.setTimeout(() => setStatus(""), 3000);
   }
 
-  async function findUnusedAssetIds() {
-    const [allAssets, recoverySummaries, versionSummaries, savedProjectSummaries] = await Promise.all([
-      listAssets(),
+  // Every asset id referenced anywhere this browser knows about: the live
+  // workspace, recovery snapshots, version history, and (when in workspace
+  // mode) every OTHER saved project — otherwise "Delete unused assets"
+  // could silently break images in some other saved project, and cloud
+  // deletion (removeAssetFromLibrary below) could delete a permanent copy
+  // still in use elsewhere. Extracted from findUnusedAssetIds so both the
+  // bulk cleanup flow and a single-asset safety check share one
+  // definition of "used".
+  async function buildReferencedAssetIdSet() {
+    const [recoverySummaries, versionSummaries, savedProjectSummaries] = await Promise.all([
       listSnapshotSummaries(),
       listVersionSummaries(),
       editorMode === "workspace" ? listSavedProjectSummaries() : Promise.resolve([]),
@@ -1483,10 +1514,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const referenced = new Set(usedAssetIdsFrom(itemsRef.current));
     recoverySummaries.forEach((s) => (s.assetIds || []).forEach((id) => referenced.add(id)));
     versionSummaries.forEach((v) => (v.assetIds || []).forEach((id) => referenced.add(id)));
-    // Assets used by a saved project that isn't the one currently open
-    // (spec-equivalent of the two lines above) — otherwise "Delete unused
-    // assets" could silently break images in every OTHER saved project.
     savedProjectSummaries.forEach((p) => (p.assetIds || []).forEach((id) => referenced.add(id)));
+    return referenced;
+  }
+
+  async function findUnusedAssetIds() {
+    const [allAssets, referenced] = await Promise.all([listAssets(), buildReferencedAssetIdSet()]);
     return allAssets.filter((asset) => !referenced.has(asset.id));
   }
 
@@ -1503,9 +1536,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (!unusedAssetInfo || unusedAssetInfo.count === 0) return;
     if (!window.confirm(`Delete ${unusedAssetInfo.count} unused uploaded asset(s)? This cannot be undone.`)) return;
     setIsCleaning(true);
+    const uid = auth.currentUser?.uid;
     for (const id of unusedAssetInfo.ids) {
       // eslint-disable-next-line no-await-in-loop
       await deleteAsset(id);
+      // These ids were just confirmed unused (by the same reference check
+      // removeAssetFromLibrary uses below), so their permanent cloud copy
+      // is safe to remove too.
+      // eslint-disable-next-line no-await-in-loop
+      if (uid) await deleteUserAssetCloud(uid, id);
     }
     setUnusedAssetInfo(null);
     await refreshStorageEstimate();
@@ -3979,7 +4018,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // progress/error/retry state per attempt (spec §1/§3).
   async function uploadFileToLibrary(file, options) {
     const result = await putAsset(file, options);
-    if (result.status === "error") setStatus(result.errorMessage);
+    if (result.status === "error") {
+      setStatus(result.errorMessage);
+    } else if (result.cloudStatus === "error") {
+      setStatus("Saved on this device, but couldn't back it up to the cloud. Will retry automatically.");
+      window.setTimeout(() => setStatus(""), 4000);
+    }
     return result;
   }
 
@@ -4296,6 +4340,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // first when usedAssetIds shows the asset is currently referenced.
   async function removeAssetFromLibrary(assetId) {
     await deleteAsset(assetId);
+    // The local/cache removal above always happens (unchanged UX — removing
+    // an asset from the library never cascades into objects that already
+    // reference it). The PERMANENT cloud copy is only removed once nothing
+    // this browser knows about — the live workspace, recovery snapshots,
+    // version history, or any other saved project — still references it.
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const referenced = await buildReferencedAssetIdSet();
+    if (!referenced.has(assetId)) await deleteUserAssetCloud(uid, assetId);
   }
 
   // Shared by align/distribute below: applies a per-item position delta
