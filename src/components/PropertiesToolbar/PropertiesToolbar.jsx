@@ -7,13 +7,13 @@ import SelectionMoreMenu from "./SelectionMoreMenu";
 import { getPropertiesBar } from "../../objectRegistry";
 import { ensureRichText, measureAutoHeight } from "../../richText";
 
-// Mirrors App.jsx's own handleTransformEnd rule for a horizontal-only
-// canvas drag: typing an exact width into the Position & Size panel is the
-// same "user manually resized the box horizontally" gesture, so it gets
-// the same auto-height reflow (never a font-size change) rather than
-// silently leaving the box too short/tall for its rewrapped content.
-function textUsesAutoHeight(item) {
-  return !!item && item.type === "text" && !item.curve && item.autoSize !== "fixed" && item.autoSize !== "auto-width";
+// Mirrors App.jsx's own handleTransformEnd rule for a manual canvas
+// resize: typing an exact width into the Position & Size panel is the same
+// "user manually resized the box" gesture, so it gets the same reflow
+// (never a font-size change) rather than silently leaving the box too
+// short/tall for its rewrapped content.
+function textIsFlexibleBox(item) {
+  return !!item && item.type === "text" && !item.curve && item.autoSize !== "fixed";
 }
 
 export default function PropertiesToolbar({
@@ -232,7 +232,7 @@ export default function PropertiesToolbar({
             const heightAffectingFields = ["width", "lineHeight", "letterSpacing", "paragraphSpacing", "textTransform"];
             if (
               changes.height === undefined &&
-              textUsesAutoHeight(single) &&
+              textIsFlexibleBox(single) &&
               heightAffectingFields.some((field) => changes[field] !== undefined)
             ) {
               const nextItem = { ...single, ...changes };

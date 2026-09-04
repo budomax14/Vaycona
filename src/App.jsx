@@ -86,7 +86,7 @@ import FadeOverlay from "./components/FadeOverlay";
 import GrabItOverlay from "./components/GrabItOverlay";
 import useGrabIt from "./grabIt/useGrabIt";
 import { extractGrabItRegionBlob } from "./grabIt/grabItExtraction";
-import { ensureRichText, isValidRichText as isValidRichTextShape, measureAutoHeight, plainTextOf } from "./richText";
+import { ensureRichText, isValidRichText as isValidRichTextShape, measureAutoHeight, measureFlexibleTextBox, plainTextOf } from "./richText";
 import { defaultTextEffects } from "./textEffects";
 import { getPresetByKey } from "./textStyles";
 import { borderDashProps } from "./borderStyles";
@@ -199,7 +199,17 @@ import TemplatePreviewDialog from "./components/TemplatePreviewDialog";
 import SaveAsTemplateDialog from "./components/SaveAsTemplateDialog";
 import AdminTemplateEditorToolbar from "./components/Admin/AdminTemplateEditorToolbar";
 import ConfirmDeleteTemplateDialog from "./components/Admin/ConfirmDeleteTemplateDialog";
-import { DEFAULT_CROP, legacyInsetsToCrop, normalizeCrop } from "./imageCrop";
+import {
+  DEFAULT_CROP,
+  DEFAULT_FOCAL_CROP,
+  cropToBox,
+  deriveImageDisplayRect,
+  largestCropRectForAspect,
+  legacyFocalCropToRect,
+  legacyInsetsToCropRect,
+  normalizeCrop,
+  normalizeFocalCrop,
+} from "./imageCrop";
 import { normalizeImageFill } from "./imageFill";
 import { DEFAULT_ADJUSTMENTS, normalizeAdjustments } from "./imageEffects";
 import { normalizeOpacityMask } from "./opacityMask";
@@ -387,14 +397,25 @@ function validateItem(raw, fallbackPageId) {
     // is async, so the actual conversion (data URL -> asset, legacy insets
     // -> the new crop shape) happens in the post-mount
     // migrateLegacyImageAssets effect, which needs to see the original
-    // values. A crop that's already in the new shape (or absent) is
-    // normalized immediately as usual.
+    // values. A crop already in the current rect shape (or absent) is
+    // normalized immediately as usual; a crop in the shape the Crop tool
+    // used before it became an Apple-style rect (the focal-point + zoom
+    // model, still `frame.crop`'s shape today — see imageCrop.js) has
+    // both the box dims (already spread in below) and, usually,
+    // naturalWidth/Height available right here, so it converts
+    // synchronously via legacyFocalCropToRect rather than needing the
+    // async migration effect.
     const imageDefaults = getDefaultProps("image");
-    const looksLegacyCrop = normalized.crop && typeof normalized.crop === "object" && ("top" in normalized.crop || "left" in normalized.crop);
+    const looksLegacyInsetCrop = normalized.crop && typeof normalized.crop === "object" && ("top" in normalized.crop || "left" in normalized.crop);
+    const looksLegacyFocalCrop = normalized.crop && typeof normalized.crop === "object" && ("fit" in normalized.crop || "focalX" in normalized.crop);
     normalized = {
       ...imageDefaults,
       ...normalized,
-      crop: looksLegacyCrop ? normalized.crop : normalizeCrop(normalized.crop),
+      crop: looksLegacyInsetCrop
+        ? normalized.crop
+        : looksLegacyFocalCrop
+          ? legacyFocalCropToRect(normalized.crop, normalized.width, normalized.height, normalized.naturalWidth, normalized.naturalHeight)
+          : normalizeCrop(normalized.crop),
       adjustments: normalizeAdjustments(normalized.adjustments),
       opacityMask: normalizeOpacityMask(normalized.opacityMask),
     };
@@ -402,12 +423,13 @@ function validateItem(raw, fallbackPageId) {
   if (normalized.type === "frame") {
     // contentSrc (a pre-Phase-6 data URL placeholder reservation, never
     // actually populated by any real feature) is likewise left as-is for
-    // migrateLegacyImageAssets to convert into contentAssetId.
+    // migrateLegacyImageAssets to convert into contentAssetId. Frame
+    // content keeps the focal-crop model (see imageCrop.js's file header).
     const frameDefaults = getDefaultProps("frame", normalized.frameKind);
     normalized = {
       ...frameDefaults,
       ...normalized,
-      crop: normalizeCrop(normalized.crop),
+      crop: normalizeFocalCrop(normalized.crop),
       adjustments: normalizeAdjustments(normalized.adjustments),
       opacityMask: normalizeOpacityMask(normalized.opacityMask),
     };
@@ -1160,7 +1182,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           updatesById.set(item.id, {
             assetId: meta.id,
             src: undefined,
-            crop: looksLegacyCrop ? legacyInsetsToCrop(item.crop) : normalizeCrop(item.crop),
+            crop: looksLegacyCrop ? legacyInsetsToCropRect(item.crop) : normalizeCrop(item.crop),
           });
         }
       }
@@ -3144,7 +3166,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         contentAssetId: assetId,
         naturalWidth: meta?.width || null,
         naturalHeight: meta?.height || null,
-        crop: { ...DEFAULT_CROP },
+        crop: { ...DEFAULT_FOCAL_CROP },
       },
       true,
       { type: "replace-frame-content", label: "Replace frame image", itemIds: [frameId] }
@@ -3155,7 +3177,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   function removeFrameContent(frameId) {
     updateItem(
       frameId,
-      { contentAssetId: null, crop: { ...DEFAULT_CROP } },
+      { contentAssetId: null, crop: { ...DEFAULT_FOCAL_CROP } },
       true,
       { type: "remove-frame-content", label: "Remove frame image", itemIds: [frameId] }
     );
@@ -3177,7 +3199,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
       assetId: frame.contentAssetId,
       naturalWidth: frame.naturalWidth,
       naturalHeight: frame.naturalHeight,
-      crop: { ...normalizeCrop(frame.crop) },
+      // The frame keeps the focal-crop model; the new standalone image
+      // uses the rect model, so its equivalent crop needs converting
+      // (frame.width/height double as both the frame's own box and its
+      // content box here since extractFrameContent carries the image
+      // forward at the frame's own bounds, below).
+      crop: legacyFocalCropToRect(frame.crop, frame.width, frame.height, frame.naturalWidth, frame.naturalHeight),
       adjustments: { ...normalizeAdjustments(frame.adjustments) },
       flipX: frame.flipX,
       flipY: frame.flipY,
@@ -3194,7 +3221,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     };
     commit(
       (prev) => [
-        ...prev.map((it) => (it.id === frameId ? { ...it, contentAssetId: null, crop: { ...DEFAULT_CROP } } : it)),
+        ...prev.map((it) => (it.id === frameId ? { ...it, contentAssetId: null, crop: { ...DEFAULT_FOCAL_CROP } } : it)),
         newImage,
       ],
       { type: "extract-frame-content", label: "Extract frame image", itemIds: [frameId, newImage.id] }
@@ -3259,16 +3286,24 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setActiveListType(null);
   }
 
-  // Auto-grow-height applies to the common "auto-height" box (also the
-  // implicit default for legacy items with no autoSize field — see
-  // SimpleTextNode/RichTextNode's own `=== "fixed"`/`"auto-width"` checks,
-  // undefined behaves like auto-height there too). "fixed" boxes are a
-  // deliberate manual size (spec: keep the existing clip/overflow-badge
-  // behavior); "auto-width" boxes grow width instead, never wrap, so a
-  // wrap-based height doesn't apply; curved text has no wrap/height model
-  // at all (CurvedTextNode bypasses layoutRichText entirely).
-  function textUsesAutoHeight(item) {
-    return !!item && !item.curve && item.autoSize !== "fixed" && item.autoSize !== "auto-width";
+  // "Flexible" sizing (both the "auto-width" and "auto-height" choices —
+  // spec: they behave identically now, see measureFlexibleTextBox's own
+  // header comment) applies to any text box the user hasn't explicitly
+  // pinned to a manual size. "fixed" boxes are a deliberate manual size
+  // (spec: keep the existing clip/overflow-badge behavior); curved text
+  // has no wrap/box model at all (CurvedTextNode bypasses layoutRichText
+  // entirely).
+  function textIsFlexibleBox(item) {
+    return !!item && !item.curve && item.autoSize !== "fixed";
+  }
+
+  // How far a flexible text box is allowed to grow before it must wrap —
+  // the remaining room out to the page's own right edge from the item's
+  // (page-relative) left edge, per the user's explicit spec: "only move
+  // text to the next line once the box has expanded all the way to the
+  // right side border of the canvas."
+  function availableTextWidth(item) {
+    return Math.max(20, (activePageRef.current?.width || 0) - (item.x || 0));
   }
 
   function updateEditingTextLive(richText) {
@@ -3278,8 +3313,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // non-committing update those already are (see updateItem's
     // commitChange=false branch) — commitEditingText's debounced flush
     // still lands it as exactly one undo step, never one per measurement.
-    if (textUsesAutoHeight(item)) {
-      changes.height = measureAutoHeight({ ...item, ...changes }, richText);
+    // Only width/height are ever written here — font size never changes
+    // as a side effect of typing or resizing (only the font-size toolbar
+    // control changes it, see applyTextFormat).
+    if (textIsFlexibleBox(item)) {
+      const fit = measureFlexibleTextBox({ ...item, ...changes }, richText, availableTextWidth(item));
+      changes.width = fit.width;
+      changes.height = fit.height;
     }
     updateItem(editingTextId, changes, false);
   }
@@ -3500,11 +3540,25 @@ export default function App({ editorMode = "workspace", templateSession = null }
     );
   }
 
-  // --- Crop mode (Phase 6) — parallel in shape to inline text editing
-  // above: entry snapshots the pre-gesture crop so Cancel can restore it
-  // without an undo step; live drag/zoom calls updateItem(...,false) (the
-  // same non-committing pattern updateEditingTextLive established) and a
-  // single commit() lands the whole gesture as one history entry. ---
+  // --- Crop mode (Phase 6, rect model rewrite) — parallel in shape to
+  // inline text editing above: entry snapshots the pre-gesture crop (and,
+  // for images, the current box + the fixed "full uncropped image"
+  // reference frame — see imageCrop.js's deriveImageDisplayRect) so Cancel
+  // can restore it without an undo step; live drag calls updateItem(...,
+  // false) (the same non-committing pattern updateEditingTextLive
+  // established) and a single commit() lands the whole gesture as one
+  // history entry.
+  //
+  // Two different tools share this state machine (see imageCrop.js's file
+  // header): standalone `image` items get the Apple-style rect crop —
+  // CropOverlay's handles drag the crop rect's own edges directly, image
+  // held visually stationary, and the object's box is kept in sync (via
+  // cropToBox) so what's on screen while dragging is exactly the result.
+  // `frame` content keeps the original pan-to-reposition/zoom interaction
+  // (a frame's content window has a fixed, often non-rectangular shape
+  // with no independent edges to drag) — liveCropChange/commitCropChange/
+  // commitCropGesture below are shape-agnostic (just move whatever `crop`
+  // object they're given) so they serve both without branching. ---
 
   function enterCropMode(itemId) {
     const item = itemsRef.current.find((it) => it.id === itemId);
@@ -3515,35 +3569,43 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (editingTableIdRef.current) exitTableEditMode();
     if (fadeEditItemIdRef.current) cancelFadeMode();
     if (grabItEditItemIdRef.current) exitGrabItMode();
-    cropEntrySnapshotRef.current = { itemId, crop: { ...normalizeCrop(item.crop) } };
+    if (item.type === "frame") {
+      cropEntrySnapshotRef.current = { itemId, crop: { ...normalizeFocalCrop(item.crop) } };
+    } else {
+      const crop = normalizeCrop(item.crop);
+      const box = { x: item.x, y: item.y, width: item.width, height: item.height };
+      cropEntrySnapshotRef.current = { itemId, crop, box, imageDisplayRect: deriveImageDisplayRect(box, crop) };
+    }
     setSelectedIds([itemId]);
     setCroppingItemId(itemId);
   }
 
-  // Live crop changes (drag/wheel-zoom in CropOverlay, or a toolbar action
-  // that should feel live) — non-committing, mirrors updateEditingTextLive.
+  // Live crop changes (drag in CropOverlay, or a toolbar action that
+  // should feel live) — non-committing, mirrors updateEditingTextLive.
+  // Shape-agnostic: works for both the image rect model and the frame
+  // focal model, since it just forwards whatever `crop` it's given.
   function liveCropChange(itemId, crop) {
     updateItem(itemId, { crop }, false);
   }
 
-  // Live box-resize while dragging one of CropOverlay's 8 corner/edge
-  // handles — non-committing, same shape as liveCropChange (crop's own
-  // fit/focal/zoom don't need adjusting: they're computed live off
-  // whatever the box's current width/height is, box resize or not).
+  // Live box-resize while dragging one of CropOverlay's rect handles for a
+  // standalone image (the crop rect IS the object's own box in that
+  // model) — non-committing, same shape as liveCropChange.
   function liveCropBoxChange(itemId, patch) {
     updateItem(itemId, patch, false);
   }
 
-  // Discrete, one-click crop actions (fit/fill toggle, aspect preset,
-  // center) commit immediately — each is its own single undo step, exactly
-  // like any other toolbar field edit elsewhere in the app.
+  // Discrete, one-click crop actions (fit/fill toggle for frames, Reset)
+  // commit immediately — each is its own single undo step, exactly like
+  // any other toolbar field edit elsewhere in the app.
   function commitCropChange(itemId, crop) {
     updateItem(itemId, { crop }, true, { type: "crop", label: "Crop image", itemIds: [itemId] });
   }
 
   function commitCropGesture() {
-    // Finalizes whatever the immediately-preceding liveCropChange queued —
-    // same updater-form trick as commitEditingText.
+    // Finalizes whatever the immediately-preceding liveCropChange/
+    // liveCropBoxChange queued — same updater-form trick as
+    // commitEditingText.
     commit((prevItems) => prevItems, {
       type: "crop",
       label: "Crop image",
@@ -3552,9 +3614,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   // Resizes the object's own box to a target aspect ratio, keeping it
-  // centered on its current position — used by the crop toolbar's aspect
-  // presets (spec §16). The crop itself needs no separate adjustment since
-  // Fill/Fit are both computed live from the box's current width/height.
+  // centered on its current position — a general-purpose helper (does not
+  // touch crop at all) used by the "Restore ratio" button outside crop
+  // mode, and by the crop toolbar's own aspect presets for frame items
+  // (see setCropModeAspect below), where the crop is computed live from
+  // the box's current width/height regardless of box resize.
   function setCropAspectRatio(itemId, ratio) {
     if (!ratio || !Number.isFinite(ratio)) return; // "Free" preset — no-op
     const item = itemsRef.current.find((it) => it.id === itemId);
@@ -3572,6 +3636,36 @@ export default function App({ editorMode = "workspace", templateSession = null }
         x: centerX - newWidth / 2,
         y: centerY - newHeight / 2,
       },
+      true,
+      { type: "crop-aspect", label: "Set crop aspect ratio", itemIds: [itemId] }
+    );
+  }
+
+  // The crop toolbar's own aspect-preset buttons while actively cropping
+  // (spec §16). For a frame, unchanged: reuses setCropAspectRatio to
+  // resize the frame's own box (its content crop adapts automatically).
+  // For a standalone image, resizes the CROP RECT itself to the largest
+  // centered rect of that ratio, then maps it back to the object's box via
+  // the fixed imageDisplayRect established at crop-mode entry — keeping
+  // the image visually stationary, exactly like a handle drag would.
+  function setCropModeAspect(itemId, ratio) {
+    const item = itemsRef.current.find((it) => it.id === itemId);
+    if (!item) return;
+    if (item.type === "frame") {
+      setCropAspectRatio(itemId, ratio);
+      return;
+    }
+    if (!ratio || !Number.isFinite(ratio)) return; // "Free" preset — no-op
+    const snapshot = cropEntrySnapshotRef.current;
+    const imageDisplayRect =
+      snapshot && snapshot.itemId === itemId
+        ? snapshot.imageDisplayRect
+        : deriveImageDisplayRect({ x: item.x, y: item.y, width: item.width, height: item.height }, normalizeCrop(item.crop));
+    const nextCrop = largestCropRectForAspect(ratio);
+    const box = cropToBox(nextCrop, imageDisplayRect);
+    updateItem(
+      itemId,
+      { crop: nextCrop, x: box.x, y: box.y, width: Math.max(20, box.width), height: Math.max(20, box.height) },
       true,
       { type: "crop-aspect", label: "Set crop aspect ratio", itemIds: [itemId] }
     );
@@ -3602,9 +3696,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (!croppingItemIdRef.current) return false;
     const snapshot = cropEntrySnapshotRef.current;
     if (snapshot && snapshot.itemId === croppingItemIdRef.current) {
-      // Restore the pre-entry crop via a plain (non-history) setItems —
-      // there is nothing to undo since nothing was committed yet.
-      setItems((prev) => prev.map((it) => (it.id === snapshot.itemId ? { ...it, crop: snapshot.crop } : it)));
+      // Restore the pre-entry crop (and, for images, the pre-entry box —
+      // handle drags live-resize it too) via a plain (non-history)
+      // setItems — there is nothing to undo since nothing was committed.
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === snapshot.itemId
+            ? { ...it, crop: snapshot.crop, ...(snapshot.box ? { x: snapshot.box.x, y: snapshot.box.y, width: snapshot.box.width, height: snapshot.box.height } : null) }
+            : it
+        )
+      );
     }
     setCroppingItemId(null);
     cropEntrySnapshotRef.current = null;
@@ -3887,7 +3988,28 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // filters/flip/corner-radius/shadow for the broader "reset everything"
   // action available outside crop mode.
   function resetCropOnly(itemId) {
-    updateItem(itemId, { crop: { ...DEFAULT_CROP } }, true, { type: "crop", label: "Reset crop", itemIds: [itemId] });
+    const item = itemsRef.current.find((it) => it.id === itemId);
+    if (!item) return;
+    if (item.type === "frame") {
+      updateItem(itemId, { crop: { ...DEFAULT_FOCAL_CROP } }, true, { type: "crop", label: "Reset crop", itemIds: [itemId] });
+      return;
+    }
+    // Standalone image: also resize the box back to the full, uncropped
+    // image (mapped through the fixed imageDisplayRect established at
+    // crop-mode entry) so Reset visibly shows the whole original photo,
+    // not just a crop field flipping under an unchanged, still-cropped box.
+    const snapshot = cropEntrySnapshotRef.current;
+    const imageDisplayRect =
+      snapshot && snapshot.itemId === itemId
+        ? snapshot.imageDisplayRect
+        : deriveImageDisplayRect({ x: item.x, y: item.y, width: item.width, height: item.height }, normalizeCrop(item.crop));
+    const box = cropToBox(DEFAULT_CROP, imageDisplayRect);
+    updateItem(
+      itemId,
+      { crop: { ...DEFAULT_CROP }, x: box.x, y: box.y, width: Math.max(20, box.width), height: Math.max(20, box.height) },
+      true,
+      { type: "crop", label: "Reset crop", itemIds: [itemId] }
+    );
   }
 
   function resetImageEdits(itemId) {
@@ -3896,7 +4018,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
     updateItem(
       itemId,
       {
-        crop: { ...DEFAULT_CROP },
+        // Frame content keeps the focal-crop model; standalone images use
+        // the rect crop model — see imageCrop.js's file header.
+        crop: item.type === "frame" ? { ...DEFAULT_FOCAL_CROP } : { ...DEFAULT_CROP },
         adjustments: { ...DEFAULT_ADJUSTMENTS },
         flipX: false,
         flipY: false,
@@ -3962,14 +4086,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }));
     }
     // fontSize/fontFamily/bold/italic can change how the text wraps
-    // (glyph metrics feed layoutRichText's measurement) — an auto-height
-    // box needs to grow/shrink to match, same as it already does for a
-    // live-typing edit or a width-drag resize (see textUsesAutoHeight's
+    // (glyph metrics feed layoutRichText's measurement) — a flexible box
+    // needs to grow/shrink to match, same as it already does for a
+    // live-typing edit or a width-drag resize (see textIsFlexibleBox's
     // other call sites). underline/strikethrough/color never affect
-    // layout, so they're deliberately excluded.
-    if (["fontSize", "fontFamily", "bold", "italic"].includes(styleKey) && textUsesAutoHeight(item)) {
+    // layout, so they're deliberately excluded. This is the ONE place
+    // fontSize itself is allowed to change (the toolbar's own control) —
+    // the resulting re-fit below only ever touches width/height in
+    // response to that deliberate choice, never the other way around.
+    if (["fontSize", "fontFamily", "bold", "italic"].includes(styleKey) && textIsFlexibleBox(item)) {
       const nextItem = { ...item, ...updates };
-      updates.height = measureAutoHeight(nextItem, ensureRichText(nextItem));
+      const fit = measureFlexibleTextBox(nextItem, ensureRichText(nextItem), availableTextWidth(nextItem));
+      updates.width = fit.width;
+      updates.height = fit.height;
     }
     updateItem(itemId, updates, true, { type: "text-format", label: "Format text", itemIds: [itemId] });
   }
@@ -6042,26 +6171,46 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setSelectedIds(pageItems.map((item) => item.id));
   }
 
-  // Arrow keys during crop mode nudge the crop's focal point (the visible
-  // image) instead of the object's own position (spec §53); Delete/
-  // Backspace never deletes the object while cropping (spec §53 note).
+  // Arrow keys during crop mode nudge the crop (the visible image) instead
+  // of the object's own position (spec §53); Delete/Backspace never
+  // deletes the object while cropping (spec §53 note). For a frame, this
+  // is still the focal point (pan); for a standalone image (rect model),
+  // this pans the crop rect's position — same size, shifted within the
+  // source image's bounds — keeping the box in sync via cropToBox so it
+  // moves in lockstep, exactly like a handle drag would.
   function nudgeCropFocalPoint(dirX, dirY, size = "standard") {
     const item = itemsRef.current.find((it) => it.id === croppingItemIdRef.current);
     if (!item) return;
-    const crop = normalizeCrop(item.crop);
     const step = (size === "large" ? 10 : size === "fine" ? 0.1 : 1) * 0.01;
-    updateItem(
-      item.id,
-      {
-        crop: {
-          ...crop,
-          focalX: Math.max(0, Math.min(1, crop.focalX - dirX * step)),
-          focalY: Math.max(0, Math.min(1, crop.focalY - dirY * step)),
+    if (item.type === "frame") {
+      const crop = normalizeFocalCrop(item.crop);
+      updateItem(
+        item.id,
+        {
+          crop: {
+            ...crop,
+            focalX: Math.max(0, Math.min(1, crop.focalX - dirX * step)),
+            focalY: Math.max(0, Math.min(1, crop.focalY - dirY * step)),
+          },
         },
-      },
-      true,
-      { type: "crop", label: "Adjust focal point", itemIds: [item.id] }
-    );
+        true,
+        { type: "crop", label: "Adjust focal point", itemIds: [item.id] }
+      );
+      return;
+    }
+    const crop = normalizeCrop(item.crop);
+    const nextCrop = {
+      ...crop,
+      x: Math.max(0, Math.min(1 - crop.width, crop.x + dirX * step)),
+      y: Math.max(0, Math.min(1 - crop.height, crop.y + dirY * step)),
+    };
+    const snapshot = cropEntrySnapshotRef.current;
+    const imageDisplayRect =
+      snapshot && snapshot.itemId === item.id
+        ? snapshot.imageDisplayRect
+        : deriveImageDisplayRect({ x: item.x, y: item.y, width: item.width, height: item.height }, crop);
+    const box = cropToBox(nextCrop, imageDisplayRect);
+    updateItem(item.id, { crop: nextCrop, x: box.x, y: box.y }, true, { type: "crop", label: "Adjust crop position", itemIds: [item.id] });
   }
 
   // Arrow keys during image-fill edit mode nudge the fill's focal point
@@ -6283,22 +6432,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
       };
       const sourceItem = items.find((it) => it.id === node.id());
       if (sourceItem?.type === "text") {
-        // A pure horizontal drag (only the width-changing scale moved) on
-        // an auto-height box reflows text at the new width instead of
-        // scaling font size — font size stays exactly what the user chose,
-        // and height follows the rewrapped content (spec: resizing
-        // horizontally recalculates wrapping and adjusts height, it never
-        // shrinks/grows font). Corner/vertical drags keep the existing
-        // font-scales-with-box behavior (Phase 5 decision 8) unchanged.
-        const isWidthOnlyDrag = scaleY === 1 && scaleX !== 1;
-        if (isWidthOnlyDrag && textUsesAutoHeight(sourceItem)) {
+        // Resizing a text box's own handles NEVER changes font size —
+        // dragging it bigger/smaller only ever changes the box; the
+        // font-size toolbar control is the only thing that changes letter
+        // size (explicit spec). Width/height follow the drag exactly in
+        // any direction; a flexible box additionally re-fits its height to
+        // the rewrapped content at that new width (same measureAutoHeight
+        // a live-typing edit already uses) so it never clips or leaves
+        // dead space — a "fixed" box just keeps the manually dragged
+        // width/height as-is.
+        if (textIsFlexibleBox(sourceItem)) {
           update.height = measureAutoHeight({ ...sourceItem, width: update.width }, ensureRichText(sourceItem));
-        } else {
-          // Font size scales with the box resize — the usual expected
-          // behavior for text in a design editor (Phase 5 decision 8),
-          // whether the text is resized alone or as part of a group.
-          const geometricScale = Math.sqrt(Math.abs(scaleX * scaleY));
-          update.fontSize = Math.max(1, (sourceItem.fontSize || 24) * geometricScale);
         }
       } else if (sourceItem?.type === "table") {
         // Redistributes column widths/row heights proportionally instead of
@@ -7005,6 +7149,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     item={croppingItem}
                     viewport={KONVA_VIEWPORT}
                     scale={scale}
+                    imageDisplayRect={cropEntrySnapshotRef.current?.itemId === croppingItemId ? cropEntrySnapshotRef.current.imageDisplayRect : null}
                     onLiveChange={(crop) => liveCropChange(croppingItemId, crop)}
                     onBoxLiveChange={(patch) => liveCropBoxChange(croppingItemId, patch)}
                     onRequestExit={applyCropModeAndCommit}
@@ -7336,11 +7481,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onEnterCropMode={enterCropMode}
         onCropCommit={commitCropChange}
         onZoomLiveChange={(itemId, zoom) => {
+          // Zoom only applies to a frame's focal-crop content window — the
+          // rect crop model standalone images use has no zoom concept.
           const item = itemsRef.current.find((it) => it.id === itemId);
-          if (item) liveCropChange(itemId, { ...normalizeCrop(item.crop), zoom });
+          if (item) liveCropChange(itemId, { ...normalizeFocalCrop(item.crop), zoom });
         }}
         onZoomCommit={commitCropGesture}
-        onSetCropAspect={setCropAspectRatio}
+        onSetCropAspect={setCropModeAspect}
         onApplyCrop={applyCropModeAndCommit}
         onCancelCrop={cancelCropMode}
         onResetCrop={resetCropOnly}
@@ -7699,6 +7846,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         currentWidth={activePage.width}
         currentHeight={activePage.height}
         onApply={resizeActivePage}
+        unit={activeUnit}
+        onUnitChange={setPreferredUnit}
       />
 
       <PricingModal
@@ -7860,6 +8009,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onDeleteSection={handleDeleteReusableSection}
         userTier={subscriptionTier}
         onRequireUpgrade={() => setIsPricingOpen(true)}
+        unit={activeUnit}
+        onUnitChange={setPreferredUnit}
       />
 
       <TemplatePreviewDialog

@@ -25,7 +25,7 @@ import {
 } from "./animationRegistry";
 import { IDENTITY_DELTA, mergeDeltas, composeRenderState, itemCenter } from "./transformCompose";
 import { evaluateMotionPath } from "./motionPath";
-import { normalizeCrop } from "../imageCrop";
+import { normalizeCrop, normalizeFocalCrop, panCropRect, scaleCropRect } from "../imageCrop";
 
 // --- apply / remove (pure item-array editing helpers; App.jsx wraps the
 // result in commit() for history/autosave — spec §17/§18) ---
@@ -285,9 +285,18 @@ export function computeAncestorComposedState(itemId, itemsById, t, opts = {}) {
 
 const PAN_RANGE_BASE = 0.16;
 
+// Frame content keeps the legacy focal-crop model (fixed content window,
+// pan/zoom only); standalone images use the Apple-style rect crop model —
+// see imageCrop.js's file header. Both get a Ken Burns implementation
+// below with the same visual intent, just expressed in each one's own
+// vocabulary.
 function computeCropDeltaForItem(item, t) {
+  return item.type === "frame" ? computeFocalCropDeltaForItem(item, t) : computeRectCropDeltaForItem(item, t);
+}
+
+function computeFocalCropDeltaForItem(item, t) {
   const anims = (item.animations || []).filter((a) => a.stage === "motion" && a.enabled);
-  const baseCrop = normalizeCrop(item.crop);
+  const baseCrop = normalizeFocalCrop(item.crop);
   for (const anim of anims) {
     const preset = getPreset(anim.presetId);
     if (!preset || !["cropZoomIn", "cropZoomOut", "cropPan"].includes(preset.kind)) continue;
@@ -313,6 +322,46 @@ function computeCropDeltaForItem(item, t) {
     const to = 0.5 + range;
     const value = reverse ? lerp(from, to, eased) : lerp(to, from, eased);
     return { ...baseCrop, zoom, [axis]: Math.min(1, Math.max(0, value)) };
+  }
+  return null;
+}
+
+function lerpCropRect(a, b, t) {
+  return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), width: lerp(a.width, b.width, t), height: lerp(a.height, b.height, t) };
+}
+
+function computeRectCropDeltaForItem(item, t) {
+  const anims = (item.animations || []).filter((a) => a.stage === "motion" && a.enabled);
+  const baseCrop = normalizeCrop(item.crop);
+  for (const anim of anims) {
+    const preset = getPreset(anim.presetId);
+    if (!preset || !["cropZoomIn", "cropZoomOut", "cropPan"].includes(preset.kind)) continue;
+    const activeStart = anim.startTime + anim.delay;
+    const activeEnd = activeStart + anim.duration;
+    if (t < activeStart || t > activeEnd) continue;
+    const localT = Math.min(1, Math.max(0, (t - activeStart) / Math.max(1, anim.duration)));
+    const eased = applyEasing(anim.easing, localT);
+    const intensity = INTENSITY_FACTORS[anim.intensity] ?? 1;
+
+    if (preset.kind === "cropZoomIn" || preset.kind === "cropZoomOut") {
+      // A smaller crop rect reads as "more zoomed in" (same box now shows
+      // a tighter source region) — the rect-model mirror of the focal
+      // model's zoom>1 multiplier above.
+      const zoomedRect = scaleCropRect(baseCrop, 1 / (1 + 0.4 * intensity));
+      const from = preset.kind === "cropZoomIn" ? baseCrop : zoomedRect;
+      const to = preset.kind === "cropZoomIn" ? zoomedRect : baseCrop;
+      return lerpCropRect(from, to, eased);
+    }
+    // cropPan — zoom in slightly first (same reasoning as the focal
+    // model's cropPan above: panning a crop already at its full size has
+    // nowhere to go), then slide that tighter rect across the source
+    // image along the requested axis.
+    const pannedRect = scaleCropRect(baseCrop, 1 / Math.max(1, 1 + PAN_RANGE_BASE * intensity));
+    const axis = anim.direction === "up" || anim.direction === "down" ? "y" : "x";
+    const reverse = anim.direction === "right" || anim.direction === "down";
+    const from = panCropRect(pannedRect, axis, reverse ? 0 : 1);
+    const to = panCropRect(pannedRect, axis, reverse ? 1 : 0);
+    return lerpCropRect(from, to, eased);
   }
   return null;
 }

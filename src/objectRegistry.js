@@ -21,7 +21,7 @@ import TablePropertiesBar from "./components/PropertiesToolbar/TablePropertiesBa
 import { createTableData } from "./tableUtils";
 import { defaultTextEffects } from "./textEffects";
 import { defaultText3D } from "./text3D";
-import { DEFAULT_CROP } from "./imageCrop";
+import { DEFAULT_CROP, DEFAULT_FOCAL_CROP } from "./imageCrop";
 import { DEFAULT_ADJUSTMENTS } from "./imageEffects";
 import { DEFAULT_OPACITY_MASK } from "./opacityMask";
 
@@ -184,9 +184,12 @@ export const REGISTRY = {
       // Frame owns its content directly (assetId + crop live on the frame
       // item itself) rather than a separate child image item — see
       // imageCrop.js / hierarchy.js notes for why. contentAssetId replaces
-      // the old placeholder-only contentSrc field.
+      // the old placeholder-only contentSrc field. A frame's content window
+      // has a fixed (often non-rectangular) shape with no independent edges
+      // to drag, so it keeps the original pan/zoom focal-crop model rather
+      // than the Apple-style rect crop standalone images use.
       contentAssetId: null,
-      crop: { ...DEFAULT_CROP },
+      crop: { ...DEFAULT_FOCAL_CROP },
       adjustments: { ...DEFAULT_ADJUSTMENTS },
       opacityMask: { ...DEFAULT_OPACITY_MASK },
       flipX: false,

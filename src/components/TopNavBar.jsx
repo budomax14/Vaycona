@@ -326,6 +326,8 @@ export default function TopNavBar({
           <MenuItem label={t.delete} shortcut="Delete" onClick={onDelete} />
           <MenuDivider />
           <MenuItem label={t.selectAll} shortcut="Ctrl/Cmd+A" onClick={onSelectAll} />
+          <MenuDivider />
+          <MenuItem label={t.customSize} onClick={onOpenResize} />
         </MenuDropdown>
 
         <MenuDropdown label={t.viewMenu}>

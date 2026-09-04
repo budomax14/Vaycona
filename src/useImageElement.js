@@ -21,9 +21,12 @@ export function cropInsetsToRect(crop, naturalWidth, naturalHeight) {
 // Konva's scaleX/scaleY, because handleTransformEnd (App.jsx) reads
 // node.scaleX()/scaleY() directly to compute resized width/height — reusing
 // scale for flip would conflate flip with resize and corrupt that math.
-// Only safe while sources are same-origin data URLs (true today, since
-// uploads go through FileReader.readAsDataURL) — a remote http(s) image
-// source would taint this canvas and break toDataURL()-based export.
+// Safe without a crossOrigin attribute because every caller feeds this hook
+// a same-origin blob: URL from useAsset() (never a remote http(s) source) —
+// same-origin resources can't taint the canvas regardless. Setting
+// crossOrigin="anonymous" on a blob: URL is actively harmful: Safari fails
+// to load it (a known WebKit blob-URL+CORS bug), which is why uploaded
+// images rendered as invisible/missing there.
 export function useImageElement(src, { flipX = false, flipY = false } = {}) {
   const [baseImage, setBaseImage] = useState(null);
   const [renderedImage, setRenderedImage] = useState(null);
@@ -36,7 +39,6 @@ export function useImageElement(src, { flipX = false, flipY = false } = {}) {
     }
 
     const img = new window.Image();
-    img.crossOrigin = "anonymous";
     img.onload = () => setBaseImage(img);
     img.onerror = () => setBaseImage(null);
     img.src = src;

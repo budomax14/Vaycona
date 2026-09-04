@@ -8,7 +8,7 @@
 //   are expressed in) -> item-local px (0..item.width/height) -> screen px
 //   (through the item's rotation, for hover/click accuracy on a rotated
 //   image).
-import { computeCropLayout } from "../imageCrop";
+import { computeCropRect } from "../imageCrop";
 
 // Decodes a blob to an HTMLImageElement, then (only if flipped) redraws it
 // onto a canvas using the exact same setTransform trick useImageElement.js
@@ -48,16 +48,18 @@ export async function decodeSourceImage(blob, { flipX = false, flipY = false } =
 }
 
 // The natural-px sub-rect that is currently VISIBLE on the item, given its
-// crop. Full natural image for "stretch"/"contain" (both show the whole
-// image, just scaled/letterboxed); the crop-mode's own cropRect for "crop"
-// (cover) — never anything outside the current crop.
+// crop — Grab It only ever operates on standalone `image` items (never
+// frame content), which always use the rect crop model. `boxWidth`/
+// `boxHeight` are unused now (the rect model's crop->box mapping is always
+// a uniform stretch, independent of box size) but kept in the signature so
+// every existing call site stays untouched. `layout` keeps its old
+// {mode, cropRect} shape purely so itemLocalToVisibleFraction/
+// visibleFractionToItemLocal below (and GrabItOverlay.jsx) — which branch
+// on `layout.mode === "contain"` — take the same "uniform box mapping"
+// path they always did for a plain crop, with no changes needed there.
 export function getCropLayoutInfo(crop, naturalWidth, naturalHeight, boxWidth, boxHeight) {
-  const layout = computeCropLayout(crop, naturalWidth, naturalHeight, boxWidth, boxHeight);
-  const visibleRect =
-    layout.mode === "crop"
-      ? { x: layout.cropRect.x, y: layout.cropRect.y, width: layout.cropRect.width, height: layout.cropRect.height }
-      : { x: 0, y: 0, width: naturalWidth, height: naturalHeight };
-  return { layout, visibleRect };
+  const cropRect = computeCropRect(crop, naturalWidth, naturalHeight);
+  return { layout: { mode: "crop", cropRect }, visibleRect: { ...cropRect } };
 }
 
 // item-local px -> fraction (0..1) of the visible rect. `inside` is false

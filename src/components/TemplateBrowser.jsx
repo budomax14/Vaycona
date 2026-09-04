@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Heart, Layers, Lock, MoreVertical, Plus, Search, Trash2, X } from "lucide-react";
+import { Heart, Layers, Lock, MoreVertical, Plus, RectangleHorizontal, RectangleVertical, Repeat2, Search, Trash2, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
 import { TEMPLATE_CATEGORIES } from "../templateService";
@@ -12,6 +12,10 @@ const SORT_OPTIONS = [
   { key: "name", label: "Name" },
   { key: "most-used", label: "Most used" },
 ];
+
+function toUnit(px, unitKey) {
+  return Math.round(getUnit(unitKey).fromPx(px) * 100) / 100;
+}
 
 function matchesSearch(t, query) {
   if (!query) return true;
@@ -47,6 +51,8 @@ export default function TemplateBrowser({
   onDeleteSection,
   userTier = "free",
   onRequireUpgrade,
+  unit: sharedUnit,
+  onUnitChange,
 }) {
   const [tab, setTab] = useState("templates"); // templates | pages | sections
   const [query, setQuery] = useState("");
@@ -55,13 +61,57 @@ export default function TemplateBrowser({
   const [orientation, setOrientation] = useState(null);
   const [scope, setScope] = useState("all"); // all | favorites | recent | mine
   const [sort, setSort] = useState("recommended");
-  const [customWidth, setCustomWidth] = useState(1080);
-  const [customHeight, setCustomHeight] = useState(1080);
-  const [customUnit, setCustomUnit] = useState("px");
+  // Defaults stay the same physical size as before (1080x1080px), just
+  // expressed in inches to match the new default unit.
+  const [customWidth, setCustomWidth] = useState(11.25);
+  const [customHeight, setCustomHeight] = useState(11.25);
+  const [customUnit, setCustomUnit] = useState(sharedUnit || "in");
   const closeRef = useRef(null);
+
+  function changeCustomUnit(nextUnitKey) {
+    const currentUnit = getUnit(customUnit);
+    const nextUnit = getUnit(nextUnitKey);
+    const widthPx = currentUnit.toPx(customWidth);
+    const heightPx = currentUnit.toPx(customHeight);
+    setCustomUnit(nextUnitKey);
+    setCustomWidth(Math.round(nextUnit.fromPx(widthPx) * 100) / 100);
+    setCustomHeight(Math.round(nextUnit.fromPx(heightPx) * 100) / 100);
+    onUnitChange?.(nextUnitKey);
+  }
+
+  function swapCustomDimensions() {
+    setCustomWidth(customHeight);
+    setCustomHeight(customWidth);
+  }
+
+  function setCustomOrientation(nextOrientation) {
+    const [small, large] = [Math.min(customWidth, customHeight), Math.max(customWidth, customHeight)];
+    if (nextOrientation === "portrait") {
+      setCustomWidth(small);
+      setCustomHeight(large);
+    } else {
+      setCustomWidth(large);
+      setCustomHeight(small);
+    }
+  }
 
   useEffect(() => {
     if (isOpen) closeRef.current?.focus();
+  }, [isOpen]);
+
+  // Opening the dialog adopts whichever unit is active elsewhere in the app
+  // (the ruler, the resize dialog) so this never shows a stale unit — see
+  // changeCustomUnit above for the reverse direction.
+  useEffect(() => {
+    if (!isOpen || !sharedUnit || sharedUnit === customUnit) return;
+    const currentUnit = getUnit(customUnit);
+    const nextUnit = getUnit(sharedUnit);
+    const widthPx = currentUnit.toPx(customWidth);
+    const heightPx = currentUnit.toPx(customHeight);
+    setCustomUnit(sharedUnit);
+    setCustomWidth(Math.round(nextUnit.fromPx(widthPx) * 100) / 100);
+    setCustomHeight(Math.round(nextUnit.fromPx(heightPx) * 100) / 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -110,13 +160,20 @@ export default function TemplateBrowser({
         aria-labelledby="template-browser-title"
         className="flex h-[85vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl"
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 id="template-browser-title" className="text-base font-semibold text-gray-900">
-            New design
-          </h2>
-          <button ref={closeRef} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close">
+        <div className="flex items-center gap-2 border-b border-gray-200 px-5 py-4">
+          <button
+            ref={closeRef}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X size={18} />
           </button>
+          <h2 id="template-browser-title" className="flex-1 text-center text-base font-semibold text-gray-900">
+            New design
+          </h2>
+          {/* Mirrors the close button's width so the title lands in the true center. */}
+          <span className="h-8 w-8 shrink-0" aria-hidden="true" />
         </div>
 
         <div className="flex gap-1 border-b border-gray-100 px-5 pt-2">
@@ -140,52 +197,101 @@ export default function TemplateBrowser({
         {tab === "templates" && (
           <>
             <div className="border-b border-gray-100 px-5 py-3">
-              <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-gray-200 p-2.5">
-                <button
-                  className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
-                  onClick={() => onCreateBlank(customWidth && getUnit(customUnit).toPx(customWidth), customHeight && getUnit(customUnit).toPx(customHeight))}
-                >
-                  <Plus size={14} /> Blank design
-                </button>
-                <span className="text-xs text-gray-400">or custom size:</span>
-                <input
-                  type="number"
-                  min="1"
-                  aria-label="Custom width"
-                  className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
-                  value={customWidth}
-                  onChange={(event) => setCustomWidth(Number(event.target.value))}
-                />
-                <span className="text-xs text-gray-400">×</span>
-                <input
-                  type="number"
-                  min="1"
-                  aria-label="Custom height"
-                  className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
-                  value={customHeight}
-                  onChange={(event) => setCustomHeight(Number(event.target.value))}
-                />
-                <select
-                  aria-label="Custom size unit"
-                  className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
-                  value={customUnit}
-                  onChange={(event) => setCustomUnit(event.target.value)}
-                >
-                  {UNITS.map((u) => (
-                    <option key={u.key} value={u.key}>
-                      {u.label}
-                    </option>
-                  ))}
-                </select>
-                {PAGE_SIZE_PRESETS.slice(0, 6).map((preset) => (
+              <div className="mb-2 rounded-xl border border-dashed border-gray-200 p-3">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Unit</h3>
+                  <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
+                    {UNITS.map((u) => (
+                      <button
+                        key={u.key}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                          customUnit === u.key ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
+                        }`}
+                        onClick={() => changeCustomUnit(u.key)}
+                        title={u.label}
+                      >
+                        {u.key}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-2.5 flex flex-wrap gap-1.5">
+                  {PAGE_SIZE_PRESETS.slice(0, 6).map((preset) => {
+                    const unitDef = getUnit(customUnit);
+                    const displayWidth = Math.round(unitDef.fromPx(preset.width) * 100) / 100;
+                    const displayHeight = Math.round(unitDef.fromPx(preset.height) * 100) / 100;
+                    return (
+                      <button
+                        key={preset.key}
+                        className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-left text-xs text-gray-600 hover:border-amber-300 hover:bg-amber-50/50 hover:text-amber-700"
+                        onClick={() => onCreateBlank(preset.width, preset.height, preset.label)}
+                      >
+                        <span className="block font-medium">{preset.label}</span>
+                        <span className="block text-[10px] text-gray-400">
+                          {displayWidth} × {displayHeight} {customUnit}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-end gap-2">
                   <button
-                    key={preset.key}
-                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:border-amber-300 hover:text-amber-700"
-                    onClick={() => onCreateBlank(preset.width, preset.height, preset.label)}
+                    className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                    onClick={() => onCreateBlank(customWidth && getUnit(customUnit).toPx(customWidth), customHeight && getUnit(customUnit).toPx(customHeight))}
                   >
-                    {preset.label}
+                    <Plus size={14} /> Blank design
                   </button>
-                ))}
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] font-medium text-gray-500">Width</span>
+                    <input
+                      type="number"
+                      min="1"
+                      aria-label="Custom width"
+                      className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
+                      value={customWidth}
+                      onChange={(event) => setCustomWidth(Number(event.target.value))}
+                    />
+                  </label>
+                  <button
+                    className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+                    onClick={swapCustomDimensions}
+                    title="Swap width and height"
+                    aria-label="Swap width and height"
+                  >
+                    <Repeat2 size={14} />
+                  </button>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] font-medium text-gray-500">Height</span>
+                    <input
+                      type="number"
+                      min="1"
+                      aria-label="Custom height"
+                      className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
+                      value={customHeight}
+                      onChange={(event) => setCustomHeight(Number(event.target.value))}
+                    />
+                  </label>
+                  <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
+                    <button
+                      className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium ${
+                        customHeight >= customWidth ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                      onClick={() => setCustomOrientation("portrait")}
+                    >
+                      <RectangleVertical size={13} /> Portrait
+                    </button>
+                    <button
+                      className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium ${
+                        customHeight < customWidth ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                      onClick={() => setCustomOrientation("landscape")}
+                    >
+                      <RectangleHorizontal size={13} /> Landscape
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -296,6 +402,7 @@ export default function TemplateBrowser({
                     <TemplateCard
                       key={template.id}
                       template={template}
+                      unit={customUnit}
                       locked={TIER_RANK[template.tier || "free"] > TIER_RANK[userTier]}
                       onSelect={() => onSelectTemplate(template.id)}
                       onRequireUpgrade={onRequireUpgrade}
@@ -331,7 +438,7 @@ export default function TemplateBrowser({
   );
 }
 
-function TemplateCard({ template, locked, onSelect, onRequireUpgrade, onToggleFavorite, onDelete, onDuplicate }) {
+function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrade, onToggleFavorite, onDelete, onDuplicate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const orientation = orientationOf(template.pageWidth, template.pageHeight);
   return (
@@ -342,7 +449,7 @@ function TemplateCard({ template, locked, onSelect, onRequireUpgrade, onToggleFa
         aria-label={
           locked
             ? `${template.name} requires an upgrade`
-            : `Preview ${template.name}, ${template.pageWidth} by ${template.pageHeight} pixels`
+            : `Preview ${template.name}, ${toUnit(template.pageWidth, unit)} by ${toUnit(template.pageHeight, unit)} ${getUnit(unit).label}`
         }
       >
         <div className="relative aspect-square w-full bg-gray-50">
@@ -368,7 +475,7 @@ function TemplateCard({ template, locked, onSelect, onRequireUpgrade, onToggleFa
           <div className="truncate text-xs font-medium text-gray-800">{template.name}</div>
           <div className="flex items-center justify-between text-[10px] text-gray-400">
             <span>
-              {template.pageWidth}×{template.pageHeight} · {orientation}
+              {toUnit(template.pageWidth, unit)}×{toUnit(template.pageHeight, unit)} {unit} · {orientation}
             </span>
             {!template.builtIn && <span className="rounded bg-amber-50 px-1 text-amber-500">Mine</span>}
           </div>

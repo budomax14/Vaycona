@@ -4,7 +4,7 @@ import { pxToDisplay } from "./measurement";
 import { RULER_THICKNESS as THICKNESS } from "./constants";
 import { useTheme } from "./themeContext";
 
-function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unitKey, selectionExtent, isDark) {
+function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unitKey, selectionExtent, isDark, centerOffset) {
   const dpr = window.devicePixelRatio || 1;
   const width = orientation === "horizontal" ? length : THICKNESS;
   const height = orientation === "horizontal" ? THICKNESS : length;
@@ -39,15 +39,21 @@ function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unit
 
   const { minor, major } = computeRulerSteps(viewport.scale, unitKey);
 
-  const startContent = (0 - offset) / viewport.scale;
-  const endContent = (length - offset) / viewport.scale;
-  const firstTick = Math.floor(startContent / minor) * minor;
+  // Ticks are generated in "origin-relative" space (0 = centerOffset, the
+  // canvas midpoint) so the nice round tick values line up on the new
+  // origin instead of on the page's top-left corner. `value` (the raw
+  // content-space coordinate the page/objects actually use) is only ever
+  // recovered to compute where a tick lands on screen.
+  const startOrigin = (0 - offset) / viewport.scale - centerOffset;
+  const endOrigin = (length - offset) / viewport.scale - centerOffset;
+  const firstTick = Math.floor(startOrigin / minor) * minor;
 
-  for (let value = firstTick; value <= endContent + minor; value += minor) {
+  for (let origin = firstTick; origin <= endOrigin + minor; origin += minor) {
+    const value = origin + centerOffset;
     const screenPos = value * viewport.scale + offset;
     if (screenPos < -1 || screenPos > length + 1) continue;
 
-    const isMajor = Math.abs(Math.round(value / major) * major - value) < minor / 2;
+    const isMajor = Math.abs(Math.round(origin / major) * major - origin) < minor / 2;
     const tickLength = isMajor ? THICKNESS * 0.6 : THICKNESS * 0.3;
 
     ctx.beginPath();
@@ -61,7 +67,7 @@ function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unit
     ctx.stroke();
 
     if (isMajor) {
-      const label = String(pxToDisplay(value, unitKey));
+      const label = String(pxToDisplay(origin, unitKey));
       ctx.save();
       if (orientation === "horizontal") {
         ctx.translate(screenPos + 3, THICKNESS - tickLength - 1);
@@ -95,15 +101,15 @@ function drawRuler(canvas, length, orientation, viewport, cursorContentPos, unit
   }
 }
 
-export default function Ruler({ orientation, viewport, viewportLength, cursorContentPos, onGuideDragStart, unit = "px", selectionExtent = null, className = "" }) {
+export default function Ruler({ orientation, viewport, viewportLength, cursorContentPos, onGuideDragStart, unit = "px", selectionExtent = null, className = "", centerOffset = 0 }) {
   const canvasRef = useRef(null);
   const { isDark } = useTheme();
 
   useEffect(() => {
     if (canvasRef.current) {
-      drawRuler(canvasRef.current, viewportLength, orientation, viewport, cursorContentPos, unit, selectionExtent, isDark);
+      drawRuler(canvasRef.current, viewportLength, orientation, viewport, cursorContentPos, unit, selectionExtent, isDark, centerOffset);
     }
-  }, [orientation, viewport, viewportLength, cursorContentPos, unit, selectionExtent, isDark]);
+  }, [orientation, viewport, viewportLength, cursorContentPos, unit, selectionExtent, isDark, centerOffset]);
 
   return (
     <canvas

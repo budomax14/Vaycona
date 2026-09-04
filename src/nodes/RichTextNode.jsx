@@ -104,7 +104,12 @@ export default function RichTextNode({ item, commonProps }) {
     () =>
       layoutRichText(richText, {
         maxWidth: Math.max(1, width - (item.padding ?? 4) * 2),
-        autoWidth: item.autoSize === "auto-width",
+        // Always wraps at the box's own current width — for a flexible
+        // ("auto-width"/"auto-height") box, App.jsx's live-typing/format
+        // handlers already keep `width` pre-fitted to the content (via
+        // measureFlexibleTextBox), capped at the page's right edge, so
+        // there's nothing left for autoWidth-at-draw-time to do here.
+        autoWidth: false,
         lineHeight: item.lineHeight || 1.2,
         align: item.align || "left",
         letterSpacing: item.letterSpacing || 0,
@@ -116,7 +121,7 @@ export default function RichTextNode({ item, commonProps }) {
     // finishes loading, which changes measured widths — this forces a
     // fresh layout pass (and therefore a redraw with correct wrapping)
     // once the font actually becomes available.
-    [richText, width, item.autoSize, item.lineHeight, item.align, item.letterSpacing, item.paragraphSpacing, item.padding, item.textTransform, fontsReady]
+    [richText, width, item.lineHeight, item.align, item.letterSpacing, item.paragraphSpacing, item.padding, item.textTransform, fontsReady]
   );
 
   const padding = item.padding ?? 4;

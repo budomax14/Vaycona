@@ -7,6 +7,10 @@ import { useLanguage } from "../languageContext";
 import { useAuth } from "../authContext";
 import { STRINGS } from "../i18n";
 
+function toUnit(px, unitKey) {
+  return Math.round(getUnit(unitKey).fromPx(px) * 100) / 100;
+}
+
 // The landing page shown before the editor mounts (and whenever the user
 // clicks Home in TopNavBar) — picking a design is a prerequisite for seeing
 // the canvas, not an overlay on top of it. Deliberately lighter than
@@ -19,9 +23,11 @@ import { STRINGS } from "../i18n";
 // bg-gray-*/text-gray-*/bg-white classes below already re-theme globally.
 export default function HomePage({ templates, onSelectTemplate, onCreateBlank, onContinue, hasExistingDesign, projectName, lastSavedAt }) {
   const [query, setQuery] = useState("");
-  const [customWidth, setCustomWidth] = useState(1080);
-  const [customHeight, setCustomHeight] = useState(1080);
-  const [customUnit, setCustomUnit] = useState("px");
+  // Defaults stay the same physical size as before (1080x1080px), just
+  // expressed in inches to match the default unit below.
+  const [customUnit, setCustomUnit] = useState("in");
+  const [customWidth, setCustomWidth] = useState(11.25);
+  const [customHeight, setCustomHeight] = useState(11.25);
   const { language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
@@ -31,6 +37,20 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
   const t = STRINGS[language].home;
   const c = STRINGS[language].common;
   const nav = STRINGS[language].topNav;
+
+  // Changing the unit here also converts the current custom-size values
+  // (rather than leaving stale numbers under a new unit label) — the
+  // template grid below re-renders in the same unit automatically since it
+  // reads this same customUnit state.
+  function changeUnit(nextUnitKey) {
+    const currentUnit = getUnit(customUnit);
+    const nextUnit = getUnit(nextUnitKey);
+    const widthPx = currentUnit.toPx(customWidth);
+    const heightPx = currentUnit.toPx(customHeight);
+    setCustomUnit(nextUnitKey);
+    setCustomWidth(Math.round(nextUnit.fromPx(widthPx) * 100) / 100);
+    setCustomHeight(Math.round(nextUnit.fromPx(heightPx) * 100) / 100);
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -200,7 +220,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
               aria-label="Custom size unit"
               className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
               value={customUnit}
-              onChange={(event) => setCustomUnit(event.target.value)}
+              onChange={(event) => changeUnit(event.target.value)}
             >
               {UNITS.map((u) => (
                 <option key={u.key} value={u.key}>
@@ -246,7 +266,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
                   key={template.id}
                   className="group overflow-hidden rounded-xl border border-gray-200 bg-white text-left hover:border-amber-300"
                   onClick={() => onSelectTemplate(template.id)}
-                  aria-label={`Preview ${template.name}, ${template.pageWidth} by ${template.pageHeight} pixels`}
+                  aria-label={`Preview ${template.name}, ${toUnit(template.pageWidth, customUnit)} by ${toUnit(template.pageHeight, customUnit)} ${getUnit(customUnit).label}`}
                 >
                   <div className="aspect-square w-full bg-gray-50">
                     {template.thumbnail ? (
@@ -262,7 +282,8 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
                   <div className="p-2">
                     <div className="truncate text-xs font-medium text-gray-800">{template.name}</div>
                     <div className="text-[10px] text-gray-400">
-                      {template.pageWidth}×{template.pageHeight} · {orientationOf(template.pageWidth, template.pageHeight)}
+                      {toUnit(template.pageWidth, customUnit)}×{toUnit(template.pageHeight, customUnit)} {customUnit} ·{" "}
+                      {orientationOf(template.pageWidth, template.pageHeight)}
                     </div>
                   </div>
                 </button>

@@ -2,14 +2,19 @@ import React, { useEffect, useState } from "react";
 import { RectangleHorizontal, RectangleVertical, Repeat2, X } from "lucide-react";
 import { PAGE_SIZE_PRESETS, UNITS, findMatchingPreset, getUnit } from "../pageSizes";
 
-export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeight, onApply }) {
-  const [unit, setUnit] = useState("px");
+export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeight, onApply, unit: sharedUnit, onUnitChange }) {
+  const [unit, setUnit] = useState(sharedUnit || "in");
   const [widthValue, setWidthValue] = useState(currentWidth);
   const [heightValue, setHeightValue] = useState(currentHeight);
 
+  // Opening the modal adopts whichever unit is active elsewhere in the app
+  // (the ruler, the toolbar unit picker) so this dialog never shows a stale
+  // unit — see changeUnit below for the reverse direction.
   useEffect(() => {
     if (!isOpen) return;
-    const unitDef = getUnit(unit);
+    const nextUnitKey = sharedUnit || unit;
+    const unitDef = getUnit(nextUnitKey);
+    setUnit(nextUnitKey);
     setWidthValue(round(unitDef.fromPx(currentWidth)));
     setHeightValue(round(unitDef.fromPx(currentHeight)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -38,6 +43,7 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
     setUnit(nextUnitKey);
     setWidthValue(round(nextUnit.fromPx(widthPx)));
     setHeightValue(round(nextUnit.fromPx(heightPx)));
+    onUnitChange?.(nextUnitKey);
   }
 
   function applyPreset(preset) {

@@ -11,7 +11,7 @@
 
 import { validateHierarchy, repairHierarchy } from "./hierarchy";
 import { isValidRichText } from "./richText";
-import { normalizeCrop } from "./imageCrop";
+import { normalizeCrop, normalizeFocalCrop } from "./imageCrop";
 import { normalizeAdjustments } from "./imageEffects";
 import { normalizeOpacityMask } from "./opacityMask";
 import { REGISTRY } from "./objectRegistry";
@@ -384,7 +384,10 @@ export function repairProject(data) {
     if (next.rotation != null && !isFiniteNumber(next.rotation)) next.rotation = 0;
     if (next.opacity != null) next.opacity = Math.min(1, Math.max(0, isFiniteNumber(next.opacity) ? next.opacity : 1));
     if (next.type === "text" && next.richText !== undefined && !isValidRichText(next.richText)) next.richText = undefined;
-    if (next.crop) next.crop = normalizeCrop(next.crop);
+    // Frame content keeps the legacy focal-crop model (fixed-shape content
+    // window, pan/zoom only); standalone images use the Apple-style rect
+    // crop model — see imageCrop.js's file header.
+    if (next.crop) next.crop = next.type === "frame" ? normalizeFocalCrop(next.crop) : normalizeCrop(next.crop);
     if (next.adjustments) next.adjustments = normalizeAdjustments(next.adjustments);
     if (next.opacityMask) next.opacityMask = normalizeOpacityMask(next.opacityMask);
 

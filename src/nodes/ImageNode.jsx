@@ -3,7 +3,7 @@ import { Group, Image as KonvaImage, Rect, Shape } from "react-konva";
 import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
 import { useImageFilters } from "../useImageFilters";
-import { computeCropLayout } from "../imageCrop";
+import { computeCropRect } from "../imageCrop";
 import { resolveMaskGeometry } from "../opacityMask";
 import { buildRectPath } from "../shapeGeometry";
 import { findIconByName, ICON_NATIVE_SIZE } from "../iconCatalog";
@@ -51,16 +51,11 @@ export default function ImageNode({ item, commonProps }) {
   // (see animationService.js's computeCropDeltaForItem) — the durable
   // `item.crop` underneath is never touched, so playback stopping or
   // being canceled always reverts to exactly the stored crop.
-  const layout = computeCropLayout(item.__animatedCrop || item.crop, naturalWidth, naturalHeight, width, height);
-  // Fade's normalized mask coordinates are defined over the item's own full
-  // box, but the cached/filtered Konva node is the INNER <KonvaImage> —
-  // which in "contain"/fit layout is smaller than and offset within that
-  // box (letterboxed). Only that mode needs a non-identity mapping; "crop"
-  // and "stretch" already draw the inner image at exactly (0,0,width,height).
-  const maskGeometry =
-    layout.mode === "contain"
-      ? resolveMaskGeometry(width, height, { x: layout.offsetX, y: layout.offsetY, width: layout.drawWidth, height: layout.drawHeight })
-      : resolveMaskGeometry(width, height, { x: 0, y: 0, width, height });
+  const cropRect = computeCropRect(item.__animatedCrop || item.crop, naturalWidth, naturalHeight);
+  // The crop rect always maps onto the object's full box (0,0,width,height)
+  // — no letterboxing mode any more — so Fade's normalized mask coordinates
+  // (also defined over that same full box) need no offset/scale mapping.
+  const maskGeometry = resolveMaskGeometry(width, height, { x: 0, y: 0, width, height });
   useImageFilters(innerImageRef, image, item.adjustments, item.opacityMask, maskGeometry);
 
   let content;
@@ -81,14 +76,7 @@ export default function ImageNode({ item, commonProps }) {
     // Loading — inert placeholder box, same outer Group as the real content.
     content = <Shape sceneFunc={boxSceneFunc} width={width} height={height} fill="#f3f4f6" listening={false} />;
   } else {
-    content =
-      layout.mode === "contain" ? (
-        <KonvaImage ref={innerImageRef} image={image} x={layout.offsetX} y={layout.offsetY} width={layout.drawWidth} height={layout.drawHeight} listening={false} />
-      ) : layout.mode === "stretch" ? (
-        <KonvaImage ref={innerImageRef} image={image} x={0} y={0} width={width} height={height} listening={false} />
-      ) : (
-        <KonvaImage ref={innerImageRef} image={image} x={0} y={0} width={width} height={height} crop={layout.cropRect} listening={false} />
-      );
+    content = <KonvaImage ref={innerImageRef} image={image} x={0} y={0} width={width} height={height} crop={cropRect} listening={false} />;
   }
 
   return (

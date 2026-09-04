@@ -23,16 +23,27 @@ export function useAsset(assetId) {
       const meta = await getAssetMeta(assetId);
       if (cancelled) return;
       if (!meta) {
+        console.warn("[IMG-DIAG] useAsset: no meta found for asset", { assetId });
         setState({ status: "missing", objectUrl: null, meta: null });
         return;
       }
       const blob = await getAssetBlob(assetId);
       if (cancelled) return;
       if (!blob) {
+        console.warn("[IMG-DIAG] useAsset: no blob found for asset (meta present)", { assetId, meta });
         setState({ status: "missing", objectUrl: null, meta });
         return;
       }
       currentUrl = URL.createObjectURL(blob);
+      console.log("[IMG-DIAG] useAsset: resolved objectUrl", {
+        assetId,
+        objectUrl: currentUrl,
+        blobSize: blob.size,
+        blobType: blob.type,
+        metaName: meta?.name,
+        metaWidth: meta?.width,
+        metaHeight: meta?.height,
+      });
       setState({ status: "ready", objectUrl: currentUrl, meta });
     }
 

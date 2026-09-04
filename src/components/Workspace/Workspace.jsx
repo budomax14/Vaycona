@@ -360,6 +360,7 @@ const Workspace = forwardRef(function Workspace(
             onGuideDragStart={() => onGuideDragStart?.("horizontal")}
             unit={unit}
             selectionExtent={selectionExtent?.horizontal}
+            centerOffset={(activePage?.width ?? 0) / 2}
           />
           <div className="ruler-corner ruler-corner-end shrink-0" style={{ width: RULER_THICKNESS, height: RULER_THICKNESS }} />
         </div>
@@ -374,6 +375,7 @@ const Workspace = forwardRef(function Workspace(
             onGuideDragStart={() => onGuideDragStart?.("vertical")}
             unit={unit}
             selectionExtent={selectionExtent?.vertical}
+            centerOffset={(activePage?.height ?? 0) / 2}
           />
         )}
         <div
@@ -421,6 +423,7 @@ const Workspace = forwardRef(function Workspace(
             onGuideDragStart={() => onGuideDragStart?.("vertical")}
             unit={unit}
             selectionExtent={selectionExtent?.vertical}
+            centerOffset={(activePage?.height ?? 0) / 2}
           />
         )}
       </div>

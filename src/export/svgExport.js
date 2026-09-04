@@ -18,8 +18,7 @@ import { LINE_KINDS } from "../lineKinds";
 import { FRAME_KINDS } from "../frameKinds";
 import { findIconByName, ICON_NATIVE_SIZE } from "../iconCatalog";
 import { isEffectivelyHidden } from "../hierarchy";
-import { isRichText } from "../richText";
-import { computeCropLayout } from "../imageCrop";
+import { computeCropLayout, computeCropRect } from "../imageCrop";
 import { buildFilterPipeline, hasAnyAdjustment } from "../imageEffects";
 import { getAssetBlob, getAssetMeta } from "../assetStore";
 import { createSvgPathContext } from "./svgPathContext";
@@ -215,46 +214,17 @@ function renderIconItem(item) {
   return wrapItem(item, inner);
 }
 
-// Only text that the editor itself never wraps (autoSize:"auto-width")
-// stays a real <text> element — every `\n` in the source is an explicit,
-// user-authored break, so reproducing it as one <tspan> per line can never
-// disagree with what the editor shows (spec §12 "do not silently change
-// line breaks"). Anything the editor auto-wraps, or that uses rich
-// per-run formatting/effects, is rasterized instead (see rasterizeItemPng)
-// rather than risk a subtly different wrap point in the exported file.
-function isVectorSafeText(item) {
-  return (
-    item.autoSize === "auto-width" &&
-    !isRichText(item) &&
-    !item.effects?.shadow?.enabled &&
-    !item.effects?.outline?.enabled &&
-    !item.effects?.glow?.enabled &&
-    !item.background?.enabled &&
-    !item.border?.enabled &&
-    !item.curve &&
-    !item.flipX &&
-    !item.flipY &&
-    // 3D extrusion (Text Effects → 3D) has no faithful <text>+filter SVG
-    // equivalent — same reasoning as shadow/outline/glow above.
-    !item.text3D?.enabled
-  );
-}
-
-function renderVectorTextItem(item) {
-  const lines = String(item.text ?? "").split("\n");
-  const fontSize = item.fontSize || 42;
-  const lineHeight = (item.lineHeight || 1) * fontSize;
-  const weight = item.fontWeight === "bold" ? "bold" : "normal";
-  const style = item.italic ? "italic" : "normal";
-  const decoration = [item.underline && "underline", item.strikethrough && "line-through"].filter(Boolean).join(" ") || "none";
-  const anchor = item.align === "center" ? "middle" : item.align === "right" ? "end" : "start";
-  const anchorX = item.align === "center" ? item.width / 2 : item.align === "right" ? item.width : 0;
-  const tspans = lines
-    .map((line, i) => `<tspan x="${anchorX}" y="${fontSize * 0.85 + i * lineHeight}">${escapeXml(line)}</tspan>`)
-    .join("");
-  const text = `<text font-family="${escapeXml(item.fontFamily || "Arial")}" font-size="${fontSize}" font-weight="${weight}" font-style="${style}" text-decoration="${decoration}" letter-spacing="${item.letterSpacing || 0}" fill="${item.fill || "#111827"}" text-anchor="${anchor}">${tspans}</text>`;
-  return wrapItem(item, text);
-}
+// Exported text is always rasterized now (see renderTextItem below) — kept
+// as a note rather than deleted silently: previously, text using
+// autoSize:"auto-width" stayed a real vector <text> element, since that
+// mode never auto-wrapped and every `\n` in the source was therefore an
+// explicit, user-authored break — safe to reproduce as one <tspan> per
+// line (spec §12 "do not silently change line breaks"). Every text box
+// (flexible or fixed) now wraps at its own current width instead — see
+// richText.js/SimpleTextNode.jsx's flexible-text-box rewrite — so no mode
+// is provably wrap-free from `item.text` alone any more, and rasterizing
+// unconditionally is what avoids risking a subtly different wrap point in
+// the exported file.
 
 // Frame outline geometry is reused as an SVG clipPath (spec §20/§36); the
 // image content itself is embedded as a raster (spec-allowed — image
@@ -334,7 +304,11 @@ async function renderImageItem(item, availableAssetIds) {
     return wrapItem(item, `<path d="${clipD}" fill="#fef2f2" stroke="#fca5a5" stroke-width="2" stroke-dasharray="8,6" />`, { extraDefs: clipDef });
   }
   const meta = await getAssetMeta(item.assetId);
-  const layout = computeCropLayout(item.crop, meta?.width, meta?.height, width, height);
+  // Standalone images use the Apple-style rect crop model — always a
+  // uniform stretch of the crop rect onto the object's box, no letterbox
+  // mode to branch on (unlike frame content just below, which still uses
+  // the legacy focal-crop model via computeCropLayout).
+  const cropRect = computeCropRect(item.crop, meta?.width, meta?.height);
   const dataUrl = await resolveEmbeddedImage(item.assetId, {
     flipX: item.flipX,
     flipY: item.flipY,
@@ -344,14 +318,9 @@ async function renderImageItem(item, availableAssetIds) {
   });
   if (!dataUrl) return wrapItem(item, `<path d="${clipD}" fill="#fef2f2" stroke="#fca5a5" stroke-width="2" stroke-dasharray="8,6" />`, { extraDefs: clipDef });
 
-  let imageTag;
-  if (layout.mode === "contain") {
-    imageTag = `<image href="${dataUrl}" x="${layout.offsetX}" y="${layout.offsetY}" width="${layout.drawWidth}" height="${layout.drawHeight}" preserveAspectRatio="none" />`;
-  } else {
-    const scaleX = width / layout.cropRect.width;
-    const scaleY = height / layout.cropRect.height;
-    imageTag = `<image href="${dataUrl}" x="${-layout.cropRect.x * scaleX}" y="${-layout.cropRect.y * scaleY}" width="${(meta?.width || 1) * scaleX}" height="${(meta?.height || 1) * scaleY}" preserveAspectRatio="none" />`;
-  }
+  const scaleX = width / cropRect.width;
+  const scaleY = height / cropRect.height;
+  const imageTag = `<image href="${dataUrl}" x="${-cropRect.x * scaleX}" y="${-cropRect.y * scaleY}" width="${(meta?.width || 1) * scaleX}" height="${(meta?.height || 1) * scaleY}" preserveAspectRatio="none" />`;
   const inner = `<g clip-path="url(#${clipId})">${imageTag}</g>`;
   return wrapItem(item, inner, { extraDefs: clipDef });
 }
@@ -397,7 +366,6 @@ async function renderChartItem(item, renderScale) {
 }
 
 async function renderTextItem(item, renderScale) {
-  if (isVectorSafeText(item)) return renderVectorTextItem(item);
   const dataUrl = await rasterizeItemForSvg(item, renderScale);
   const inner = `<image href="${dataUrl}" x="0" y="0" width="${item.width}" height="${item.height}" opacity="1" />`;
   // Opacity/rotation are already applied by wrapItem's outer <g>; the

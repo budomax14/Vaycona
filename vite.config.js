@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    port: 9021,
     // Forwards the Illustrations panel's backend calls to the local
     // Firebase Functions emulator (run alongside `npm run dev` with
     // `firebase emulators:start --only functions`) so it works the same

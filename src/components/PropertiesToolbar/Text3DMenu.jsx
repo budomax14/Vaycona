@@ -29,10 +29,21 @@ export default function Text3DMenu({ item, onChange }) {
     onChange({ text3D: { ...text3D, ...patch } });
   }
 
+  function handleToggleOpen() {
+    setOpen((wasOpen) => {
+      const willOpen = !wasOpen;
+      // Opening with 3D still off would otherwise land on a bare "enable"
+      // toggle with none of the actual controls visible — turn it on in
+      // the same click so the full menu shows right away.
+      if (willOpen && !text3D.enabled) update({ enabled: true });
+      return willOpen;
+    });
+  }
+
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
       <div ref={anchorRef} className="inline-flex">
-        <IconButton icon={Box} label="3D" onClick={() => setOpen((v) => !v)} active={open || text3D.enabled} />
+        <IconButton icon={Box} label="3D" onClick={handleToggleOpen} active={open || text3D.enabled} />
       </div>
       <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-72 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>

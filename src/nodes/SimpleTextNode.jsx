@@ -90,11 +90,11 @@ export default function SimpleTextNode({ item, commonProps }) {
       lineHeight,
       align: item.align || "left",
       verticalAlign: item.verticalAlign || "middle",
-      wrap: item.autoSize === "auto-width" ? "none" : "word",
+      wrap: "word",
       padding,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text3D.enabled, text3DSteps.length, !!bevelRim, text3DContent, width, height, fontSize, item.fontFamily, item.fontWeight, item.italic, item.letterSpacing, lineHeight, item.align, item.verticalAlign, item.autoSize, padding]);
+  }, [text3D.enabled, text3DSteps.length, !!bevelRim, text3DContent, width, height, fontSize, item.fontFamily, item.fontWeight, item.italic, item.letterSpacing, lineHeight, item.align, item.verticalAlign, padding]);
 
   const text3DCacheKey = JSON.stringify([
     text3DContent, item.fontFamily, fontSize, item.fontWeight, item.italic, item.letterSpacing, lineHeight,
@@ -221,7 +221,11 @@ export default function SimpleTextNode({ item, commonProps }) {
           {...(imageFill || gradient)}
           align={item.align || "left"}
           verticalAlign={item.verticalAlign || "middle"}
-          wrap={item.autoSize === "auto-width" ? "none" : "word"}
+          // Always wraps at the box's own current width — see
+          // RichTextNode.jsx's matching comment: a flexible box's width is
+          // already kept pre-fitted to its content by App.jsx's
+          // live-typing/format handlers.
+          wrap="word"
           padding={padding}
           {...getTextEffectProps(item)}
         />

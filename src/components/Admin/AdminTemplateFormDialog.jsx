@@ -42,9 +42,11 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [width, setWidth] = useState(1080);
-  const [height, setHeight] = useState(1080);
-  const [unit, setUnit] = useState("px");
+  // Defaults stay the same physical size as before (1080x1080px), just
+  // expressed in inches to match the new default unit.
+  const [width, setWidth] = useState(11.25);
+  const [height, setHeight] = useState(11.25);
+  const [unit, setUnit] = useState("in");
   const [background, setBackground] = useState("#ffffff");
   const [status, setStatus] = useState("draft");
   const [tier, setTier] = useState("free");
@@ -61,9 +63,9 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
     setDescription(initialValues?.description || "");
     setCategory(initialValues?.category || listAllCategories()[0]?.key || "personal");
     setTagsInput((initialValues?.tags || []).join(", "));
-    setWidth(initialValues?.width || 1080);
-    setHeight(initialValues?.height || 1080);
-    setUnit("px");
+    setWidth(initialValues?.width ? getUnit("in").fromPx(initialValues.width) : 11.25);
+    setHeight(initialValues?.height ? getUnit("in").fromPx(initialValues.height) : 11.25);
+    setUnit("in");
     setBackground(initialValues?.background || "#ffffff");
     setStatus(initialValues?.status || "draft");
     setTier(initialValues?.tier || "free");
@@ -83,6 +85,16 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  function changeUnit(nextUnitKey) {
+    const currentUnit = getUnit(unit);
+    const nextUnit = getUnit(nextUnitKey);
+    const widthPx = currentUnit.toPx(Number(width) || 0);
+    const heightPx = currentUnit.toPx(Number(height) || 0);
+    setUnit(nextUnitKey);
+    setWidth(Math.round(nextUnit.fromPx(widthPx) * 100) / 100);
+    setHeight(Math.round(nextUnit.fromPx(heightPx) * 100) / 100);
+  }
 
   async function handleThumbnailChange(event) {
     const file = event.target.files?.[0];
@@ -262,7 +274,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
                   aria-label="Unit"
                   className="shrink-0 rounded-lg border border-gray-200 px-2 py-2 text-xs"
                   value={unit}
-                  onChange={(event) => setUnit(event.target.value)}
+                  onChange={(event) => changeUnit(event.target.value)}
                 >
                   {UNITS.map((u) => (
                     <option key={u.key} value={u.key}>

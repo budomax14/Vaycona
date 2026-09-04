@@ -321,12 +321,19 @@ function listPrefixFor(paragraph, index) {
   return BULLET_GLYPH;
 }
 
-// paragraphs: richText array. opts: { maxWidth, autoWidth, lineHeight,
-// align, letterSpacing, paragraphSpacing }. Returns { lines, totalWidth,
-// totalHeight } — `lines` is consumed by the draw path, totals by the
-// auto-size path.
+// paragraphs: richText array. opts: { maxWidth, autoWidth, maxAutoWidth,
+// lineHeight, align, letterSpacing, paragraphSpacing }. Returns { lines,
+// totalWidth, totalHeight } — `lines` is consumed by the draw path, totals
+// by the auto-size path.
+//
+// `maxAutoWidth` (only meaningful when `autoWidth` is true) caps how wide a
+// line is allowed to grow before it wraps — used by measureFlexibleTextBox
+// below to implement "the box keeps growing to fit what's typed, and only
+// wraps once it reaches the page's right edge": lines shorter than the cap
+// still shrink-to-fit (autoWidth's usual behavior, via the totalWidth calc
+// below), lines that would exceed it wrap exactly like a fixed-width box.
 export function layoutRichText(paragraphs, opts) {
-  const { maxWidth, autoWidth, lineHeight = 1.2, align: defaultAlign = "left", letterSpacing = 0, paragraphSpacing = 0, textTransform = "none" } = opts;
+  const { maxWidth, autoWidth, maxAutoWidth, lineHeight = 1.2, align: defaultAlign = "left", letterSpacing = 0, paragraphSpacing = 0, textTransform = "none" } = opts;
   const ctx = getMeasureContext();
   const lines = [];
   let y = 0;
@@ -358,7 +365,8 @@ export function layoutRichText(paragraphs, opts) {
     });
 
     let line = { segments: [], width: 0, isFirst: true };
-    let usableWidth = autoWidth ? Infinity : Math.max(10, maxWidth - indent);
+    const autoWidthCapped = autoWidth && Number.isFinite(maxAutoWidth);
+    let usableWidth = autoWidth ? (autoWidthCapped ? Math.max(10, maxAutoWidth - indent) : Infinity) : Math.max(10, maxWidth - indent);
 
     const flushLine = (isLast) => {
       const fontSizes = line.segments.map((s) => s.run.fontSize).filter(Boolean);
@@ -384,7 +392,7 @@ export function layoutRichText(paragraphs, opts) {
         flushLine(false);
         return;
       }
-      if (!autoWidth && line.segments.length && line.width + token.width > usableWidth) flushLine(false);
+      if ((!autoWidth || autoWidthCapped) && line.segments.length && line.width + token.width > usableWidth) flushLine(false);
       const last = line.segments[line.segments.length - 1];
       if (last && last.run === token.run) {
         last.text += token.text;
@@ -424,6 +432,34 @@ export function measureAutoHeight(item, richText) {
     textTransform: item.textTransform || "none",
   });
   return Math.max(20, totalHeight + padding * 2);
+}
+
+// The "flexible" text box measurement: the box keeps growing (or shrinking)
+// its WIDTH to hug whatever's typed — never wrapping — until it would
+// cross `availableWidth` (the remaining room out to the page's right edge,
+// already computed by the caller as pageWidth - item.x), at which point it
+// wraps exactly like a fixed-width box and grows in HEIGHT instead. Font
+// size is never read or written here — only width/height ever change; the
+// font-size toolbar control is the only thing that changes letter size
+// (see App.jsx's applyTextFormat). 20 matches the Transformer's own
+// boundBoxFunc minimum so a just-cleared text box doesn't collapse to 0.
+export function measureFlexibleTextBox(item, richText, availableWidth) {
+  const padding = item.padding ?? 4;
+  const maxContentWidth = Math.max(20, availableWidth - padding * 2);
+  const { totalWidth, totalHeight } = layoutRichText(richText, {
+    maxWidth: maxContentWidth,
+    autoWidth: true,
+    maxAutoWidth: maxContentWidth,
+    lineHeight: item.lineHeight || 1,
+    align: item.align || "left",
+    letterSpacing: item.letterSpacing || 0,
+    paragraphSpacing: item.paragraphSpacing || 0,
+    textTransform: item.textTransform || "none",
+  });
+  return {
+    width: Math.max(20, Math.min(maxContentWidth, totalWidth) + padding * 2),
+    height: Math.max(20, totalHeight + padding * 2),
+  };
 }
 
 export { fontString, measureRunText, getMeasureContext, LIST_INDENT_PER_LEVEL };

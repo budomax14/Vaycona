@@ -63,6 +63,7 @@ export const STRINGS = {
       duplicate: "Duplicate",
       delete: "Delete",
       selectAll: "Select All",
+      customSize: "Custom size…",
 
       viewMenu: "View",
       zoomIn: "Zoom in",
@@ -275,6 +276,7 @@ export const STRINGS = {
       duplicate: "Dupliquer",
       delete: "Supprimer",
       selectAll: "Tout sélectionner",
+      customSize: "Taille personnalisée…",
 
       viewMenu: "Affichage",
       zoomIn: "Zoom avant",

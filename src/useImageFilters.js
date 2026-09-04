@@ -35,6 +35,10 @@ export function useImageFilters(nodeRef, image, adjustments, opacityMask, geomet
       node.clearCache();
       node.filters([]);
       node.getLayer()?.batchDraw();
+      console.log("[IMG-DIAG] useImageFilters: no-adjustment path, batchDraw called", {
+        nodeWidth: node.width?.(),
+        nodeHeight: node.height?.(),
+      });
       return undefined;
     }
 
@@ -43,9 +47,24 @@ export function useImageFilters(nodeRef, image, adjustments, opacityMask, geomet
     // why the fade should taper alpha AFTER color/blur adjustments run.
     if (maskActive) filters.push(buildOpacityMaskFilter(opacityMask, geometry || IDENTITY_MASK_GEOMETRY));
     node.setAttrs(props);
-    node.cache(cacheBounds || undefined);
+    try {
+      node.cache(cacheBounds || undefined);
+    } catch (err) {
+      console.error("[IMG-DIAG] useImageFilters: node.cache() threw", {
+        error: err,
+        nodeWidth: node.width?.(),
+        nodeHeight: node.height?.(),
+        cacheBounds,
+      });
+      throw err;
+    }
     node.filters(filters);
     node.getLayer()?.batchDraw();
+    console.log("[IMG-DIAG] useImageFilters: filtered path, batchDraw called", {
+      nodeWidth: node.width?.(),
+      nodeHeight: node.height?.(),
+      filterCount: filters.length,
+    });
 
     return () => {
       // Re-run on every dependency change (image swap, adjustment edit,
