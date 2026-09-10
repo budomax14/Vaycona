@@ -1,5 +1,7 @@
 import React from "react";
 import { contentToScreen } from "../viewport";
+import { useLanguage } from "../languageContext";
+import { STATUS_BAR_STRINGS } from "../i18n/statusBarAndMenus";
 
 const SNAP_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315, 360];
 const SNAP_TOLERANCE_DEGREES = 3;
@@ -10,6 +12,8 @@ function isNearSnapAngle(angle) {
 }
 
 export default function RotationIndicator({ visible, angle, selectionBoundsContent, viewport }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].rotationIndicator;
   if (!visible || !selectionBoundsContent) return null;
 
   const topCenter = contentToScreen(
@@ -26,7 +30,7 @@ export default function RotationIndicator({ visible, angle, selectionBoundsConte
       }`}
       style={{ left: topCenter.x, top: topCenter.y }}
     >
-      {normalized}° {snapped && "· snapped"}
+      {normalized}° {snapped && t.snappedSuffix}
     </div>
   );
 }

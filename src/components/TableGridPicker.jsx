@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useLanguage } from "../languageContext";
+import { STATUS_BAR_STRINGS } from "../i18n/statusBarAndMenus";
 
 const MAX_GRID_ROWS = 8;
 const MAX_GRID_COLS = 10;
@@ -8,6 +10,8 @@ const MAX_GRID_COLS = 10;
 // MAX_TABLE_DIM — this is a quick-pick UI, not the way to reach a large
 // table (that's what the numeric "Custom" fields are for).
 export default function TableGridPicker({ onPick }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].tableGridPicker;
   const [hover, setHover] = useState({ rows: 0, cols: 0 });
 
   return (
@@ -27,14 +31,14 @@ export default function TableGridPicker({ onPick }) {
                 className={`h-4 w-4 rounded-sm border ${active ? "border-amber-500 bg-amber-400" : "border-gray-200 bg-gray-50"}`}
                 onMouseEnter={() => setHover({ rows: r + 1, cols: c + 1 })}
                 onClick={() => onPick(r + 1, c + 1)}
-                aria-label={`${r + 1} rows by ${c + 1} columns`}
+                aria-label={t.cellAriaLabel(r + 1, c + 1)}
               />
             );
           })
         )}
       </div>
       <div className="mt-1.5 text-center text-xs text-gray-500">
-        {hover.rows > 0 ? `${hover.rows} × ${hover.cols}` : "Hover to choose a size"}
+        {hover.rows > 0 ? t.sizeLabel(hover.rows, hover.cols) : t.hoverToChoose}
       </div>
     </div>
   );

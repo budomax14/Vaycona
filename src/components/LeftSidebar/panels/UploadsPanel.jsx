@@ -1,12 +1,10 @@
 import React, { useMemo, useRef, useState } from "react";
 import { AlertCircle, ImagePlus, Loader2, Search, Trash2, X } from "lucide-react";
 import { useAssetList } from "../../../useAsset";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
-const SORT_OPTIONS = [
-  { key: "recent", label: "Most recent" },
-  { key: "name", label: "Name (A–Z)" },
-  { key: "size", label: "File size" },
-];
+const SORT_OPTION_KEYS = ["recent", "name", "size"];
 
 // Real, working Uploads panel (Phase 6) — local pending-upload state tracks
 // in-flight/failed attempts that never made it into the asset index (an
@@ -15,6 +13,8 @@ const SORT_OPTIONS = [
 // make it in comes from useAssetList's reactive read of the synchronous
 // localStorage index (instant render, no per-thumbnail IndexedDB round-trip).
 export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAsset, usedAssetIds }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].uploads;
   const fileInputRef = useRef(null);
   const assetIndex = useAssetList();
   const [pending, setPending] = useState([]); // [{localId, name, status, errorMessage}]
@@ -72,7 +72,7 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <h3 className="text-sm font-semibold text-gray-800">Uploads</h3>
+      <h3 className="text-sm font-semibold text-gray-800">{t.title}</h3>
 
       <button
         className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 text-sm font-medium transition-colors ${
@@ -89,11 +89,11 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
           setIsDragOver(false);
           if (event.dataTransfer.files?.length) handleFiles(event.dataTransfer.files);
         }}
-        aria-label="Upload images — click to choose a file, or drag and drop here"
+        aria-label={t.uploadAreaAria}
       >
         <ImagePlus size={20} />
-        <span>Upload image</span>
-        <span className="text-xs font-normal text-gray-400">or drag and drop, JPEG/PNG/WebP/GIF</span>
+        <span>{t.uploadImage}</span>
+        <span className="text-xs font-normal text-gray-400">{t.dragAndDropHint}</span>
       </button>
       <input
         ref={fileInputRef}
@@ -115,14 +115,14 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
               <span className="min-w-0 flex-1 truncate">
                 {p.status === "error"
                   ? p.errorMessage
-                  : `Uploading ${p.name}${p.progress > 0 ? ` ${Math.round(p.progress * 100)}%` : "…"}`}
+                  : t.uploadingLabel(p.name, p.progress > 0 ? ` ${Math.round(p.progress * 100)}%` : "…")}
               </span>
               {p.status === "error" && (
                 <>
                   <button className="shrink-0 font-semibold underline" onClick={() => retryPending(p.localId)}>
-                    Retry
+                    {t.retry}
                   </button>
-                  <button className="shrink-0" aria-label="Dismiss" onClick={() => dismissPending(p.localId)}>
+                  <button className="shrink-0" aria-label={t.dismiss} onClick={() => dismissPending(p.localId)}>
                     <X size={13} />
                   </button>
                 </>
@@ -140,20 +140,20 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search uploads"
-              aria-label="Search uploaded images"
+              placeholder={t.searchPlaceholder}
+              aria-label={t.searchAria}
               className="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-7 pr-2 text-xs outline-none focus:border-amber-400 focus:bg-white"
             />
           </div>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value)}
-            aria-label="Sort uploaded images"
+            aria-label={t.sortAria}
             className="shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-600 outline-none"
           >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.key} value={opt.key}>
-                {opt.label}
+            {SORT_OPTION_KEYS.map((key) => (
+              <option key={key} value={key}>
+                {t.sortOptions[key]}
               </option>
             ))}
           </select>
@@ -162,7 +162,7 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
 
       {assets.length === 0 ? (
         <p className="text-xs text-gray-400">
-          {Object.keys(assetIndex).length === 0 ? "Uploaded images will appear here for reuse." : "No uploads match your search."}
+          {Object.keys(assetIndex).length === 0 ? t.emptyUploads : t.noUploadsMatch}
         </p>
       ) : (
         <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto pb-2">
@@ -175,11 +175,15 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
                   event.dataTransfer.setData("application/x-upload-asset-id", asset.id);
                 }}
                 onClick={() => asset.status === "ready" && onAddFromAsset(asset.id)}
-                title={asset.status === "ready" ? "Click to add, or drag onto the canvas" : asset.errorMessage || "Upload failed"}
-                aria-label={asset.status === "ready" ? `Add ${asset.name || "uploaded image"} to the page` : `${asset.name || "Upload"} — ${asset.errorMessage || "error"}`}
+                title={asset.status === "ready" ? t.clickToAddOrDrag : asset.errorMessage || t.uploadFailed}
+                aria-label={
+                  asset.status === "ready"
+                    ? t.addToPageAria(asset.name || t.genericImageName)
+                    : t.errorAria(asset.name || t.genericUploadName, asset.errorMessage || t.errorWord)
+                }
               >
                 {asset.thumbDataUrl || asset.cloudUrl ? (
-                  <img src={asset.thumbDataUrl || asset.cloudUrl} alt={asset.name || "Upload"} className="h-full w-full object-cover" />
+                  <img src={asset.thumbDataUrl || asset.cloudUrl} alt={asset.name || t.genericUploadName} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-gray-300">
                     <ImagePlus size={20} />
@@ -193,23 +197,23 @@ export default function UploadsPanel({ onUploadFile, onAddFromAsset, onRemoveAss
               </button>
               <button
                 className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-gray-500 opacity-0 shadow group-hover:opacity-100 hover:text-red-500"
-                aria-label={`Remove ${asset.name || "upload"} from library`}
+                aria-label={t.removeFromLibraryAria(asset.name || t.genericUploadNameLower)}
                 onClick={() => handleRemove(asset.id)}
               >
                 <Trash2 size={11} />
               </button>
               <p className="mt-1 truncate text-[10px] text-gray-400" title={asset.name}>
-                {asset.name || "Untitled"}
+                {asset.name || t.untitled}
               </p>
               {confirmRemoveId === asset.id && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 rounded-lg bg-white/95 p-1 text-center shadow-lg">
-                  <p className="text-[10px] font-medium text-gray-700">Used on canvas. Remove anyway?</p>
+                  <p className="text-[10px] font-medium text-gray-700">{t.usedOnCanvasConfirm}</p>
                   <div className="flex gap-1">
                     <button className="rounded bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white" onClick={() => handleRemove(asset.id)}>
-                      Remove
+                      {t.remove}
                     </button>
                     <button className="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600" onClick={() => setConfirmRemoveId(null)}>
-                      Cancel
+                      {t.cancel}
                     </button>
                   </div>
                 </div>

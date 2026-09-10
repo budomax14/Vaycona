@@ -1,12 +1,16 @@
 import React from "react";
 import { TEXT_PRESETS } from "../../../textStyles";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
 // Presets are starting styles, not locked templates — every property is
 // editable on the object after insertion via the properties toolbar.
 export default function TextPanel({ onAddPreset }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].text;
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-gray-800">Text</h3>
+      <h3 className="text-sm font-semibold text-gray-800">{t.title}</h3>
 
       {TEXT_PRESETS.map((preset) => (
         <button
@@ -23,9 +27,9 @@ export default function TextPanel({ onAddPreset }) {
               textTransform: preset.textTransform === "uppercase" ? "uppercase" : "none",
             }}
           >
-            {preset.label}
+            {t.presets[preset.key]?.label ?? preset.label}
           </span>
-          <span className="block text-xs text-gray-400">{preset.text}</span>
+          <span className="block text-xs text-gray-400">{t.presets[preset.key]?.text ?? preset.text}</span>
         </button>
       ))}
     </div>

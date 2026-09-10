@@ -1,6 +1,8 @@
 import React from "react";
 import { ArrowDown, ArrowUp, ClipboardCopy, ClipboardPaste, Copy, ImagePlus, Lock, MoreVertical, Trash2, Unlock } from "lucide-react";
 import { contentToScreen } from "../viewport";
+import { useLanguage } from "../languageContext";
+import { TOOLBAR_MENU_STRINGS } from "../i18n/toolbarMenus";
 
 // Bumped from 328 to fit the new Copy/Paste buttons (see App.jsx's
 // onCopy/onPaste props below) — the only deliberate desktop-visual change
@@ -52,6 +54,9 @@ export default function SelectionToolbar({
   onOpenShapeFill,
   onOpenContextMenu,
 }) {
+  const { language } = useLanguage();
+  const t = TOOLBAR_MENU_STRINGS[language].selectionToolbar;
+
   if (!selectionBoundsContent) return null;
   const { left, top } = getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize);
 
@@ -61,39 +66,39 @@ export default function SelectionToolbar({
       style={{ left, top }}
     >
       {onOpenShapeFill && (
-        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenShapeFill} title="Shape fill">
+        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenShapeFill} title={t.shapeFill}>
           <ImagePlus size={24} />
         </button>
       )}
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onCopy} title="Copy (Cmd/Ctrl+C)">
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onCopy} title={t.copy}>
         <ClipboardCopy size={24} />
       </button>
       {onPaste && (
-        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onPaste} title="Paste (Cmd/Ctrl+V)">
+        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onPaste} title={t.paste}>
           <ClipboardPaste size={24} />
         </button>
       )}
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onDuplicate} title="Duplicate">
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onDuplicate} title={t.duplicate}>
         <Copy size={24} />
       </button>
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onForward} title="Bring forward">
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onForward} title={t.bringForward}>
         <ArrowUp size={24} />
       </button>
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onBackward} title="Send backward">
+      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onBackward} title={t.sendBackward}>
         <ArrowDown size={24} />
       </button>
       <button
         className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100"
         onClick={onToggleLock}
-        title={isLocked ? "Unlock" : "Lock"}
+        title={isLocked ? t.unlock : t.lock}
       >
         {isLocked ? <Lock size={24} /> : <Unlock size={24} />}
       </button>
-      <button className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={onDelete} title="Delete">
+      <button className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={onDelete} title={t.delete}>
         <Trash2 size={24} />
       </button>
       {onOpenContextMenu && (
-        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenContextMenu} title="More options">
+        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenContextMenu} title={t.moreOptions}>
           <MoreVertical size={24} />
         </button>
       )}

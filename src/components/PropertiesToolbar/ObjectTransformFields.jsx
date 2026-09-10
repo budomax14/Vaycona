@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { IconButton, IconToggleButton, LabeledField, ToolbarDivider } from "./toolbarUi";
 import { formatBareValue, parseMeasurementInput, unitLabel } from "../../measurement";
+import { useLanguage } from "../../languageContext";
+import { TOOLBAR_MENU_STRINGS } from "../../i18n/toolbarMenus";
 
 // Anchor grid — which corner/edge/center of the object numeric width/height
 // edits hold fixed (spec §54). Purely a local tool-mode setting (not
@@ -124,6 +126,8 @@ export default function ObjectTransformFields({
   onAlignToPage,
 }) {
   const [anchor, setAnchor] = useState("top-left");
+  const { language } = useLanguage();
+  const t = TOOLBAR_MENU_STRINGS[language].objectTransform;
 
   function commitResize(changes) {
     onChange(applyAnchoredResize(item, changes, anchor));
@@ -131,20 +135,20 @@ export default function ObjectTransformFields({
 
   return (
     <>
-      <PrecisionField label="X" valuePx={item.x} unit={unit} suffix={unitLabel(unit)} onCommitPx={(px) => onChange({ x: px })} />
-      <PrecisionField label="Y" valuePx={item.y} unit={unit} suffix={unitLabel(unit)} onCommitPx={(px) => onChange({ y: px })} />
-      <PrecisionField label="Width" valuePx={item.width} unit={unit} min={1} suffix={unitLabel(unit)} onCommitPx={(px) => commitResize({ width: Math.max(1, px) })} />
-      <PrecisionField label="Height" valuePx={item.height} unit={unit} min={1} suffix={unitLabel(unit)} onCommitPx={(px) => commitResize({ height: Math.max(1, px) })} />
+      <PrecisionField label={t.x} valuePx={item.x} unit={unit} suffix={unitLabel(unit)} onCommitPx={(px) => onChange({ x: px })} />
+      <PrecisionField label={t.y} valuePx={item.y} unit={unit} suffix={unitLabel(unit)} onCommitPx={(px) => onChange({ y: px })} />
+      <PrecisionField label={t.width} valuePx={item.width} unit={unit} min={1} suffix={unitLabel(unit)} onCommitPx={(px) => commitResize({ width: Math.max(1, px) })} />
+      <PrecisionField label={t.height} valuePx={item.height} unit={unit} min={1} suffix={unitLabel(unit)} onCommitPx={(px) => commitResize({ height: Math.max(1, px) })} />
       <PrecisionField
-        label="Rotate °"
+        label={t.rotate}
         valuePx={((item.rotation || 0) % 360 + 360) % 360}
         unit="px"
         allowUnitSuffix={false}
         onCommitPx={(deg) => onChange({ rotation: ((deg % 360) + 360) % 360 })}
       />
 
-      <LabeledField label="Anchor" width={54}>
-        <div className="grid grid-cols-3 gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5" role="radiogroup" aria-label="Resize anchor">
+      <LabeledField label={t.anchor} width={54}>
+        <div className="grid grid-cols-3 gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5" role="radiogroup" aria-label={t.resizeAnchor}>
           {ANCHORS.flat().map((key) => (
             <button
               key={key}
@@ -153,8 +157,8 @@ export default function ObjectTransformFields({
               onClick={() => setAnchor(key)}
               role="radio"
               aria-checked={anchor === key}
-              aria-label={key.replace("-", " ")}
-              title={key.replace("-", " ")}
+              aria-label={t.anchorLabels[key]}
+              title={t.anchorLabels[key]}
             />
           ))}
         </div>
@@ -166,18 +170,18 @@ export default function ObjectTransformFields({
         icon={item.locked ? Lock : Unlock}
         active={!!item.locked}
         onClick={onToggleLock}
-        title={item.locked ? "Unlock" : "Lock"}
+        title={item.locked ? t.unlock : t.lock}
       />
       <IconToggleButton
         icon={item.hidden ? EyeOff : Eye}
         active={!!item.hidden}
         onClick={onToggleHidden}
-        title={item.hidden ? "Show" : "Hide"}
+        title={item.hidden ? t.show : t.hide}
       />
-      <IconButton icon={Copy} onClick={onDuplicate} title="Duplicate" aria-label="Duplicate" />
-      <IconButton icon={ArrowUp} onClick={onForward} title="Bring forward" aria-label="Bring forward" />
-      <IconButton icon={ArrowDown} onClick={onBackward} title="Send backward" aria-label="Send backward" />
-      <IconButton icon={Trash2} onClick={onDelete} title="Delete" aria-label="Delete" />
+      <IconButton icon={Copy} onClick={onDuplicate} title={t.duplicate} aria-label={t.duplicate} />
+      <IconButton icon={ArrowUp} onClick={onForward} title={t.bringForward} aria-label={t.bringForward} />
+      <IconButton icon={ArrowDown} onClick={onBackward} title={t.sendBackward} aria-label={t.sendBackward} />
+      <IconButton icon={Trash2} onClick={onDelete} title={t.delete} aria-label={t.delete} />
 
       {onAlignToPage && (
         <>
@@ -185,20 +189,20 @@ export default function ObjectTransformFields({
           <IconButton
             icon={AlignCenterHorizontal}
             onClick={() => onAlignToPage("center-h")}
-            title="Center horizontally on page"
-            aria-label="Center horizontally on page"
+            title={t.centerHorizontallyOnPage}
+            aria-label={t.centerHorizontallyOnPage}
           />
           <IconButton
             icon={AlignCenterVertical}
             onClick={() => onAlignToPage("center-v")}
-            title="Center vertically on page"
-            aria-label="Center vertically on page"
+            title={t.centerVerticallyOnPage}
+            aria-label={t.centerVerticallyOnPage}
           />
           <IconButton
             icon={Crosshair}
             onClick={() => onAlignToPage("center-both")}
-            title="Center on page"
-            aria-label="Center on page"
+            title={t.centerOnPage}
+            aria-label={t.centerOnPage}
           />
         </>
       )}

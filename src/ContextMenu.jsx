@@ -15,6 +15,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { clampPositionToViewport } from "./clampToViewport";
+import { useLanguage } from "./languageContext";
+import { STATUS_BAR_STRINGS } from "./i18n/statusBarAndMenus";
 
 export default function ContextMenu({
   position,
@@ -27,23 +29,25 @@ export default function ContextMenu({
   isRemovingBackground,
 }) {
   const menuRef = useRef(null);
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].contextMenu;
 
   const items = useMemo(
     () => [
-      { key: "copy", label: "Copy", icon: Copy, needsSelection: true },
-      { key: "paste", label: "Paste", icon: ClipboardPaste, needsClipboard: true },
-      { key: "duplicate", label: "Duplicate", icon: CopyPlus, needsSelection: true },
+      { key: "copy", label: t.copy, icon: Copy, needsSelection: true },
+      { key: "paste", label: t.paste, icon: ClipboardPaste, needsClipboard: true },
+      { key: "duplicate", label: t.duplicate, icon: CopyPlus, needsSelection: true },
       { key: "divider1" },
-      { key: "bring-to-front", label: "Bring to front", icon: ArrowUpToLine, needsSelection: true },
-      { key: "bring-forward", label: "Bring forward", icon: ChevronUp, needsSelection: true },
-      { key: "send-backward", label: "Send backward", icon: ChevronDown, needsSelection: true },
-      { key: "send-to-back", label: "Send to back", icon: ArrowDownToLine, needsSelection: true },
+      { key: "bring-to-front", label: t.bringToFront, icon: ArrowUpToLine, needsSelection: true },
+      { key: "bring-forward", label: t.bringForward, icon: ChevronUp, needsSelection: true },
+      { key: "send-backward", label: t.sendBackward, icon: ChevronDown, needsSelection: true },
+      { key: "send-to-back", label: t.sendToBack, icon: ArrowDownToLine, needsSelection: true },
       ...(canRemoveBackground
         ? [
             { key: "divider3" },
             {
               key: "remove-background",
-              label: isRemovingBackground ? "Removing background…" : "Remove background",
+              label: isRemovingBackground ? t.removingBackground : t.removeBackground,
               icon: isRemovingBackground ? Loader2 : Eraser,
               iconClassName: isRemovingBackground ? "animate-spin" : "",
               needsSelection: true,
@@ -54,13 +58,13 @@ export default function ContextMenu({
       { key: "divider2" },
       {
         key: "toggle-lock",
-        label: isLocked ? "Unlock" : "Lock",
+        label: isLocked ? t.unlock : t.lock,
         icon: isLocked ? Unlock : Lock,
         needsSelection: true,
       },
-      { key: "delete", label: "Delete", icon: Trash2, needsSelection: true, danger: true },
+      { key: "delete", label: t.delete, icon: Trash2, needsSelection: true, danger: true },
     ],
-    [isLocked, canRemoveBackground, isRemovingBackground]
+    [isLocked, canRemoveBackground, isRemovingBackground, t]
   );
 
   useEffect(() => {

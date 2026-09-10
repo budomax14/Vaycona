@@ -2,8 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { TEMPLATE_CATEGORIES, MAX_TEMPLATE_NAME_LENGTH, MAX_TEMPLATE_DESCRIPTION_LENGTH } from "../templateService";
 import TemplateMiniPreview from "./TemplateMiniPreview";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 export default function SaveAsTemplateDialog({ isOpen, onClose, onSave, previewPage, previewItems, pageCount, error }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].saveAsTemplate;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState(TEMPLATE_CATEGORIES[0].key);
@@ -50,16 +54,16 @@ export default function SaveAsTemplateDialog({ isOpen, onClose, onSave, previewP
         <div className="flex-1">
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
             <h2 id="save-template-title" className="text-sm font-semibold text-gray-900">
-              Save as template
+              {t.title}
             </h2>
-            <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close">
+            <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.closeAria}>
               <X size={16} />
             </button>
           </div>
 
           <div className="space-y-3 px-4 py-3">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">Name</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.name}</span>
               <input
                 ref={nameRef}
                 type="text"
@@ -71,7 +75,7 @@ export default function SaveAsTemplateDialog({ isOpen, onClose, onSave, previewP
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">Description (optional)</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.descriptionOptional}</span>
               <textarea
                 maxLength={MAX_TEMPLATE_DESCRIPTION_LENGTH}
                 rows={2}
@@ -81,7 +85,7 @@ export default function SaveAsTemplateDialog({ isOpen, onClose, onSave, previewP
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">Category</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.category}</span>
               <select
                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm"
                 value={category}
@@ -95,29 +99,29 @@ export default function SaveAsTemplateDialog({ isOpen, onClose, onSave, previewP
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">Tags (comma separated)</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.tagsLabel}</span>
               <input
                 type="text"
-                placeholder="wedding, elegant"
+                placeholder={t.tagsPlaceholder}
                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-amber-400"
                 value={tagsInput}
                 onChange={(event) => setTagsInput(event.target.value)}
               />
             </label>
-            <p className="text-xs text-gray-400">{pageCount} page{pageCount === 1 ? "" : "s"} will be included.</p>
+            <p className="text-xs text-gray-400">{t.pageCount(pageCount)}</p>
             {error && <p className="text-xs text-red-600">{error}</p>}
           </div>
 
           <div className="flex justify-end gap-2 border-t border-gray-200 px-4 py-3">
             <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>
-              Cancel
+              {t.cancel}
             </button>
             <button
               className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:pointer-events-none disabled:opacity-40"
               onClick={handleSave}
               disabled={!name.trim()}
             >
-              Save template
+              {t.saveTemplate}
             </button>
           </div>
         </div>

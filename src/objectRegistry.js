@@ -4,6 +4,7 @@ import { FRAME_KINDS } from "./frameKinds";
 import { CHART_KINDS, createChart } from "./chartKinds";
 import ShapeNode from "./nodes/ShapeNode";
 import LineNode from "./nodes/LineNode";
+import BrushNode from "./nodes/BrushNode";
 import IconNode from "./nodes/IconNode";
 import FrameNode from "./nodes/FrameNode";
 import TextNode from "./nodes/TextNode";
@@ -144,6 +145,22 @@ export const REGISTRY = {
         rotation: (Math.atan2(dy, dx) * 180) / Math.PI,
       };
     },
+  },
+
+  brush: {
+    displayName: "Drawing",
+    renderer: BrushNode,
+    propertiesBar: ShapePropertiesBar,
+    defaultProps: () => ({
+      points: [],
+      stroke: "#111827",
+      strokeWidth: 8,
+    }),
+    controls: () => ["stroke", "strokeWidth", "opacity"],
+    // Freehand strokes are moved and deleted like any other object, but
+    // aren't resized/rotated via the shared Transformer — its box-scaling
+    // model doesn't map onto a raw point path.
+    transforms: { resizable: false, rotatable: false, usesTransformer: false },
   },
 
   image: {

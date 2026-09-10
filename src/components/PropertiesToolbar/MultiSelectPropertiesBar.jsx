@@ -9,6 +9,8 @@ import ImageAdjustMenu from "./ImageAdjustMenu";
 import SelectionMoreMenu from "./SelectionMoreMenu";
 import { computeSelectionControls } from "../../mixedSelection";
 import { unionBounds, getItemBounds } from "../../bounds";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 // A selected item is "image-like" if bulk flip/filter controls should
 // apply to it — a standalone image, or a frame that currently has content
@@ -24,12 +26,12 @@ function isImageLike(item) {
 // to plain arrange controls. Fill/stroke/numeric/opacity are the safe,
 // universally-meaningful set.
 const FIELD_WIDGETS = {
-  fill: { Widget: ColorField, props: { label: "Fill" } },
-  stroke: { Widget: ColorField, props: { label: "Color" } },
-  strokeWidth: { Widget: NumberField, props: { label: "Thickness", min: 0, max: 40 } },
-  cornerRadius: { Widget: NumberField, props: { label: "Corner radius", min: 0, max: 100 } },
-  fontSize: { Widget: NumberField, props: { label: "Size", min: 8, max: 220 } },
-  opacity: { Widget: SliderField, props: { label: "Opacity", min: 0.1, max: 1 } },
+  fill: { Widget: ColorField, labelKey: "fill", props: {} },
+  stroke: { Widget: ColorField, labelKey: "color", props: {} },
+  strokeWidth: { Widget: NumberField, labelKey: "thickness", props: { min: 0, max: 40 } },
+  cornerRadius: { Widget: NumberField, labelKey: "cornerRadius", props: { min: 0, max: 100 } },
+  fontSize: { Widget: NumberField, labelKey: "size", props: { min: 8, max: 220 } },
+  opacity: { Widget: SliderField, labelKey: "opacity", props: { min: 0.1, max: 1 } },
 };
 
 export default function MultiSelectPropertiesBar({
@@ -53,6 +55,8 @@ export default function MultiSelectPropertiesBar({
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].multiSelect;
   const rows = (items ? computeSelectionControls(items) : []).filter((row) => FIELD_WIDGETS[row.key]);
   const imageLikeIds = items ? items.filter(isImageLike).map((item) => item.id) : [];
   const allImageLike = items && items.length > 0 && imageLikeIds.length === items.length;
@@ -62,7 +66,7 @@ export default function MultiSelectPropertiesBar({
     <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
       <OverflowToolbar.Item keepOnMobile>
         <span className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
-          {count} objects selected
+          {t.objectsSelected(count)}
         </span>
       </OverflowToolbar.Item>
 
@@ -79,11 +83,12 @@ export default function MultiSelectPropertiesBar({
           )}
 
           {rows.map(({ key, field, value, mixed }) => {
-            const { Widget, props } = FIELD_WIDGETS[key];
+            const { Widget, props, labelKey } = FIELD_WIDGETS[key];
             return (
               <Widget
                 key={key}
                 {...props}
+                label={t[labelKey]}
                 value={mixed ? "" : value}
                 mixed={mixed}
                 onChange={(next) => onUpdateItems(items.map((item) => item.id), { [field]: next })}
@@ -108,8 +113,8 @@ export default function MultiSelectPropertiesBar({
       <OverflowToolbar.Item>
         <>
           <ToolbarDivider />
-          <IconButton icon={ArrowUp} label="Forward" onClick={onForward} />
-          <IconButton icon={ArrowDown} label="Backward" onClick={onBackward} />
+          <IconButton icon={ArrowUp} label={t.forward} onClick={onForward} />
+          <IconButton icon={ArrowDown} label={t.backward} onClick={onBackward} />
         </>
       </OverflowToolbar.Item>
 
@@ -125,8 +130,8 @@ export default function MultiSelectPropertiesBar({
       <OverflowToolbar.Item keepOnMobile>
         <>
           <ToolbarDivider />
-          <IconButton icon={Group} label="Group" onClick={onGroup} />
-          {hasGroupedSelection && <IconButton icon={Ungroup} label="Ungroup" onClick={onUngroup} />}
+          <IconButton icon={Group} label={t.group} onClick={onGroup} />
+          {hasGroupedSelection && <IconButton icon={Ungroup} label={t.ungroup} onClick={onUngroup} />}
           <SelectionMoreMenu
             animationPanelOpen={animationPanelOpen}
             onToggleAnimationPanel={onToggleAnimationPanel}
@@ -139,7 +144,7 @@ export default function MultiSelectPropertiesBar({
       <OverflowToolbar.Item keepOnMobile>
         <>
           <ToolbarDivider />
-          <IconButton icon={Trash2} label="Delete" onClick={onDelete} />
+          <IconButton icon={Trash2} label={t.delete} onClick={onDelete} />
         </>
       </OverflowToolbar.Item>
     </OverflowToolbar>

@@ -4,6 +4,8 @@ import { ColorField, IconButton, IconToggleButton, LabeledField, NumberField, Sl
 import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import { resolveText3D, TEXT3D_DIRECTIONS, TEXT3D_SHADING_OPTIONS, TEXT3D_LIGHT_DIRECTIONS } from "../../text3D";
 import { TEXT3D_PRESETS, applyText3DPreset } from "../../text3DPresets";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 
 const DIRECTION_ICONS = {
   left: ArrowLeft,
@@ -21,6 +23,8 @@ const DIRECTION_ICONS = {
 // another item-level effect object (see text3D.js), so it rides the exact
 // same commit/undo/save path with zero new plumbing.
 export default function Text3DMenu({ item, onChange }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].text3D;
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const text3D = resolveText3D(item);
@@ -43,19 +47,19 @@ export default function Text3DMenu({ item, onChange }) {
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
       <div ref={anchorRef} className="inline-flex">
-        <IconButton icon={Box} label="3D" onClick={handleToggleOpen} active={open || text3D.enabled} />
+        <IconButton icon={Box} label={t.label3D} onClick={handleToggleOpen} active={open || text3D.enabled} />
       </div>
       <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-72 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700">3D Text</span>
-            <IconToggleButton icon={Box} active={text3D.enabled} onClick={() => update({ enabled: !text3D.enabled })} title="Toggle 3D text" />
+            <span className="text-sm font-semibold text-gray-700">{t.title3DText}</span>
+            <IconToggleButton icon={Box} active={text3D.enabled} onClick={() => update({ enabled: !text3D.enabled })} title={t.toggle3DText} />
           </div>
 
           {text3D.enabled && (
             <>
               <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Preset</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.preset}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {TEXT3D_PRESETS.map((preset) => (
                     <button
@@ -71,12 +75,12 @@ export default function Text3DMenu({ item, onChange }) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-                <SliderField label="Depth" value={text3D.depth} min={0} max={100} step={1} onChange={(v) => update({ depth: v })} />
-                <ColorField label="3D Color" value={text3D.extrusionColor} onChange={(color) => update({ extrusionColor: color })} />
+                <SliderField label={t.depth} value={text3D.depth} min={0} max={100} step={1} onChange={(v) => update({ depth: v })} />
+                <ColorField label={t.color3D} value={text3D.extrusionColor} onChange={(color) => update({ extrusionColor: color })} />
               </div>
 
               <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Direction</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.direction}</span>
                 <div className="grid grid-cols-4 gap-1">
                   {TEXT3D_DIRECTIONS.map((dir) => (
                     <IconToggleButton
@@ -88,11 +92,11 @@ export default function Text3DMenu({ item, onChange }) {
                     />
                   ))}
                 </div>
-                <NumberField label="Angle" value={text3D.angle} min={0} max={359} step={1} onChange={(v) => update({ angle: v })} />
+                <NumberField label={t.angle} value={text3D.angle} min={0} max={359} step={1} onChange={(v) => update({ angle: v })} />
               </div>
 
               <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-3">
-                <LabeledField label="Shading" width={150}>
+                <LabeledField label={t.shading} width={150}>
                   <select
                     className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
                     value={text3D.shading}
@@ -105,16 +109,16 @@ export default function Text3DMenu({ item, onChange }) {
                     ))}
                   </select>
                 </LabeledField>
-                <SliderField label="Bevel" value={text3D.bevel} min={0} max={20} step={1} onChange={(v) => update({ bevel: v })} />
+                <SliderField label={t.bevel} value={text3D.bevel} min={0} max={20} step={1} onChange={(v) => update({ bevel: v })} />
               </div>
 
               <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Advanced</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.advanced}</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <SliderField label="Perspective" value={text3D.perspective} min={0} max={100} step={1} onChange={(v) => update({ perspective: v })} />
-                  <SliderField label="Highlight" value={text3D.highlight} min={0} max={100} step={1} onChange={(v) => update({ highlight: v })} />
+                  <SliderField label={t.perspective} value={text3D.perspective} min={0} max={100} step={1} onChange={(v) => update({ perspective: v })} />
+                  <SliderField label={t.highlight} value={text3D.highlight} min={0} max={100} step={1} onChange={(v) => update({ highlight: v })} />
                 </div>
-                <LabeledField label="Light direction" width={190}>
+                <LabeledField label={t.lightDirection} width={190}>
                   <select
                     className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
                     value={text3D.lightDirection}

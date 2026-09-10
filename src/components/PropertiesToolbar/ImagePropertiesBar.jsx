@@ -7,6 +7,8 @@ import FiltersPopover from "./FiltersPopover";
 import FadePopover from "./FadePopover";
 import ImageStylePicker from "./ImageStylePicker";
 import { useAsset } from "../../useAsset";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 export default function ImagePropertiesBar({
   item,
@@ -36,6 +38,8 @@ export default function ImagePropertiesBar({
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].image;
   const fileInputRef = useRef(null);
   const { objectUrl } = useAsset(item.assetId);
 
@@ -43,18 +47,18 @@ export default function ImagePropertiesBar({
     <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
       <OverflowToolbar.Item keepOnMobile>
         <>
-          <IconButton icon={Crop} label="Crop" onClick={onEnterCropMode} disabled={!item.assetId} />
+          <IconButton icon={Crop} label={t.crop} onClick={onEnterCropMode} disabled={!item.assetId} />
 
           <IconButton
             icon={Grab}
-            label="Grab it"
-            title="Pick a design from this image and turn it into its own element."
+            label={t.grabIt}
+            title={t.grabItTitle}
             onClick={onEnterGrabItMode}
             disabled={!item.assetId}
             active={isGrabItActive}
           />
 
-          <IconButton icon={Replace} label="Replace" onClick={() => fileInputRef.current?.click()} />
+          <IconButton icon={Replace} label={t.replace} onClick={() => fileInputRef.current?.click()} />
           <input
             ref={fileInputRef}
             type="file"
@@ -73,14 +77,14 @@ export default function ImagePropertiesBar({
         <>
           <ToolbarDivider />
           <SliderField
-            label="Opacity"
+            label={t.opacity}
             value={item.opacity ?? 1}
             min={0.1}
             max={1}
             onChange={(value) => onChange({ opacity: value })}
           />
           <NumberField
-            label="Corner radius"
+            label={t.cornerRadius}
             value={item.cornerRadius || 0}
             min={0}
             max={100}
@@ -116,8 +120,8 @@ export default function ImagePropertiesBar({
       <OverflowToolbar.Item>
         <>
           <ToolbarDivider />
-          <IconButton icon={Maximize} label="Restore ratio" title="Restore original aspect ratio" onClick={onRestoreOriginalRatio} />
-          <IconButton icon={Undo2} label="Reset edits" title="Reset image edits" onClick={onResetImageEdits} />
+          <IconButton icon={Maximize} label={t.restoreRatio} title={t.restoreRatioTitle} onClick={onRestoreOriginalRatio} />
+          <IconButton icon={Undo2} label={t.resetEdits} title={t.resetEditsTitle} onClick={onResetImageEdits} />
         </>
       </OverflowToolbar.Item>
 

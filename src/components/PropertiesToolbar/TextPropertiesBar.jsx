@@ -12,6 +12,8 @@ import TextCurveMenu from "./TextCurveMenu";
 import TextMoreMenu from "./TextMoreMenu";
 import { normalizeImageFill } from "../../imageFill";
 import { useAsset } from "../../useAsset";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 
 // Trimmed to the controls used on nearly every edit — font, size, bold/
 // italic/underline, color, alignment, opacity, list, effects — everything
@@ -47,6 +49,8 @@ export default function TextPropertiesBar({
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].textProperties;
   const [isColorPanelOpen, setIsColorPanelOpen] = useState(false);
   const colorBrand = brand?.colorField("fill");
   const { objectUrl: fillImagePreviewUrl } = useAsset(item.fillImage?.assetId);
@@ -59,7 +63,7 @@ export default function TextPropertiesBar({
             icon={isEditingText ? Check : Type}
             active={isEditingText}
             onClick={onEditText}
-            title={isEditingText ? "Done editing" : "Edit text"}
+            title={isEditingText ? t.doneEditing : t.editText}
           />
         </OverflowToolbar.Item>
 
@@ -68,7 +72,7 @@ export default function TextPropertiesBar({
             <ToolbarDivider />
             <FontFamilyPicker value={item.fontFamily} onChange={(fontFamily) => onApplyFormat("fontFamily", fontFamily)} />
             <NumberField
-              label="Size"
+              label={t.size}
               value={item.fontSize || 24}
               min={1}
               max={800}
@@ -80,9 +84,9 @@ export default function TextPropertiesBar({
         <OverflowToolbar.Item keepOnMobile>
           <>
             <ToolbarDivider />
-            <IconToggleButton icon={Bold} active={item.fontWeight === "bold"} onClick={() => onApplyFormat("bold")} title="Bold (Cmd/Ctrl+B)" />
-            <IconToggleButton icon={Italic} active={!!item.italic} onClick={() => onApplyFormat("italic")} title="Italic (Cmd/Ctrl+I)" />
-            <IconToggleButton icon={Underline} active={!!item.underline} onClick={() => onApplyFormat("underline")} title="Underline (Cmd/Ctrl+U)" />
+            <IconToggleButton icon={Bold} active={item.fontWeight === "bold"} onClick={() => onApplyFormat("bold")} title={t.bold} />
+            <IconToggleButton icon={Italic} active={!!item.italic} onClick={() => onApplyFormat("italic")} title={t.italic} />
+            <IconToggleButton icon={Underline} active={!!item.underline} onClick={() => onApplyFormat("underline")} title={t.underline} />
           </>
         </OverflowToolbar.Item>
 
@@ -94,8 +98,8 @@ export default function TextPropertiesBar({
                 type="button"
                 className={`h-8 w-10 shrink-0 cursor-pointer rounded-lg border p-0.5 ${isColorPanelOpen ? "border-amber-400 ring-2 ring-amber-100" : "border-gray-200"}`}
                 style={{ background: item.fillImage?.assetId || item.fillGradient ? undefined : item.fill || "#111827" }}
-                title="Text color"
-                aria-label="Text color"
+                title={t.textColor}
+                aria-label={t.textColor}
                 onClick={() => setIsColorPanelOpen((v) => !v)}
               >
                 {item.fillImage?.assetId ? (
@@ -128,7 +132,7 @@ export default function TextPropertiesBar({
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
+            <SliderField label={t.opacity} value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
           </>
         </OverflowToolbar.Item>
 

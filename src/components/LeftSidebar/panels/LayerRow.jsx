@@ -18,6 +18,8 @@ import {
 import { isEffectivelyHidden, isEffectivelyLocked } from "../../../hierarchy";
 import { getDisplayName } from "../../../objectRegistry";
 import { useAssetList } from "../../../useAsset";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
 const TYPE_ICONS = {
   text: Type,
@@ -33,23 +35,25 @@ const TYPE_ICONS = {
 // asset in the Layers panel (Phase 6) — assetIndex is the same synchronous
 // localStorage asset index useAssetList() reads, passed in optionally so
 // callers that don't have it yet (existing StatusBar popover, before its
-// own Phase 6 update) still get a sensible fallback label.
-function layerLabel(item, assetIndex) {
+// own Phase 6 update) still get a sensible fallback label. `t` defaults to
+// the English strings so that older callers not yet updated for i18n
+// (e.g. the StatusBar's LayersPopover) keep working unchanged.
+function layerLabel(item, assetIndex, t = PANEL_STRINGS.en.layerRow) {
   if (item.name) return item.name;
-  if (item.type === "text") return item.text?.slice(0, 28) || "Text";
-  if (item.type === "group") return "Group";
+  if (item.type === "text") return item.text?.slice(0, 28) || t.text;
+  if (item.type === "group") return t.group;
   if (item.type === "image") {
-    if (!item.assetId) return "Image";
+    if (!item.assetId) return t.image;
     const meta = assetIndex?.[item.assetId];
-    if (!meta) return "Missing image";
-    return meta.name || "Image";
+    if (!meta) return t.missingImage;
+    return meta.name || t.image;
   }
   if (item.type === "frame") {
     const kindLabel = getDisplayName(item);
     if (!item.contentAssetId) return kindLabel;
     const meta = assetIndex?.[item.contentAssetId];
-    if (!meta) return `${kindLabel} (missing image)`;
-    return `${kindLabel} — ${meta.name || "image"}`;
+    if (!meta) return t.missingImageSuffix(kindLabel);
+    return t.withImageName(kindLabel, meta.name || t.imageLower);
   }
   return getDisplayName(item);
 }
@@ -85,7 +89,9 @@ export default function LayerRow({
 }) {
   const { item } = node;
   const assetIndex = useAssetList();
-  const [draft, setDraft] = useState(layerLabel(item, assetIndex));
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].layerRow;
+  const [draft, setDraft] = useState(layerLabel(item, assetIndex, t));
   const inputRef = useRef(null);
   const Icon = TYPE_ICONS[item.type] || Shapes;
   const effectivelyHidden = isEffectivelyHidden(item, itemsById);
@@ -98,14 +104,14 @@ export default function LayerRow({
 
   useEffect(() => {
     if (isRenaming) {
-      setDraft(layerLabel(item, assetIndex));
+      setDraft(layerLabel(item, assetIndex, t));
       requestAnimationFrame(() => inputRef.current?.select());
     }
   }, [isRenaming]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function commit() {
     const trimmed = draft.trim();
-    onCommitRename(trimmed || layerLabel(item, assetIndex));
+    onCommitRename(trimmed || layerLabel(item, assetIndex, t));
   }
 
   return (
@@ -136,8 +142,8 @@ export default function LayerRow({
               event.stopPropagation();
               onToggleExpand(item.id);
             }}
-            aria-label={expanded ? "Collapse group" : "Expand group"}
-            title={expanded ? "Collapse" : "Expand"}
+            aria-label={expanded ? t.collapseGroup : t.expandGroup}
+            title={expanded ? t.collapse : t.expand}
           >
             {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span className="inline-block w-[13px]" />}
           </button>
@@ -178,9 +184,9 @@ export default function LayerRow({
               event.stopPropagation();
               onStartRename();
             }}
-            title={layerLabel(item, assetIndex)}
+            title={layerLabel(item, assetIndex, t)}
           >
-            {layerLabel(item, assetIndex)}
+            {layerLabel(item, assetIndex, t)}
           </button>
         )}
 
@@ -190,13 +196,13 @@ export default function LayerRow({
             event.stopPropagation();
             onToggleHidden(item.id);
           }}
-          aria-label={item.hidden ? "Show layer" : "Hide layer"}
+          aria-label={item.hidden ? t.showLayer : t.hideLayer}
           title={
             item.hidden
-              ? "Hidden — click to show"
+              ? t.hiddenClickToShow
               : effectivelyHidden
-                ? "Hidden by parent group"
-                : "Hide layer"
+                ? t.hiddenByParentGroup
+                : t.hideLayer
           }
           style={{ opacity: item.hidden || effectivelyHidden ? 1 : undefined }}
         >
@@ -208,13 +214,13 @@ export default function LayerRow({
             event.stopPropagation();
             onToggleLocked(item.id);
           }}
-          aria-label={item.locked ? "Unlock layer" : "Lock layer"}
+          aria-label={item.locked ? t.unlockLayer : t.lockLayer}
           title={
             item.locked
-              ? "Locked — click to unlock"
+              ? t.lockedClickToUnlock
               : effectivelyLocked
-                ? "Locked by parent group"
-                : "Lock layer"
+                ? t.lockedByParentGroup
+                : t.lockLayer
           }
           style={{ opacity: item.locked || effectivelyLocked ? 1 : undefined }}
         >
@@ -226,8 +232,8 @@ export default function LayerRow({
             event.stopPropagation();
             onContextMenu(item.id, event);
           }}
-          aria-label="More actions"
-          title="More actions"
+          aria-label={t.moreActions}
+          title={t.moreActions}
         >
           <MoreHorizontal size={13} />
         </button>

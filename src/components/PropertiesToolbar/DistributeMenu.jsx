@@ -3,6 +3,8 @@ import { AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween } from "lucide-r
 import { IconButton, IconToggleButton, NumberField } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
 import { computeCurrentGap, inferDistributeAxis } from "../../alignment";
+import { useLanguage } from "../../languageContext";
+import { TOOLBAR_MENU_STRINGS } from "../../i18n/toolbarMenus";
 
 // Collapses Distribute horizontal/vertical + the Gap field into one
 // button, same pattern as AlignMenu. Tracks whichever axis was last
@@ -13,6 +15,8 @@ export default function DistributeMenu({ items, canDistribute, onDistribute }) {
   const [open, setOpen] = useState(false);
   const [distributeAxis, setDistributeAxis] = useState(null);
   const anchorRef = useRef(null);
+  const { language } = useLanguage();
+  const t = TOOLBAR_MENU_STRINGS[language].distribute;
 
   const gapAxis = distributeAxis || (items && items.length >= 2 ? inferDistributeAxis(items) : "horizontal");
   const gapValue = items && items.length >= 2 ? computeCurrentGap(items, gapAxis) : null;
@@ -22,7 +26,7 @@ export default function DistributeMenu({ items, canDistribute, onDistribute }) {
       <div ref={anchorRef} className="inline-flex">
         <IconButton
           icon={AlignHorizontalSpaceBetween}
-          label="Distribute"
+          label={t.distribute}
           onClick={() => setOpen((v) => !v)}
           active={open}
           disabled={!canDistribute}
@@ -39,7 +43,7 @@ export default function DistributeMenu({ items, canDistribute, onDistribute }) {
               setDistributeAxis("horizontal");
               onDistribute("horizontal");
             }}
-            title="Distribute horizontally"
+            title={t.distributeHorizontally}
           />
           <IconToggleButton
             icon={AlignVerticalSpaceBetween}
@@ -47,10 +51,10 @@ export default function DistributeMenu({ items, canDistribute, onDistribute }) {
               setDistributeAxis("vertical");
               onDistribute("vertical");
             }}
-            title="Distribute vertically"
+            title={t.distributeVertically}
           />
           <NumberField
-            label="Gap"
+            label={t.gap}
             value={gapValue != null ? Math.round(gapValue) : 0}
             min={0}
             width={64}

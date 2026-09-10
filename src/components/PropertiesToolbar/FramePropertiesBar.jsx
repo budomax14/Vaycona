@@ -7,6 +7,8 @@ import FiltersPopover from "./FiltersPopover";
 import FadePopover from "./FadePopover";
 import { useAsset } from "../../useAsset";
 import { FRAME_KIND_ORDER, FRAME_KINDS } from "../../frameKinds";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 export default function FramePropertiesBar({
   item,
@@ -33,6 +35,8 @@ export default function FramePropertiesBar({
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].frame;
   const fileInputRef = useRef(null);
   const { objectUrl } = useAsset(item.contentAssetId);
   const hasContent = !!item.contentAssetId;
@@ -40,7 +44,7 @@ export default function FramePropertiesBar({
   return (
     <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
       <OverflowToolbar.Item keepOnMobile>
-        <LabeledField label="Frame shape">
+        <LabeledField label={t.frameShape}>
           <select
             className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
             value={item.frameKind}
@@ -58,7 +62,7 @@ export default function FramePropertiesBar({
       <OverflowToolbar.Item>
         <>
           <ToolbarDivider />
-          <IconButton icon={Replace} label={hasContent ? "Replace image" : "Add image"} onClick={() => fileInputRef.current?.click()} />
+          <IconButton icon={Replace} label={hasContent ? t.replaceImage : t.addImage} onClick={() => fileInputRef.current?.click()} />
           <input
             ref={fileInputRef}
             type="file"
@@ -70,15 +74,15 @@ export default function FramePropertiesBar({
               event.target.value = "";
             }}
           />
-          {hasContent && <IconButton icon={Crop} label="Edit content" onClick={onEnterCropMode} />}
-          {hasContent && <IconButton icon={ImageOff} label="Remove" title="Remove image from frame" onClick={onRemoveFrameContent} />}
+          {hasContent && <IconButton icon={Crop} label={t.editContent} onClick={onEnterCropMode} />}
+          {hasContent && <IconButton icon={ImageOff} label={t.remove} title={t.removeTitle} onClick={onRemoveFrameContent} />}
         </>
       </OverflowToolbar.Item>
 
       <OverflowToolbar.Item>
         <>
           <ToolbarDivider />
-          <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
+          <SliderField label={t.opacity} value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
         </>
       </OverflowToolbar.Item>
 
@@ -86,8 +90,8 @@ export default function FramePropertiesBar({
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <IconToggleButton icon={FlipHorizontal} active={!!item.flipX} onClick={() => onChange({ flipX: !item.flipX })} title="Flip horizontal" />
-            <IconToggleButton icon={FlipVertical} active={!!item.flipY} onClick={() => onChange({ flipY: !item.flipY })} title="Flip vertical" />
+            <IconToggleButton icon={FlipHorizontal} active={!!item.flipX} onClick={() => onChange({ flipX: !item.flipX })} title={t.flipHorizontal} />
+            <IconToggleButton icon={FlipVertical} active={!!item.flipY} onClick={() => onChange({ flipY: !item.flipY })} title={t.flipVertical} />
           </>
         </OverflowToolbar.Item>
       )}
@@ -120,7 +124,7 @@ export default function FramePropertiesBar({
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <IconButton icon={RotateCcw} label="Reset edits" title="Reset image edits" onClick={onResetImageEdits} />
+            <IconButton icon={RotateCcw} label={t.resetEdits} title={t.resetEditsTitle} onClick={onResetImageEdits} />
           </>
         </OverflowToolbar.Item>
       )}

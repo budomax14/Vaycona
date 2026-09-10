@@ -74,7 +74,7 @@ function HandleMark({ handleDef }) {
           height: HANDLE_THICKNESS,
           transform: `translate(${extendsRight ? "0%" : "-100%"}, -50%)`,
           background: "#ffffff",
-          borderRadius: 1.5,
+          borderRadius: 2,
           boxShadow: "0 0 0 1px rgba(0,0,0,0.5)",
         }}
       />
@@ -286,6 +286,8 @@ function FrameCropOverlay({ item, viewport, scale, onLiveChange, onRequestExit }
             top: dimTop * viewport.scale,
             width: dimWidth * viewport.scale,
             height: dimHeight * viewport.scale,
+            maxWidth: "none",
+            maxHeight: "none",
             transform: flipTransform,
             opacity: 0.25,
           }}
@@ -303,6 +305,8 @@ function FrameCropOverlay({ item, viewport, scale, onLiveChange, onRequestExit }
             top: dimTop * viewport.scale,
             width: dimWidth * viewport.scale,
             height: dimHeight * viewport.scale,
+            maxWidth: "none",
+            maxHeight: "none",
             transform: flipTransform,
           }}
         />
@@ -448,7 +452,7 @@ function ImageCropOverlay({ item, viewport, scale, imageDisplayRect, onLiveChang
           src={objectUrl}
           alt=""
           draggable={false}
-          style={{ position: "absolute", left: imgLocalLeft, top: imgLocalTop, width: imgScreenWidth, height: imgScreenHeight, transform: flipTransform, opacity: 0.25 }}
+          style={{ position: "absolute", left: imgLocalLeft, top: imgLocalTop, width: imgScreenWidth, height: imgScreenHeight, maxWidth: "none", maxHeight: "none", transform: flipTransform, opacity: 0.25 }}
         />
       </div>
 
@@ -458,7 +462,7 @@ function ImageCropOverlay({ item, viewport, scale, imageDisplayRect, onLiveChang
           src={objectUrl}
           alt=""
           draggable={false}
-          style={{ position: "absolute", left: imgLocalLeft, top: imgLocalTop, width: imgScreenWidth, height: imgScreenHeight, transform: flipTransform }}
+          style={{ position: "absolute", left: imgLocalLeft, top: imgLocalTop, width: imgScreenWidth, height: imgScreenHeight, maxWidth: "none", maxHeight: "none", transform: flipTransform }}
         />
       </div>
 

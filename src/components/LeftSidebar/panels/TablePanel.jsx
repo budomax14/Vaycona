@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Table2 } from "lucide-react";
 import TableGridPicker from "../../TableGridPicker";
 import { MAX_TABLE_DIM } from "../../../tableUtils";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
 const STARTER_SIZES = [
   { rows: 2, columns: 2 },
@@ -11,6 +13,8 @@ const STARTER_SIZES = [
 ];
 
 export default function TablePanel({ onAddTable }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].table;
   const [customRows, setCustomRows] = useState("3");
   const [customCols, setCustomCols] = useState("3");
 
@@ -23,12 +27,12 @@ export default function TablePanel({ onAddTable }) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-gray-800">Table</h3>
+        <h3 className="mb-2 text-sm font-semibold text-gray-800">{t.title}</h3>
         <TableGridPicker onPick={(rows, columns) => onAddTable(rows, columns)} />
       </div>
 
       <div>
-        <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Starter sizes</h4>
+        <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.starterSizes}</h4>
         <div className="grid grid-cols-4 gap-2">
           {STARTER_SIZES.map(({ rows, columns }) => (
             <button
@@ -36,7 +40,7 @@ export default function TablePanel({ onAddTable }) {
               type="button"
               className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-200 py-3 text-gray-600 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700"
               onClick={() => onAddTable(rows, columns)}
-              title={`${rows} × ${columns} table`}
+              title={t.tableSizeTitle(rows, columns)}
             >
               <Table2 size={18} />
               <span className="text-[10px] font-medium">
@@ -48,7 +52,7 @@ export default function TablePanel({ onAddTable }) {
       </div>
 
       <div>
-        <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Custom table</h4>
+        <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.customTable}</h4>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -57,9 +61,9 @@ export default function TablePanel({ onAddTable }) {
             value={customRows}
             onChange={(event) => setCustomRows(event.target.value)}
             className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
-            aria-label="Rows"
+            aria-label={t.rowsAria}
           />
-          <span className="text-xs text-gray-400">rows ×</span>
+          <span className="text-xs text-gray-400">{t.rowsLabel}</span>
           <input
             type="number"
             min={1}
@@ -67,16 +71,16 @@ export default function TablePanel({ onAddTable }) {
             value={customCols}
             onChange={(event) => setCustomCols(event.target.value)}
             className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
-            aria-label="Columns"
+            aria-label={t.columnsAria}
           />
-          <span className="text-xs text-gray-400">cols</span>
+          <span className="text-xs text-gray-400">{t.colsLabel}</span>
         </div>
         <button
           type="button"
           onClick={addCustom}
           className="mt-2 w-full rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
         >
-          Add table
+          {t.addTable}
         </button>
       </div>
     </div>

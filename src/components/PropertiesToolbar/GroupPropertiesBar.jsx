@@ -16,6 +16,8 @@ import { IconButton, IconToggleButton, LabeledField, NumberField, SliderField, T
 import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import { computeCurrentGap, inferDistributeAxis } from "../../alignment";
 import ImageAssetPickerModal from "../ImageAssetPickerModal";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 // A group has no independent visual footprint (see hierarchy.js) — its
 // x/y/width/height are DERIVED from its children's union bounds, so only
@@ -46,6 +48,8 @@ export default function GroupPropertiesBar({
   // Smart Spacing (spec §5/§6) — only meaningful once the group actually
   // has 2+ direct children to space out. Axis is whatever's already
   // locked in, or inferred from how the children are laid out.
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].group;
   const canSpace = groupChildren.length >= 2;
   const spacingAxis = item.lockSpacing?.axis || (canSpace ? inferDistributeAxis(groupChildren) : "horizontal");
   const gapValue = item.lockSpacing?.gap ?? (canSpace ? computeCurrentGap(groupChildren, spacingAxis) : null);
@@ -61,10 +65,10 @@ export default function GroupPropertiesBar({
     <>
       <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
         <OverflowToolbar.Item keepOnMobile>
-          <LabeledField label="Name" width={140}>
+          <LabeledField label={t.name} width={140}>
             <input
               className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
-              value={item.name || "Group"}
+              value={item.name || t.defaultName}
               maxLength={80}
               onChange={(event) => onChange({ name: event.target.value })}
             />
@@ -74,10 +78,10 @@ export default function GroupPropertiesBar({
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <NumberField label="X" value={Math.round(item.x)} onChange={(value) => onMoveBy(value - item.x, 0)} />
-            <NumberField label="Y" value={Math.round(item.y)} onChange={(value) => onMoveBy(0, value - item.y)} />
-            <NumberField label="Width" value={Math.round(item.width)} width={64} onChange={() => {}} />
-            <NumberField label="Height" value={Math.round(item.height)} width={64} onChange={() => {}} />
+            <NumberField label={t.x} value={Math.round(item.x)} onChange={(value) => onMoveBy(value - item.x, 0)} />
+            <NumberField label={t.y} value={Math.round(item.y)} onChange={(value) => onMoveBy(0, value - item.y)} />
+            <NumberField label={t.width} value={Math.round(item.width)} width={64} onChange={() => {}} />
+            <NumberField label={t.height} value={Math.round(item.height)} width={64} onChange={() => {}} />
           </>
         </OverflowToolbar.Item>
 
@@ -88,25 +92,25 @@ export default function GroupPropertiesBar({
               icon={item.locked ? Lock : Unlock}
               active={!!item.locked}
               onClick={onToggleLock}
-              title={item.locked ? "Unlock group" : "Lock group"}
+              title={item.locked ? t.unlockGroup : t.lockGroup}
             />
             <IconToggleButton
               icon={item.hidden ? EyeOff : Eye}
               active={!!item.hidden}
               onClick={onToggleHidden}
-              title={item.hidden ? "Show group" : "Hide group"}
+              title={item.hidden ? t.showGroup : t.hideGroup}
             />
-            <IconButton icon={Copy} onClick={onDuplicate} title="Duplicate" aria-label="Duplicate" />
-            <IconButton icon={ArrowUp} onClick={onForward} title="Bring forward" aria-label="Bring forward" />
-            <IconButton icon={ArrowDown} onClick={onBackward} title="Send backward" aria-label="Send backward" />
-            <IconButton icon={Trash2} onClick={onDelete} title="Delete" aria-label="Delete" />
+            <IconButton icon={Copy} onClick={onDuplicate} title={t.duplicate} aria-label={t.duplicate} />
+            <IconButton icon={ArrowUp} onClick={onForward} title={t.bringForward} aria-label={t.bringForward} />
+            <IconButton icon={ArrowDown} onClick={onBackward} title={t.sendBackward} aria-label={t.sendBackward} />
+            <IconButton icon={Trash2} onClick={onDelete} title={t.delete} aria-label={t.delete} />
           </>
         </OverflowToolbar.Item>
 
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={onSetGroupOpacity} />
+            <SliderField label={t.opacity} value={item.opacity ?? 1} min={0.1} max={1} onChange={onSetGroupOpacity} />
           </>
         </OverflowToolbar.Item>
 
@@ -115,7 +119,7 @@ export default function GroupPropertiesBar({
             <>
               <ToolbarDivider />
               <NumberField
-                label="Gap"
+                label={t.gap}
                 value={gapValue != null ? Math.round(gapValue) : 0}
                 min={0}
                 width={64}
@@ -125,7 +129,7 @@ export default function GroupPropertiesBar({
                 icon={Magnet}
                 active={!!item.lockSpacing}
                 onClick={onToggleLockSpacing}
-                title={item.lockSpacing ? "Unlock spacing" : "Lock spacing while resizing"}
+                title={item.lockSpacing ? t.unlockSpacing : t.lockSpacing}
               />
             </>
           </OverflowToolbar.Item>
@@ -135,7 +139,7 @@ export default function GroupPropertiesBar({
           <OverflowToolbar.Item>
             <>
               <ToolbarDivider />
-              <IconButton icon={ImageIcon} label="Fill with image" onClick={() => setIsPickerOpen(true)} />
+              <IconButton icon={ImageIcon} label={t.fillWithImage} onClick={() => setIsPickerOpen(true)} />
             </>
           </OverflowToolbar.Item>
         )}
@@ -143,7 +147,7 @@ export default function GroupPropertiesBar({
         <OverflowToolbar.Item keepOnMobile>
           <>
             <ToolbarDivider />
-            <IconButton icon={UngroupIcon} label="Ungroup" onClick={onUngroup} />
+            <IconButton icon={UngroupIcon} label={t.ungroup} onClick={onUngroup} />
           </>
         </OverflowToolbar.Item>
       </OverflowToolbar>

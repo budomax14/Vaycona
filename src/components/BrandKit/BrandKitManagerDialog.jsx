@@ -19,16 +19,18 @@ import {
 import { exportBrandKitPackage, inspectBrandKitPackage, importBrandKitAsNew, downloadBlob } from "../../brandKitPackage";
 import { putAsset } from "../../assetStore";
 import { findUnusedBrandResources } from "../../styleUsage";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
-function relativeTime(timestamp) {
-  if (!timestamp) return "Never";
+function relativeTime(timestamp, t) {
+  if (!timestamp) return t.never;
   const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
-  if (seconds < 60) return "Just now";
+  if (seconds < 60) return t.justNow;
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t.minutesAgo(minutes);
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+  if (hours < 24) return t.hoursAgo(hours);
+  return t.daysAgo(Math.round(hours / 24));
 }
 
 // Brand Kit Manager (spec §6) — the full-featured surface for managing
@@ -37,6 +39,8 @@ function relativeTime(timestamp) {
 // with the complete manager").
 export default function BrandKitManagerDialog({ isOpen, onClose, items, pages }) {
   const { summaries, activeBrandKitId, refresh } = useBrandKits();
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].brandKitManager;
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [renamingId, setRenamingId] = useState(null);
@@ -114,20 +118,20 @@ export default function BrandKitManagerDialog({ isOpen, onClose, items, pages })
 
   return (
     <>
-      <BrandModal isOpen={isOpen} onClose={onClose} title="Brand kits" width="max-w-2xl">
+      <BrandModal isOpen={isOpen} onClose={onClose} title={t.title} width="max-w-2xl">
         <div className="mb-3 flex items-center gap-2">
           <input
             type="text"
-            placeholder="Search brand kits…"
+            placeholder={t.searchPlaceholder}
             className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-amber-400"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search brand kits"
+            aria-label={t.searchAriaLabel}
           />
           <button className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-700" onClick={() => setShowCreate(true)}>
-            + Create
+            {t.createButton}
           </button>
-          <label className="cursor-pointer rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" title="Import brand kit (.brandkit)">
+          <label className="cursor-pointer rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" title={t.importTitle}>
             <Upload size={16} />
             <input type="file" accept=".brandkit,.zip" hidden onChange={(event) => event.target.files?.[0] && handleImportFile(event.target.files[0])} />
           </label>
@@ -137,7 +141,7 @@ export default function BrandKitManagerDialog({ isOpen, onClose, items, pages })
 
         {filtered.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-400">
-            {summaries.length === 0 ? "No brand kits yet. Create one to get started." : "No brand kits match your search."}
+            {summaries.length === 0 ? t.noKitsYet : t.noKitsMatch}
           </div>
         )}
 
@@ -167,7 +171,7 @@ export default function BrandKitManagerDialog({ isOpen, onClose, items, pages })
                   <button
                     className={`shrink-0 ${kit.favorite ? "text-amber-500" : "text-gray-300"} hover:text-amber-500`}
                     onClick={() => setBrandKitFavorite(kit.id, !kit.favorite).then(refresh)}
-                    aria-label={kit.favorite ? "Unfavorite" : "Favorite"}
+                    aria-label={kit.favorite ? t.unfavorite : t.favorite}
                     aria-pressed={kit.favorite}
                   >
                     <Star size={14} fill={kit.favorite ? "currentColor" : "none"} />
@@ -185,7 +189,7 @@ export default function BrandKitManagerDialog({ isOpen, onClose, items, pages })
                   <p className="mb-1 truncate text-xs text-gray-500">{kit.fontPreview.join(", ")}</p>
                 )}
                 <p className="mb-2 text-xs text-gray-400">
-                  {kit.resourceCount} resource{kit.resourceCount === 1 ? "" : "s"} · Used {relativeTime(kit.lastUsedAt)}
+                  {t.resourceCountLabel(kit.resourceCount)} · {t.usedLabel(relativeTime(kit.lastUsedAt, t))}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-1">
@@ -193,23 +197,23 @@ export default function BrandKitManagerDialog({ isOpen, onClose, items, pages })
                     className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${isActive ? "bg-amber-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
                     onClick={() => setActiveBrandKitId(isActive ? null : kit.id)}
                   >
-                    {isActive && <Check size={12} />} {isActive ? "Active" : "Set active"}
+                    {isActive && <Check size={12} />} {isActive ? t.active : t.setActive}
                   </button>
-                  <button className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" title="Rename" onClick={() => { setRenamingId(kit.id); setRenameDraft(kit.name); }}>
+                  <button className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" title={t.rename} onClick={() => { setRenamingId(kit.id); setRenameDraft(kit.name); }}>
                     <Pencil size={13} />
                   </button>
                   <button
                     className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
-                    title="Duplicate"
+                    title={t.duplicate}
                     disabled={busyId === kit.id}
                     onClick={async () => { setBusyId(kit.id); await duplicateBrandKit(kit.id); setBusyId(null); refresh(); }}
                   >
                     <Copy size={13} />
                   </button>
-                  <button className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" title="Export .brandkit" onClick={() => handleExport(kit.id)}>
+                  <button className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" title={t.exportBrandKit} onClick={() => handleExport(kit.id)}>
                     <Download size={13} />
                   </button>
-                  <button className="rounded-lg border border-gray-200 p-1.5 text-red-500 hover:bg-red-50" title="Delete" onClick={() => handleDeleteRequest(kit.id)}>
+                  <button className="rounded-lg border border-gray-200 p-1.5 text-red-500 hover:bg-red-50" title={t.deleteLabel} onClick={() => handleDeleteRequest(kit.id)}>
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -225,23 +229,23 @@ export default function BrandKitManagerDialog({ isOpen, onClose, items, pages })
         <BrandModal
           isOpen
           onClose={() => setDeleteConfirm(null)}
-          title={`Delete "${deleteConfirm.name}"?`}
+          title={t.deleteTitle(deleteConfirm.name)}
           width="max-w-sm"
           footer={
             <>
               <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={() => setDeleteConfirm(null)}>
-                Cancel
+                {t.cancel}
               </button>
               <button className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700" onClick={confirmDelete}>
-                Delete brand kit
+                {t.deleteBrandKit}
               </button>
             </>
           }
         >
           <p className="text-sm text-gray-600">
             {deleteConfirm.usedCount > 0
-              ? `${deleteConfirm.usedCount} resource(s) from this kit are used in the current project. They will keep their current appearance (fallback values are preserved on each object) but will no longer update if you edit this brand kit later.`
-              : "No resources from this kit appear to be in use in the current project."}
+              ? t.usedCountWarning(deleteConfirm.usedCount)
+              : t.noResourcesUsed}
           </p>
         </BrandModal>
       )}

@@ -5,6 +5,8 @@ import { createPlaybackEngine } from "../../animation/playbackService";
 import { computeTransitionFrame } from "../../animation/transitionService";
 import { getPageDuration, getOutgoingTransition, nextPageIndex, prevPageIndex, clampPageIndex } from "../../animation/presentationService";
 import { useResizeObserver } from "../../useResizeObserver";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Phase 12 — dedicated full-screen presentation mode (spec §48-52). Owns
 // its OWN playback engines (one for the current page's object animations,
@@ -13,6 +15,8 @@ import { useResizeObserver } from "../../useResizeObserver";
 // transitionService, this component only sequences WHICH page/transition
 // is currently active.
 export default function PresentationMode({ pages, items, presentationSettings, reducedMotion, onUpdatePresentationSettings, initialPageId, onExit }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].presentationMode;
   const containerRef = useRef(null);
   const size = useResizeObserver(containerRef);
   const startIndex = Math.max(0, pages.findIndex((p) => p.id === initialPageId));
@@ -211,7 +215,7 @@ export default function PresentationMode({ pages, items, presentationSettings, r
       onPointerUp={handlePointerUp}
       onMouseMove={revealControls}
       role="dialog"
-      aria-label="Presentation mode"
+      aria-label={t.presentationModeAriaLabel}
       aria-modal="true"
     >
       <div className="relative flex items-center justify-center" style={{ width: viewportWidth, height: viewportHeight }}>
@@ -243,31 +247,31 @@ export default function PresentationMode({ pages, items, presentationSettings, r
 
       {controlsVisible && (
         <>
-          <button onClick={onExit} className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label="Exit presentation">
+          <button onClick={onExit} className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.exitPresentation}>
             <X size={18} />
           </button>
 
-          <button onClick={goPrev} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label="Previous page">
+          <button onClick={goPrev} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.previousPage}>
             <ChevronLeft size={20} />
           </button>
-          <button onClick={goNext} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label="Next page">
+          <button onClick={goNext} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.nextPage}>
             <ChevronRight size={20} />
           </button>
 
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/10 px-4 py-2 text-white backdrop-blur">
-            <button onClick={togglePlayPause} aria-label={pagePlaying ? "Pause" : "Play"}>
+            <button onClick={togglePlayPause} aria-label={pagePlaying ? t.pause : t.play}>
               {pagePlaying ? <Pause size={16} /> : <Play size={16} />}
             </button>
             <button
               onClick={toggleAutoplay}
               className={autoplay ? "text-emerald-400" : "text-white/70"}
-              title="Toggle autoplay"
+              title={t.toggleAutoplay}
               aria-pressed={autoplay}
             >
               <Repeat size={16} />
             </button>
             <span className="text-xs tabular-nums">{pageIndex + 1} / {pages.length}</span>
-            <button onClick={toggleFullscreen} aria-label="Toggle fullscreen">
+            <button onClick={toggleFullscreen} aria-label={t.toggleFullscreen}>
               <Maximize size={16} />
             </button>
           </div>

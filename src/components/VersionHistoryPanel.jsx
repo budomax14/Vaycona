@@ -1,23 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Clock, FileWarning, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { MAX_VERSION_NAME_LENGTH, MAX_VERSION_NOTE_LENGTH } from "../versionHistoryService";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
-function formatTimestamp(ts) {
-  if (!ts) return "Unknown time";
+function formatTimestamp(ts, t) {
+  if (!ts) return t.unknownTime;
   const date = new Date(ts);
   return `${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
 }
-
-const TYPE_LABELS = {
-  manual: "Manual version",
-  "auto-milestone": "Automatic milestone",
-  "before-import": "Before import",
-  "before-replacement": "Before replacement",
-  "before-migration": "Before update",
-  "before-repair": "Before repair",
-  "before-reset": "Before reset",
-  "before-version-restore": "Before version restore",
-};
 
 // Local version history (Phase 7E) — a clean chronological list, newest
 // first, deliberately NOT a visual timeline. Kept distinct from the
@@ -32,6 +23,18 @@ export default function VersionHistoryPanel({
   onRename, // (id, name) => Promise
   onDelete, // (id) => Promise
 }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].versionHistory;
+  const TYPE_LABELS = {
+    manual: t.typeManual,
+    "auto-milestone": t.typeAutoMilestone,
+    "before-import": t.typeBeforeImport,
+    "before-replacement": t.typeBeforeReplacement,
+    "before-migration": t.typeBeforeMigration,
+    "before-repair": t.typeBeforeRepair,
+    "before-reset": t.typeBeforeReset,
+    "before-version-restore": t.typeBeforeVersionRestore,
+  };
   const [nameInput, setNameInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [renamingId, setRenamingId] = useState(null);
@@ -78,16 +81,16 @@ export default function VersionHistoryPanel({
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <h2 id="version-history-title" className="text-base font-semibold text-gray-900">
-            Version history
+            {t.title}
           </h2>
-          <button ref={closeRef} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close version history">
+          <button ref={closeRef} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.closeAria}>
             <X size={18} />
           </button>
         </div>
 
         <div className="border-b border-gray-100 px-5 py-3">
           <label htmlFor="version-name-input" className="mb-1 block text-xs font-medium text-gray-500">
-            Create a named version of the current project
+            {t.createLabel}
           </label>
           <div className="flex gap-2">
             <input
@@ -95,7 +98,7 @@ export default function VersionHistoryPanel({
               ref={nameInputRef}
               type="text"
               maxLength={MAX_VERSION_NAME_LENGTH}
-              placeholder="e.g. Before client changes"
+              placeholder={t.namePlaceholder}
               className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-400"
               value={nameInput}
               onChange={(event) => setNameInput(event.target.value)}
@@ -108,14 +111,14 @@ export default function VersionHistoryPanel({
               onClick={handleCreate}
               disabled={!nameInput.trim()}
             >
-              <Plus size={14} /> Create
+              <Plus size={14} /> {t.create}
             </button>
           </div>
           <input
             type="text"
             maxLength={MAX_VERSION_NOTE_LENGTH}
-            placeholder="Optional note"
-            aria-label="Optional note for this version"
+            placeholder={t.notePlaceholder}
+            aria-label={t.noteAria}
             className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs outline-none focus:border-amber-400"
             value={noteInput}
             onChange={(event) => setNoteInput(event.target.value)}
@@ -124,7 +127,7 @@ export default function VersionHistoryPanel({
 
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {versions.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">No versions yet.</p>
+            <p className="py-6 text-center text-sm text-gray-400">{t.emptyState}</p>
           ) : (
             <ul className="space-y-2">
               {versions.map((version) => {
@@ -156,14 +159,14 @@ export default function VersionHistoryPanel({
                           />
                         ) : (
                           <div className="flex items-center gap-1.5 truncate text-sm font-medium text-gray-800">
-                            {version.name || TYPE_LABELS[version.type] || "Version"}
+                            {version.name || TYPE_LABELS[version.type] || t.versionFallback}
                             {version.protected && (
-                              <ShieldCheck size={12} className="shrink-0 text-amber-500" aria-label="Protected" />
+                              <ShieldCheck size={12} className="shrink-0 text-amber-500" aria-label={t.protectedAria} />
                             )}
                           </div>
                         )}
                         <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <Clock size={11} /> {formatTimestamp(version.createdAt)} · {TYPE_LABELS[version.type] || version.type}
+                          <Clock size={11} /> {formatTimestamp(version.createdAt, t)} · {TYPE_LABELS[version.type] || version.type}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
@@ -174,8 +177,8 @@ export default function VersionHistoryPanel({
                               setRenamingId(version.id);
                               setRenameValue(version.name || "");
                             }}
-                            aria-label={`Rename ${version.name || "version"}`}
-                            title="Rename"
+                            aria-label={t.renameAria(version.name || t.versionFallback)}
+                            title={t.renameTitle}
                           >
                             <Pencil size={13} />
                           </button>
@@ -184,13 +187,13 @@ export default function VersionHistoryPanel({
                           className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50"
                           onClick={() => onRestore(version.id)}
                         >
-                          Restore
+                          {t.restore}
                         </button>
                         <button
                           className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
                           onClick={() => onDelete(version.id)}
-                          aria-label={`Delete ${version.name || "version"}`}
-                          title="Delete"
+                          aria-label={t.deleteAria(version.name || t.versionFallback)}
+                          title={t.deleteTitle}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -199,8 +202,7 @@ export default function VersionHistoryPanel({
 
                     {version.missingAssetCount > 0 && (
                       <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-600">
-                        <FileWarning size={12} /> {version.missingAssetCount} missing asset
-                        {version.missingAssetCount === 1 ? "" : "s"}
+                        <FileWarning size={12} /> {t.missingAssets(version.missingAssetCount)}
                       </div>
                     )}
 
@@ -210,17 +212,17 @@ export default function VersionHistoryPanel({
                       onClick={() => setExpandedId((id) => (id === version.id ? null : version.id))}
                       aria-expanded={expandedId === version.id}
                     >
-                      {expandedId === version.id ? "Hide comparison" : "Compare to current"}
+                      {expandedId === version.id ? t.hideComparison : t.compareToCurrent}
                     </button>
                     {expandedId === version.id && (
                       <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 rounded-lg bg-gray-50 p-2.5 text-xs text-gray-600">
-                        <dt>Pages</dt>
-                        <dd>{version.pageCount} ({diff.pages >= 0 ? "+" : ""}{diff.pages} vs current)</dd>
-                        <dt>Objects</dt>
-                        <dd>{version.objectCount} ({diff.objects >= 0 ? "+" : ""}{diff.objects} vs current)</dd>
-                        <dt>Assets</dt>
-                        <dd>{version.assetCount} ({diff.assets >= 0 ? "+" : ""}{diff.assets} vs current)</dd>
-                        <dt>Note</dt>
+                        <dt>{t.pages}</dt>
+                        <dd>{t.vsCurrent(version.pageCount, diff.pages)}</dd>
+                        <dt>{t.objects}</dt>
+                        <dd>{t.vsCurrent(version.objectCount, diff.objects)}</dd>
+                        <dt>{t.assets}</dt>
+                        <dd>{t.vsCurrent(version.assetCount, diff.assets)}</dd>
+                        <dt>{t.note}</dt>
                         <dd className="col-span-2">{version.note || "—"}</dd>
                       </dl>
                     )}
@@ -232,7 +234,7 @@ export default function VersionHistoryPanel({
         </div>
 
         <div className="border-t border-gray-100 px-5 py-2.5 text-center text-[11px] text-gray-400">
-          This compares object/page counts only — not a visual design comparison.
+          {t.footerNote}
         </div>
       </div>
     </div>

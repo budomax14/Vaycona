@@ -4,6 +4,8 @@ import { IconButton, IconToggleButton } from "./toolbarUi";
 import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import ObjectTransformFields from "./ObjectTransformFields";
 import AnimateMenuItem from "./AnimateMenuItem";
+import { useLanguage } from "../../languageContext";
+import { TOOLBAR_MENU_STRINGS } from "../../i18n/toolbarMenus";
 
 function Section({ title, children }) {
   return (
@@ -28,11 +30,13 @@ export default function ObjectMoreMenu({
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const { item, onChange } = transformFieldsProps;
+  const { language } = useLanguage();
+  const t = TOOLBAR_MENU_STRINGS[language].objectMore;
 
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
       <div ref={anchorRef} className="inline-flex">
-        <IconButton icon={MoreHorizontal} label="More" onClick={() => setOpen((v) => !v)} active={open} />
+        <IconButton icon={MoreHorizontal} label={t.more} onClick={() => setOpen((v) => !v)} active={open} />
       </div>
       <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-96 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
@@ -47,35 +51,35 @@ export default function ObjectMoreMenu({
             />
           )}
 
-          <Section title="Arrange">
+          <Section title={t.arrange}>
             <ObjectTransformFields {...transformFieldsProps} />
           </Section>
 
           {showTransform && (
-            <Section title="Transform">
+            <Section title={t.transform}>
               <IconToggleButton
                 icon={FlipHorizontal}
                 active={!!item.flipX}
                 onClick={() => onChange({ flipX: !item.flipX })}
-                title="Flip horizontal"
+                title={t.flipHorizontal}
               />
               <IconToggleButton
                 icon={FlipVertical}
                 active={!!item.flipY}
                 onClick={() => onChange({ flipY: !item.flipY })}
-                title="Flip vertical"
+                title={t.flipVertical}
               />
               <IconButton
                 icon={RotateCcw}
                 onClick={() => onChange({ rotation: (((item.rotation || 0) - 90) % 360 + 360) % 360 })}
-                title="Rotate left 90°"
-                aria-label="Rotate left 90 degrees"
+                title={t.rotateLeft90}
+                aria-label={t.rotateLeft90Degrees}
               />
               <IconButton
                 icon={RotateCw}
                 onClick={() => onChange({ rotation: (((item.rotation || 0) + 90) % 360 + 360) % 360 })}
-                title="Rotate right 90°"
-                aria-label="Rotate right 90 degrees"
+                title={t.rotateRight90}
+                aria-label={t.rotateRight90Degrees}
               />
             </Section>
           )}

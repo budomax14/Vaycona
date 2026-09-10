@@ -22,14 +22,8 @@ import {
 import { estimatedOutputDimensions, estimateFileSizeRange, parsePageRange } from "../export/exportRequest";
 import { prepareExportRequest, runExport, runPreflight, downloadExportResult, ExportCancelledError } from "../export/exportService";
 import { resolveStaticExportItems } from "../animation/animationService";
-
-const STAGE_LABELS = {
-  preparing: "Preparing pages…",
-  "loading-fonts": "Loading fonts…",
-  rendering: "Rendering",
-  packaging: "Packaging files…",
-  finalizing: "Finishing up…",
-};
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "—";
@@ -56,13 +50,6 @@ function rememberSettings(partial) {
   }
 }
 
-const FORMAT_OPTIONS = [
-  { key: "png", label: "PNG", icon: FileImage, hint: "Sharp edges, transparency" },
-  { key: "jpeg", label: "JPEG", icon: FileImage, hint: "Smaller files, photos" },
-  { key: "pdf", label: "PDF", icon: FileText, hint: "Multi-page, print" },
-  { key: "svg", label: "SVG", icon: Scissors, hint: "Vector, single page" },
-];
-
 export default function ExportDialog({
   isOpen,
   onClose,
@@ -75,6 +62,21 @@ export default function ExportDialog({
   initialFormat,
   watermark = false,
 }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].exportDialog;
+  const FORMAT_OPTIONS = [
+    { key: "png", label: "PNG", icon: FileImage, hint: t.formatHintPng },
+    { key: "jpeg", label: "JPEG", icon: FileImage, hint: t.formatHintJpeg },
+    { key: "pdf", label: "PDF", icon: FileText, hint: t.formatHintPdf },
+    { key: "svg", label: "SVG", icon: Scissors, hint: t.formatHintSvg },
+  ];
+  const STAGE_LABELS = {
+    preparing: t.stagePreparing,
+    "loading-fonts": t.stageLoadingFonts,
+    rendering: t.stageRendering,
+    packaging: t.stagePackaging,
+    finalizing: t.stageFinalizing,
+  };
   const remembered = useMemo(() => (isOpen ? loadRememberedSettings() : {}), [isOpen]);
   const [format, setFormat] = useState("png");
   const [pageSelection, setPageSelection] = useState("current");
@@ -294,7 +296,7 @@ export default function ExportDialog({
         setStep("form");
         return;
       }
-      setErrorMessage(err?.message || "Export failed unexpectedly.");
+      setErrorMessage(err?.message || t.exportFailedGeneric);
       setStep("error");
     } finally {
       controllerRef.current = null;
@@ -311,10 +313,10 @@ export default function ExportDialog({
 
   const progressPageLabel =
     progress.stage === "rendering" && progress.pageCount > 1
-      ? `Rendering page ${progress.pageIndex + 1} of ${progress.pageCount} (${progress.pageName})`
+      ? t.renderingPageOf(progress.pageIndex + 1, progress.pageCount, progress.pageName)
       : progress.stage === "rendering"
-        ? `Rendering ${progress.pageName || "page"}…`
-        : STAGE_LABELS[progress.stage] || "Working…";
+        ? t.renderingPage(progress.pageName || t.pages)
+        : STAGE_LABELS[progress.stage] || t.stageRendering;
   const progressPercent = progress.stage === "rendering" && progress.pageCount > 0 ? Math.round(((progress.pageIndex || 0) / progress.pageCount) * 100) : null;
 
   return (
@@ -328,9 +330,9 @@ export default function ExportDialog({
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <h2 id="export-dialog-title" className="text-base font-semibold text-gray-900">
-            Export design
+            {t.title}
           </h2>
-          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={step === "progress" ? cancelExport : onClose} aria-label="Close export dialog">
+          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={step === "progress" ? cancelExport : onClose} aria-label={t.closeAria}>
             <X size={18} />
           </button>
         </div>
@@ -347,12 +349,12 @@ export default function ExportDialog({
 
             {watermark && (
               <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                Free plan exports include a small watermark. Upgrade to Pro or Business for clean exports.
+                {t.watermarkNotice}
               </div>
             )}
 
             <fieldset className="mb-5">
-              <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">File type</legend>
+              <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.fileType}</legend>
               <div className="grid grid-cols-4 gap-2">
                 {FORMAT_OPTIONS.map((opt, i) => (
                   <button
@@ -375,12 +377,12 @@ export default function ExportDialog({
 
             {isMultiPageCapable && (
               <fieldset className="mb-5">
-                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Pages</legend>
+                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.pages}</legend>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { key: "current", label: "Current page" },
-                    { key: "all", label: `All pages (${pages.length})` },
-                    { key: "custom", label: "Custom selection" },
+                    { key: "current", label: t.currentPage },
+                    { key: "all", label: t.allPages(pages.length) },
+                    { key: "custom", label: t.customSelection },
                   ].map((opt) => (
                     <button
                       key={opt.key}
@@ -398,14 +400,14 @@ export default function ExportDialog({
                 {pageSelection === "custom" && (
                   <div className="mt-3 space-y-2">
                     <label className="block text-xs font-medium text-gray-500" htmlFor="export-page-range">
-                      Page range (e.g. 1-3,6)
+                      {t.pageRangeLabel}
                     </label>
                     <input
                       id="export-page-range"
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-400"
                       value={rangeText}
                       onChange={(event) => applyRangeText(event.target.value)}
-                      placeholder="1-3,6"
+                      placeholder={t.pageRangePlaceholder}
                     />
                     {rangeError && <p className="text-xs text-red-600">{rangeError}</p>}
                     <div className="grid max-h-32 grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-gray-100 p-2 sm:grid-cols-3">
@@ -415,9 +417,9 @@ export default function ExportDialog({
                             type="checkbox"
                             checked={customPageIds.includes(page.id)}
                             onChange={() => togglePageCheckbox(page.id)}
-                            aria-label={`Page ${i + 1}: ${page.name || `Page ${i + 1}`}`}
+                            aria-label={t.pageCheckboxAria(i + 1, page.name || t.pageFallbackName(i + 1))}
                           />
-                          {i + 1}. {page.name || `Page ${i + 1}`}
+                          {i + 1}. {page.name || t.pageFallbackName(i + 1)}
                         </label>
                       ))}
                     </div>
@@ -426,12 +428,12 @@ export default function ExportDialog({
               </fieldset>
             )}
             {!isMultiPageCapable && (
-              <p className="mb-5 text-xs text-gray-400">SVG export supports one page at a time — exporting the current page.</p>
+              <p className="mb-5 text-xs text-gray-400">{t.svgSinglePageNote}</p>
             )}
 
             {format !== "pdf" && (
               <fieldset className="mb-5">
-                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Scale</legend>
+                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.scale}</legend>
                 <div className="flex flex-wrap gap-2">
                   {SCALE_PRESETS.map((s) => (
                     <button
@@ -456,7 +458,7 @@ export default function ExportDialog({
             {format === "png" && (
               <fieldset className="mb-5 flex items-center justify-between">
                 <label htmlFor="export-transparent" className="text-sm font-medium text-gray-700">
-                  Transparent background
+                  {t.transparentBackground}
                 </label>
                 <input id="export-transparent" type="checkbox" checked={transparentBackground} onChange={(event) => setTransparentBackground(event.target.checked)} />
               </fieldset>
@@ -464,7 +466,7 @@ export default function ExportDialog({
 
             {format === "jpeg" && (
               <fieldset className="mb-5">
-                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Quality</legend>
+                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.quality}</legend>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(JPEG_QUALITY_PRESETS).map(([key, preset]) => (
                     <button
@@ -480,14 +482,14 @@ export default function ExportDialog({
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-xs text-gray-400">Lower quality makes a smaller file but may show compression artifacts.</p>
+                <p className="mt-1.5 text-xs text-gray-400">{t.qualityNote}</p>
               </fieldset>
             )}
 
             {format === "pdf" && (
               <>
                 <fieldset className="mb-5">
-                  <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">PDF mode</legend>
+                  <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.pdfMode}</legend>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -497,8 +499,8 @@ export default function ExportDialog({
                       onClick={() => setPdfMode("standard")}
                       aria-pressed={pdfMode === "standard"}
                     >
-                      <span className="block font-semibold">Standard</span>
-                      <span className="block text-xs text-gray-400">Smaller file, for sharing/screen viewing</span>
+                      <span className="block font-semibold">{t.standard}</span>
+                      <span className="block text-xs text-gray-400">{t.standardHint}</span>
                     </button>
                     <button
                       type="button"
@@ -508,15 +510,15 @@ export default function ExportDialog({
                       onClick={() => setPdfMode("print")}
                       aria-pressed={pdfMode === "print"}
                     >
-                      <span className="block font-semibold">Print</span>
-                      <span className="block text-xs text-gray-400">Higher resolution, bleed, crop marks</span>
+                      <span className="block font-semibold">{t.print}</span>
+                      <span className="block text-xs text-gray-400">{t.printHint}</span>
                     </button>
                   </div>
                 </fieldset>
 
                 {pdfMode === "print" && (
                   <fieldset className="mb-5">
-                    <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Bleed</legend>
+                    <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.bleed}</legend>
                     <div className="flex flex-wrap items-center gap-2">
                       {BLEED_PRESETS.map((preset) => (
                         <button
@@ -540,7 +542,7 @@ export default function ExportDialog({
                             className="w-20 rounded-lg border border-gray-200 px-2 py-1 text-sm"
                             value={customBleedIn}
                             onChange={(event) => setCustomBleedIn(event.target.value)}
-                            aria-label="Custom bleed in inches"
+                            aria-label={t.customBleedAria}
                           />
                           in
                         </label>
@@ -548,12 +550,12 @@ export default function ExportDialog({
                     </div>
                     <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
                       <input type="checkbox" checked={cropMarks} onChange={(event) => setCropMarks(event.target.checked)} />
-                      Add crop marks
+                      {t.addCropMarks}
                     </label>
                   </fieldset>
                 )}
                 <p className="mb-5 text-xs text-gray-400">
-                  Print PDF output stays RGB (this app doesn't perform CMYK color separation) — export a physical proof before a professional print run.
+                  {t.rgbNote}
                 </p>
               </>
             )}
@@ -565,12 +567,12 @@ export default function ExportDialog({
               aria-expanded={advancedOpen}
             >
               <ChevronDown size={14} className={advancedOpen ? "rotate-180 transition-transform" : "transition-transform"} />
-              Advanced settings
+              {t.advancedSettings}
             </button>
             {advancedOpen && (
               <div className="mb-5 space-y-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Filename</label>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">{t.filename}</label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-400"
                     value={filenameBase}
@@ -580,13 +582,13 @@ export default function ExportDialog({
                 {format !== "pdf" && (
                   <label className="flex items-center gap-2 text-sm text-gray-700">
                     <input type="checkbox" checked={useCustomDimensions} onChange={(event) => setUseCustomDimensions(event.target.checked)} />
-                    Use custom width/height instead of scale
+                    {t.useCustomDimensions}
                   </label>
                 )}
                 {useCustomDimensions && format !== "pdf" && (
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="flex flex-col gap-1">
-                      <span className="text-xs text-gray-500">Width</span>
+                      <span className="text-xs text-gray-500">{t.width}</span>
                       <input
                         type="number"
                         className="w-24 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
@@ -603,7 +605,7 @@ export default function ExportDialog({
                       />
                     </label>
                     <label className="flex flex-col gap-1">
-                      <span className="text-xs text-gray-500">Height</span>
+                      <span className="text-xs text-gray-500">{t.height}</span>
                       <input
                         type="number"
                         className="w-24 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
@@ -612,7 +614,7 @@ export default function ExportDialog({
                       />
                     </label>
                     <label className="flex flex-col gap-1">
-                      <span className="text-xs text-gray-500">Unit</span>
+                      <span className="text-xs text-gray-500">{t.unit}</span>
                       <select className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm" value={customUnit} onChange={(event) => setCustomUnit(event.target.value)}>
                         {UNITS.map((u) => (
                           <option key={u.key} value={u.key}>
@@ -623,25 +625,25 @@ export default function ExportDialog({
                     </label>
                     <label className="mb-1.5 flex items-center gap-1 text-xs text-gray-600">
                       <input type="checkbox" checked={lockAspect} onChange={(event) => setLockAspect(event.target.checked)} />
-                      Lock aspect ratio
+                      {t.lockAspectRatio}
                     </label>
                   </div>
                 )}
                 <label className="flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" checked={createVersionBeforeExport} onChange={(event) => setCreateVersionBeforeExport(event.target.checked)} />
-                  Create a version before exporting
+                  {t.createVersionBeforeExport}
                 </label>
               </div>
             )}
 
             {previewPage && outputDims && (
               <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-xs text-gray-500">
-                Estimated output: <span className="font-medium text-gray-700">{outputDims.width}×{outputDims.height}px</span>
+                {t.estimatedOutput} <span className="font-medium text-gray-700">{outputDims.width}×{outputDims.height}px</span>
                 {sizeRange && (
                   <>
                     {" "}
                     · <span className="font-medium text-gray-700">{formatBytes(sizeRange[0])}–{formatBytes(sizeRange[1])}</span>
-                    {livePreviewRequest.zipMultiple ? " per page (zipped)" : ""}
+                    {livePreviewRequest.zipMultiple ? t.perPageZipped : ""}
                   </>
                 )}
               </div>
@@ -654,7 +656,7 @@ export default function ExportDialog({
             <div className="mb-3 flex items-center gap-2 text-amber-700">
               <AlertTriangle size={18} />
               <h3 className="text-sm font-semibold">
-                {preflightResult.status === "blocked" ? "This export can't proceed" : "Before you export"}
+                {preflightResult.status === "blocked" ? t.cantProceed : t.beforeYouExport}
               </h3>
             </div>
             <ul className="mb-4 space-y-2 text-sm text-gray-600">
@@ -671,14 +673,14 @@ export default function ExportDialog({
             </ul>
             <div className="flex justify-end gap-2">
               <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={() => setStep("form")}>
-                Go back
+                {t.goBack}
               </button>
               {preflightResult.status !== "blocked" && (
                 <button
                   className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
                   onClick={() => startRender(pendingRequest, preflightResult)}
                 >
-                  Export anyway
+                  {t.exportAnyway}
                 </button>
               )}
             </div>
@@ -690,10 +692,10 @@ export default function ExportDialog({
             <Loader2 size={28} className="animate-spin text-amber-600" />
             <div className="text-center" aria-live="polite">
               <p className="text-sm font-medium text-gray-700">{progressPageLabel}</p>
-              {progressPercent !== null && <p className="mt-1 text-xs text-gray-400">{progressPercent}% of pages rendered</p>}
+              {progressPercent !== null && <p className="mt-1 text-xs text-gray-400">{t.percentRendered(progressPercent)}</p>}
             </div>
             <button className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50" onClick={cancelExport}>
-              Cancel
+              {t.cancel}
             </button>
           </div>
         )}
@@ -703,10 +705,10 @@ export default function ExportDialog({
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
               <CheckCircle2 size={20} />
             </div>
-            <p className="text-sm font-medium text-gray-800">Downloaded {resultInfo?.filename}</p>
+            <p className="text-sm font-medium text-gray-800">{t.downloaded(resultInfo?.filename)}</p>
             {resultInfo?.bleedNote && <p className="max-w-md text-xs text-gray-400">{resultInfo.bleedNote}</p>}
             <button className="mt-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={onClose}>
-              Done
+              {t.done}
             </button>
           </div>
         )}
@@ -719,10 +721,10 @@ export default function ExportDialog({
             <p className="text-sm font-medium text-gray-800">{errorMessage}</p>
             <div className="mt-2 flex gap-2">
               <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>
-                Close
+                {t.close}
               </button>
               <button className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={retryExport}>
-                Retry
+                {t.retry}
               </button>
             </div>
           </div>
@@ -731,10 +733,10 @@ export default function ExportDialog({
         {step === "form" && (
           <div className="flex justify-end gap-2 border-t border-gray-200 px-5 py-4">
             <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>
-              Cancel
+              {t.cancel}
             </button>
             <button className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={handleExportClick}>
-              <Download size={15} /> Export
+              <Download size={15} /> {t.export}
             </button>
           </div>
         )}

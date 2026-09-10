@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { contentToScreen } from "../viewport";
 import { normalizeOpacityMask } from "../opacityMask";
+import { useLanguage } from "../languageContext";
+import { STATUS_BAR_STRINGS } from "../i18n/statusBarAndMenus";
 
 const HANDLE_SIZE = 14;
 
@@ -18,6 +20,8 @@ const HANDLE_SIZE = 14;
 // fill overlays use); pointer-up leaves the final value in place for the
 // caller's own commit-on-exit.
 export default function FadeOverlay({ item, viewport, scale, onLiveChange, onRequestExit }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].fadeOverlay;
   const dragRef = useRef(null);
   const mask = normalizeOpacityMask(item.opacityMask);
   const width = Math.max(1, item.width || 100);
@@ -149,8 +153,8 @@ export default function FadeOverlay({ item, viewport, scale, onLiveChange, onReq
           <svg style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
             <line x1={startScreen.left} y1={startScreen.top} x2={endScreen.left} y2={endScreen.top} stroke="#d97706" strokeWidth={2} strokeDasharray="4 4" />
           </svg>
-          <Handle handleKey="start" left={startScreen.left} top={startScreen.top} startLocalPx={{ x: mask.start.x * width, y: mask.start.y * height }} title="Fade start" />
-          <Handle handleKey="end" left={endScreen.left} top={endScreen.top} startLocalPx={{ x: mask.end.x * width, y: mask.end.y * height }} title="Fade end" />
+          <Handle handleKey="start" left={startScreen.left} top={startScreen.top} startLocalPx={{ x: mask.start.x * width, y: mask.start.y * height }} title={t.fadeStart} />
+          <Handle handleKey="end" left={endScreen.left} top={endScreen.top} startLocalPx={{ x: mask.end.x * width, y: mask.end.y * height }} title={t.fadeEnd} />
         </>
       ) : (
         <>
@@ -167,8 +171,8 @@ export default function FadeOverlay({ item, viewport, scale, onLiveChange, onReq
               pointerEvents: "none",
             }}
           />
-          <Handle handleKey="center" left={centerScreen.left} top={centerScreen.top} startLocalPx={{ x: mask.center.x * width, y: mask.center.y * height }} title="Fade center" />
-          <Handle handleKey="radius" left={centerScreen.left + radiusScreenPx} top={centerScreen.top} startLocalPx={radiusHandleLocalPx} title="Fade size" />
+          <Handle handleKey="center" left={centerScreen.left} top={centerScreen.top} startLocalPx={{ x: mask.center.x * width, y: mask.center.y * height }} title={t.fadeCenter} />
+          <Handle handleKey="radius" left={centerScreen.left + radiusScreenPx} top={centerScreen.top} startLocalPx={radiusHandleLocalPx} title={t.fadeSize} />
         </>
       )}
     </div>

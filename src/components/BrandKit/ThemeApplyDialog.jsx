@@ -3,13 +3,8 @@ import BrandModal from "./BrandModal";
 import { useBrandKits } from "../../brandKitContext";
 import { addResource, createTheme } from "../../brandKitService";
 import { planThemeApplication } from "../../themeApply";
-
-const SCOPE_OPTIONS = [
-  { key: "page", label: "Current page" },
-  { key: "pages", label: "Selected pages" },
-  { key: "project", label: "Entire project" },
-  { key: "selection", label: "Selected objects only" },
-];
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Theme create/preview/apply (spec §47-50). Preview is a static,
 // non-destructive summary (swatches + affected-object count) rather than a
@@ -19,6 +14,14 @@ const SCOPE_OPTIONS = [
 // since nothing was ever changed) while keeping scope reasonable for this
 // phase; a fully live canvas preview overlay is a documented limitation.
 export default function ThemeApplyDialog({ isOpen, onClose, items, pages, activePageId, selectedPageIds, selectedItemIds, onApplyTheme }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].themeApply;
+  const SCOPE_OPTIONS = [
+    { key: "page", label: t.scopeOptions.page },
+    { key: "pages", label: t.scopeOptions.pages },
+    { key: "project", label: t.scopeOptions.project },
+    { key: "selection", label: t.scopeOptions.selection },
+  ];
   const { activeBrandKit, refresh } = useBrandKits();
   const [selectedThemeId, setSelectedThemeId] = useState(null);
   const [scope, setScope] = useState("page");
@@ -68,8 +71,8 @@ export default function ThemeApplyDialog({ isOpen, onClose, items, pages, active
 
   if (!activeBrandKit) {
     return (
-      <BrandModal isOpen={isOpen} onClose={onClose} title="Themes">
-        <p className="text-sm text-gray-500">Set an active brand kit first (Brand panel → Manage) to create or apply themes.</p>
+      <BrandModal isOpen={isOpen} onClose={onClose} title={t.themesTitleNoKit}>
+        <p className="text-sm text-gray-500">{t.setBrandKitFirst}</p>
       </BrandModal>
     );
   }
@@ -78,17 +81,17 @@ export default function ThemeApplyDialog({ isOpen, onClose, items, pages, active
     <BrandModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Brand themes"
+      title={t.title}
       width="max-w-xl"
       footer={
         <>
-          <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>Cancel</button>
+          <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>{t.cancel}</button>
           <button
             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:pointer-events-none disabled:opacity-40"
             onClick={handleApply}
             disabled={!theme || applying || (plan && plan.affectedCount === 0)}
           >
-            {applying ? "Applying…" : `Apply theme${plan ? ` (${plan.affectedCount} affected)` : ""}`}
+            {applying ? t.applying : t.applyTheme(plan)}
           </button>
         </>
       }
@@ -105,7 +108,7 @@ export default function ThemeApplyDialog({ isOpen, onClose, items, pages, active
             </button>
           ))}
           <button className="rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50" onClick={() => setShowCreate((v) => !v)}>
-            + New theme
+            {t.newTheme}
           </button>
         </div>
 
@@ -113,45 +116,45 @@ export default function ThemeApplyDialog({ isOpen, onClose, items, pages, active
           <div className="space-y-2 rounded-xl border border-gray-200 p-3">
             <input
               type="text"
-              placeholder="Theme name"
+              placeholder={t.themeNamePlaceholder}
               className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
               value={draft.name}
               onChange={(event) => setDraft((d) => ({ ...d, name: event.target.value }))}
             />
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <label>Primary color
+              <label>{t.primaryColor}
                 <select className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1" value={draft.primaryColorId} onChange={(event) => setDraft((d) => ({ ...d, primaryColorId: event.target.value }))}>
-                  <option value="">None</option>
+                  <option value="">{t.none}</option>
                   {activeBrandKit.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
-              <label>Background color
+              <label>{t.backgroundColor}
                 <select className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1" value={draft.backgroundColorId} onChange={(event) => setDraft((d) => ({ ...d, backgroundColorId: event.target.value }))}>
-                  <option value="">None</option>
+                  <option value="">{t.none}</option>
                   {activeBrandKit.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
-              <label>Body typography
+              <label>{t.bodyTypography}
                 <select className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1" value={draft.bodyTypographyId} onChange={(event) => setDraft((d) => ({ ...d, bodyTypographyId: event.target.value }))}>
-                  <option value="">None</option>
-                  {activeBrandKit.typography.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  <option value="">{t.none}</option>
+                  {activeBrandKit.typography.map((tg) => <option key={tg.id} value={tg.id}>{tg.name}</option>)}
                 </select>
               </label>
-              <label>Shape object style
+              <label>{t.shapeObjectStyle}
                 <select className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1" value={draft.shapeObjectStyleId} onChange={(event) => setDraft((d) => ({ ...d, shapeObjectStyleId: event.target.value }))}>
-                  <option value="">None</option>
+                  <option value="">{t.none}</option>
                   {activeBrandKit.objectStyles.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </label>
-              <label className="col-span-2">Background style
+              <label className="col-span-2">{t.backgroundStyleLabel}
                 <select className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1" value={draft.backgroundStyleId} onChange={(event) => setDraft((d) => ({ ...d, backgroundStyleId: event.target.value }))}>
-                  <option value="">None</option>
+                  <option value="">{t.none}</option>
                   {activeBrandKit.backgroundStyles.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </label>
             </div>
             <button className="w-full rounded-lg bg-gray-800 py-1.5 text-xs font-semibold text-white hover:bg-gray-900" onClick={handleCreateTheme}>
-              Save theme
+              {t.saveTheme}
             </button>
           </div>
         )}
@@ -159,23 +162,23 @@ export default function ThemeApplyDialog({ isOpen, onClose, items, pages, active
         {theme && (
           <>
             <div className="rounded-xl border border-gray-200 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Preview</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.preview}</p>
               <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
                 {["primaryColorId", "backgroundColorId", "textColorId"].map((field) => {
                   const color = activeBrandKit.colors.find((c) => c.id === theme[field]);
                   return color ? <span key={field} className="flex items-center gap-1"><span className="h-4 w-4 rounded-full border border-gray-200" style={{ backgroundColor: color.hex }} /> {color.name}</span> : null;
                 })}
-                {theme.bodyTypographyId && <span>Body: {activeBrandKit.typography.find((t) => t.id === theme.bodyTypographyId)?.name}</span>}
-                {theme.shapeObjectStyleId && <span>Shapes: {activeBrandKit.objectStyles.find((s) => s.id === theme.shapeObjectStyleId)?.name}</span>}
-                {theme.backgroundStyleId && <span>Background: {activeBrandKit.backgroundStyles.find((b) => b.id === theme.backgroundStyleId)?.name}</span>}
+                {theme.bodyTypographyId && <span>{t.bodyLabel(activeBrandKit.typography.find((tg) => tg.id === theme.bodyTypographyId)?.name)}</span>}
+                {theme.shapeObjectStyleId && <span>{t.shapesLabel(activeBrandKit.objectStyles.find((s) => s.id === theme.shapeObjectStyleId)?.name)}</span>}
+                {theme.backgroundStyleId && <span>{t.backgroundLabel(activeBrandKit.backgroundStyles.find((b) => b.id === theme.backgroundStyleId)?.name)}</span>}
               </div>
               <p className="mt-2 text-xs text-gray-400">
-                Only objects/pages already linked to this brand kit will change — unlinked (arbitrary) colors and fonts are left untouched.
+                {t.unlinkedNote}
               </p>
             </div>
 
             <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Apply to</p>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.applyTo}</p>
               <div className="flex flex-wrap gap-1.5">
                 {SCOPE_OPTIONS.map((opt) => (
                   <button
@@ -188,7 +191,7 @@ export default function ThemeApplyDialog({ isOpen, onClose, items, pages, active
                   </button>
                 ))}
               </div>
-              {plan && <p className="mt-1.5 text-xs text-gray-500">{plan.affectedCount} object/page(s) will change.</p>}
+              {plan && <p className="mt-1.5 text-xs text-gray-500">{t.affectedCount(plan.affectedCount)}</p>}
             </div>
           </>
         )}

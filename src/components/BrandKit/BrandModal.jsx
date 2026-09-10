@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Shared modal shell for every Phase 11 brand dialog — same backdrop/
 // Escape-to-close/focus-on-open contract as SaveAsTemplateDialog.jsx etc,
@@ -7,6 +9,8 @@ import { X } from "lucide-react";
 // replace colors, replace fonts, audit, theme apply).
 export default function BrandModal({ isOpen, onClose, title, subtitle, width = "max-w-lg", children, footer }) {
   const closeRef = useRef(null);
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].brandModal;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -35,7 +39,7 @@ export default function BrandModal({ isOpen, onClose, title, subtitle, width = "
             </h2>
             {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
           </div>
-          <button ref={closeRef} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close">
+          <button ref={closeRef} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.close}>
             <X size={16} />
           </button>
         </div>

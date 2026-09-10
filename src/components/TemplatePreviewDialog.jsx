@@ -2,12 +2,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, Heart, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { orientationOf } from "../pageSizes";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 // Template preview (spec §14) — shows real page content (via
 // TemplateMiniPreview) and metadata, never the raw project JSON. Multi-
 // page templates get simple prev/next navigation between page previews;
 // this never mounts the full editor.
 export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse, onToggleFavorite, onExport }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].templatePreview;
   const [pageIndex, setPageIndex] = useState(0);
   const primaryRef = useRef(null);
 
@@ -45,7 +49,7 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
                   className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1.5 shadow disabled:opacity-30"
                   onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
                   disabled={pageIndex === 0}
-                  aria-label="Previous page"
+                  aria-label={t.previousPage}
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -53,7 +57,7 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
                   className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1.5 shadow disabled:opacity-30"
                   onClick={() => setPageIndex((i) => Math.min(pages.length - 1, i + 1))}
                   disabled={pageIndex === pages.length - 1}
-                  aria-label="Next page"
+                  aria-label={t.nextPage}
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -62,7 +66,7 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
           </div>
           {pages.length > 1 && (
             <p className="mt-2 text-xs text-gray-500">
-              Page {pageIndex + 1} of {pages.length}
+              {t.pageOf(pageIndex + 1, pages.length)}
             </p>
           )}
         </div>
@@ -77,7 +81,7 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
                 {template.pageWidth}×{template.pageHeight} · {orientationOf(template.pageWidth, template.pageHeight)}
               </p>
             </div>
-            <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close preview">
+            <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.closeAria}>
               <X size={16} />
             </button>
           </div>
@@ -85,13 +89,13 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
           <div className="flex-1 overflow-y-auto px-4 py-3 text-xs text-gray-600">
             {template.description && <p className="mb-3">{template.description}</p>}
             <dl className="grid grid-cols-2 gap-y-1">
-              <dt>Pages</dt>
+              <dt>{t.pages}</dt>
               <dd>{template.pageCount}</dd>
-              <dt>Objects</dt>
+              <dt>{t.objects}</dt>
               <dd>{template.objectCount}</dd>
-              <dt>Assets</dt>
+              <dt>{t.assets}</dt>
               <dd>{template.assetCount}</dd>
-              <dt>Category</dt>
+              <dt>{t.category}</dt>
               <dd className="capitalize">{template.category}</dd>
             </dl>
             {template.tags?.length > 0 && (
@@ -105,8 +109,7 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
             )}
             {missingAssetCount > 0 && (
               <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] text-amber-700">
-                {missingAssetCount} image{missingAssetCount === 1 ? "" : "s"} in this template can't be found and will show
-                as missing.
+                {t.missingAssetsNote(missingAssetCount)}
               </p>
             )}
           </div>
@@ -115,11 +118,11 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
             <button
               className={`rounded-lg border border-gray-200 p-2 ${template.favorite ? "text-red-500" : "text-gray-400"}`}
               onClick={onToggleFavorite}
-              aria-label={template.favorite ? "Unfavorite" : "Favorite"}
+              aria-label={template.favorite ? t.unfavorite : t.favorite}
             >
               <Heart size={14} fill={template.favorite ? "currentColor" : "none"} />
             </button>
-            <button className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-gray-600" onClick={onExport} aria-label="Export template as a project file">
+            <button className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-gray-600" onClick={onExport} aria-label={t.exportAria}>
               <Download size={14} />
             </button>
             <button
@@ -127,7 +130,7 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
               className="flex-1 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
               onClick={onUse}
             >
-              Use template
+              {t.useTemplate}
             </button>
           </div>
         </div>

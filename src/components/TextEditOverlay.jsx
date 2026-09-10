@@ -118,6 +118,7 @@ function applyRunStyleToSpan(span, style, fontSizeScale) {
 const TextEditOverlay = forwardRef(function TextEditOverlay(
   {
     item,
+    flexibleMaxWidth,
     viewport,
     liveScale,
     initialClientPoint,
@@ -521,6 +522,17 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   const overlayTop = contentToScreen({ x: item.x, y: item.y }, viewport).y;
   const overlayWidth = item.width * viewport.scale;
   const overlayHeight = item.height * viewport.scale;
+  // Flexible (auto-width) boxes size natively to their own typed content
+  // instead of a pixel width fed back from the per-keystroke measurement in
+  // App.jsx's updateEditingTextLive — that measurement only lands after a
+  // React re-render, one tick behind the character the browser just laid
+  // out at the OLD width, which is what was flashing the just-typed word
+  // onto a wrapped second line before snapping back once the width caught
+  // up. Sizing via CSS itself removes the round-trip entirely: the browser
+  // grows the box in the very same reflow that placed the character, and
+  // still wraps at the page edge exactly like `measureFlexibleTextBox` does
+  // (its `maxAutoWidth` cap), via `max-width` here.
+  const isFlexibleWidth = flexibleMaxWidth != null;
   const DRAG_MARGIN = 14; // internal (pre-displayScale) px — see handleFrameMouseDown
 
   return (
@@ -562,7 +574,9 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           position: "absolute",
           left: overlayLeft,
           top: overlayTop,
-          width: overlayWidth,
+          width: isFlexibleWidth ? "fit-content" : overlayWidth,
+          maxWidth: isFlexibleWidth ? flexibleMaxWidth * viewport.scale : undefined,
+          minWidth: isFlexibleWidth ? 20 * viewport.scale : undefined,
           minHeight: overlayHeight,
           padding: (item.padding ?? 4) * viewport.scale,
           // Keeps the same box the Transformer draws when selected-not-editing

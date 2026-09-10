@@ -1,17 +1,21 @@
 import React, { useState } from "react";
 import { FileImage, MoreVertical, Save, Trash2 } from "lucide-react";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
-function formatTimestamp(ts) {
+function formatTimestamp(ts, t) {
   if (!ts) return "";
   const date = new Date(ts);
   const now = new Date();
   const sameDay = date.toDateString() === now.toDateString();
   return sameDay
-    ? `Today at ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+    ? t.todayAt(date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))
     : date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function ProjectRow({ project, isActive, onOpen, onRename, onDelete }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].projects;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(project.name);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -22,7 +26,7 @@ function ProjectRow({ project, isActive, onOpen, onRename, onDelete }) {
         className="relative flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white"
         style={{ aspectRatio: "16 / 11" }}
         onClick={() => onOpen(project.id)}
-        aria-label={`Open ${project.name}`}
+        aria-label={t.openAria(project.name)}
       >
         {project.thumbnail ? (
           <img src={project.thumbnail} alt="" className="h-full w-full object-contain" />
@@ -30,7 +34,7 @@ function ProjectRow({ project, isActive, onOpen, onRename, onDelete }) {
           <FileImage size={20} className="text-gray-300" />
         )}
         {isActive && (
-          <span className="absolute left-1 top-1 rounded bg-amber-600 px-1.5 py-0.5 text-[9px] font-bold text-white">Open</span>
+          <span className="absolute left-1 top-1 rounded bg-amber-600 px-1.5 py-0.5 text-[9px] font-bold text-white">{t.open}</span>
         )}
       </button>
 
@@ -61,14 +65,14 @@ function ProjectRow({ project, isActive, onOpen, onRename, onDelete }) {
         <div className="relative shrink-0">
           <button
             className="rounded p-1 text-gray-400 opacity-0 hover:bg-gray-100 group-hover:opacity-100"
-            aria-label={`More options for ${project.name}`}
+            aria-label={t.moreOptionsAria(project.name)}
             onClick={() => setMenuOpen((v) => !v)}
           >
             <MoreVertical size={13} />
           </button>
           {menuOpen && (
             <>
-              <button className="fixed inset-0 z-10 cursor-default" aria-label="Close menu" onClick={() => setMenuOpen(false)} />
+              <button className="fixed inset-0 z-10 cursor-default" aria-label={t.closeMenu} onClick={() => setMenuOpen(false)} />
               <div className="absolute right-0 top-full z-20 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button
                   className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
@@ -77,7 +81,7 @@ function ProjectRow({ project, isActive, onOpen, onRename, onDelete }) {
                     setEditing(true);
                   }}
                 >
-                  Rename
+                  {t.rename}
                 </button>
                 <button
                   className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
@@ -86,14 +90,14 @@ function ProjectRow({ project, isActive, onOpen, onRename, onDelete }) {
                     onDelete(project.id);
                   }}
                 >
-                  <Trash2 size={12} /> Delete
+                  <Trash2 size={12} /> {t.delete}
                 </button>
               </div>
             </>
           )}
         </div>
       </div>
-      <p className="text-[10px] text-gray-400">{formatTimestamp(project.updatedAt)}</p>
+      <p className="text-[10px] text-gray-400">{formatTimestamp(project.updatedAt, t)}</p>
     </div>
   );
 }
@@ -103,24 +107,26 @@ function ProjectRow({ project, isActive, onOpen, onRename, onDelete }) {
 // is currently linked to (if any), so "Save project" knows whether to
 // update it in place or ask for a new name.
 export default function ProjectsPanel({ projects, activeProjectId, onSaveProject, onSaveProjectAsNew, onOpen, onRename, onDelete }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].projects;
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <h3 className="text-sm font-semibold text-gray-800">Projects</h3>
+      <h3 className="text-sm font-semibold text-gray-800">{t.title}</h3>
 
       <button
         className="flex items-center justify-center gap-2 rounded-xl bg-amber-600 py-2 text-sm font-medium text-white hover:bg-amber-700"
         onClick={onSaveProject}
       >
-        <Save size={15} /> {activeProjectId ? "Save project" : "Save current project"}
+        <Save size={15} /> {activeProjectId ? t.saveProject : t.saveCurrentProject}
       </button>
       {activeProjectId && (
         <button className="text-xs font-medium text-amber-700 hover:underline" onClick={onSaveProjectAsNew}>
-          Save as a new project
+          {t.saveAsNewProject}
         </button>
       )}
 
       {projects.length === 0 ? (
-        <p className="text-xs text-gray-400">Projects you save will appear here so you can reopen them anytime.</p>
+        <p className="text-xs text-gray-400">{t.emptyProjects}</p>
       ) : (
         <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto pb-2">
           {projects.map((project) => (

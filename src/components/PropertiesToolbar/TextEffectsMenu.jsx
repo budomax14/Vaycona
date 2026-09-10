@@ -3,6 +3,8 @@ import { Sparkles } from "lucide-react";
 import { ColorField, IconButton, IconToggleButton, LabeledField, NumberField } from "./toolbarUi";
 import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 
 // Promoted out of TextMoreMenu.jsx to a top-level toolbar control (shadow/
 // glow/outline are common enough to earn their own button). Same
@@ -20,6 +22,8 @@ import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
 // item.effects.outline when there isn't. onChange is kept as a fallback
 // for any caller that doesn't wire onApplyFormat.
 export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].textEffects;
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const effects = item.effects || {};
@@ -37,12 +41,12 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
       <div ref={anchorRef} className="inline-flex">
-        <IconButton icon={Sparkles} label="Effects" onClick={() => setOpen((v) => !v)} active={open || hasAnyEffect} />
+        <IconButton icon={Sparkles} label={t.effects} onClick={() => setOpen((v) => !v)} active={open || hasAnyEffect} />
       </div>
       <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-72 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
           <div className="flex flex-col gap-2">
-            <LabeledField label="Shadow">
+            <LabeledField label={t.shadow}>
               <IconToggleButton
                 icon={Sparkles}
                 active={!!effects.shadow?.enabled}
@@ -55,21 +59,21 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
                     },
                   })
                 }
-                title="Toggle shadow"
+                title={t.toggleShadow}
               />
             </LabeledField>
             {effects.shadow?.enabled && (
               <div className="flex flex-wrap items-center gap-2">
-                <ColorField label="Color" value={effects.shadow.color || "#000000"} onChange={(color) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, color } } })} />
-                <NumberField label="Blur" value={effects.shadow.blur ?? 8} min={0} max={60} onChange={(v) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, blur: v } } })} />
-                <NumberField label="Offset X" value={effects.shadow.offsetX ?? 2} min={-40} max={40} onChange={(v) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, offsetX: v } } })} />
-                <NumberField label="Offset Y" value={effects.shadow.offsetY ?? 2} min={-40} max={40} onChange={(v) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, offsetY: v } } })} />
+                <ColorField label={t.color} value={effects.shadow.color || "#000000"} onChange={(color) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, color } } })} />
+                <NumberField label={t.blur} value={effects.shadow.blur ?? 8} min={0} max={60} onChange={(v) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, blur: v } } })} />
+                <NumberField label={t.offsetX} value={effects.shadow.offsetX ?? 2} min={-40} max={40} onChange={(v) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, offsetX: v } } })} />
+                <NumberField label={t.offsetY} value={effects.shadow.offsetY ?? 2} min={-40} max={40} onChange={(v) => onChange({ effects: { ...effects, shadow: { ...effects.shadow, offsetY: v } } })} />
               </div>
             )}
           </div>
 
           <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
-            <LabeledField label="Glow">
+            <LabeledField label={t.glow}>
               <IconToggleButton
                 icon={Sparkles}
                 active={!!effects.glow?.enabled}
@@ -82,31 +86,31 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
                     },
                   })
                 }
-                title="Toggle glow"
+                title={t.toggleGlow}
               />
             </LabeledField>
             {effects.glow?.enabled && (
               <div className="flex flex-wrap items-center gap-2">
-                <ColorField label="Color" value={effects.glow.color || "#8b5cf6"} onChange={(color) => onChange({ effects: { ...effects, glow: { ...effects.glow, color } } })} />
-                <NumberField label="Blur" value={effects.glow.blur ?? 16} min={0} max={80} onChange={(v) => onChange({ effects: { ...effects, glow: { ...effects.glow, blur: v } } })} />
+                <ColorField label={t.color} value={effects.glow.color || "#8b5cf6"} onChange={(color) => onChange({ effects: { ...effects, glow: { ...effects.glow, color } } })} />
+                <NumberField label={t.blur} value={effects.glow.blur ?? 16} min={0} max={80} onChange={(v) => onChange({ effects: { ...effects, glow: { ...effects.glow, blur: v } } })} />
               </div>
             )}
           </div>
 
           <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
-            <LabeledField label="Outline">
+            <LabeledField label={t.outline}>
               <IconToggleButton
                 icon={Sparkles}
                 active={!!effects.outline?.enabled}
                 onClick={() => onChange({ effects: { ...effects, outline: { ...effects.outline, enabled: !effects.outline?.enabled } } })}
-                title="Toggle outline"
+                title={t.toggleOutline}
               />
             </LabeledField>
             {effects.outline?.enabled && (
               <>
                 <div className="flex flex-wrap items-center gap-2">
                   <ColorField
-                    label="Color"
+                    label={t.color}
                     value={effects.outline.color || "#000000"}
                     onChange={(color) =>
                       onApplyFormat
@@ -115,7 +119,7 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
                     }
                   />
                   <NumberField
-                    label="Thickness"
+                    label={t.thickness}
                     value={effects.outline.width ?? 1}
                     min={0}
                     max={10}
@@ -128,7 +132,7 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
                 </div>
                 {onApplyFormat && (
                   <p className="text-[11px] leading-snug text-gray-400">
-                    Tip: select specific letters while editing text, then change the color/thickness here to border just that selection.
+                    {t.outlineTip}
                   </p>
                 )}
               </>
@@ -136,38 +140,38 @@ export default function TextEffectsMenu({ item, onChange, onApplyFormat }) {
           </div>
 
           <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
-            <LabeledField label="Background">
+            <LabeledField label={t.background}>
               <IconToggleButton
                 icon={Sparkles}
                 active={!!background.enabled}
                 onClick={() => onChange({ background: { ...background, enabled: !background.enabled } })}
-                title="Toggle background"
+                title={t.toggleBackground}
               />
             </LabeledField>
             {background.enabled && (
               <div className="flex flex-wrap items-center gap-2">
-                <ColorField label="Color" value={background.color || "#ffffff"} onChange={(color) => onChange({ background: { ...background, color } })} />
-                <NumberField label="Corner radius" value={background.cornerRadius || 0} min={0} max={100} onChange={(v) => onChange({ background: { ...background, cornerRadius: v } })} />
+                <ColorField label={t.color} value={background.color || "#ffffff"} onChange={(color) => onChange({ background: { ...background, color } })} />
+                <NumberField label={t.cornerRadius} value={background.cornerRadius || 0} min={0} max={100} onChange={(v) => onChange({ background: { ...background, cornerRadius: v } })} />
               </div>
             )}
           </div>
 
           <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
-            <LabeledField label="Border">
+            <LabeledField label={t.border}>
               <IconToggleButton
                 icon={Sparkles}
                 active={!!border.enabled}
                 onClick={() => onChange({ border: { ...border, enabled: !border.enabled } })}
-                title="Toggle border"
+                title={t.toggleBorder}
               />
             </LabeledField>
             {border.enabled && (
               <div className="flex flex-wrap items-center gap-2">
-                <ColorField label="Color" value={border.color || "#111827"} onChange={(color) => onChange({ border: { ...border, color } })} />
-                <NumberField label="Width" value={border.width ?? 1} min={0} max={20} onChange={(v) => onChange({ border: { ...border, width: v } })} />
+                <ColorField label={t.color} value={border.color || "#111827"} onChange={(color) => onChange({ border: { ...border, color } })} />
+                <NumberField label={t.width} value={border.width ?? 1} min={0} max={20} onChange={(v) => onChange({ border: { ...border, width: v } })} />
                 <select
                   className="h-8 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
-                  aria-label="Border style"
+                  aria-label={t.borderStyle}
                   value={border.style || "solid"}
                   onChange={(event) => onChange({ border: { ...border, style: event.target.value } })}
                 >

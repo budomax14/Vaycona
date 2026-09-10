@@ -1,4 +1,6 @@
 import React from "react";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 // Lightweight, real (not fake) preview built directly from a template's
 // own page background + first few objects, scaled into a fixed-aspect
@@ -8,8 +10,10 @@ import React from "react";
 // a full render — see Phase 8 completion notes on why a full off-screen
 // Konva thumbnail pipeline was out of scope for this checkpoint.
 export default function TemplateMiniPreview({ page, items, className = "" }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].templateMiniPreview;
   if (!page) {
-    return <div className={`flex items-center justify-center bg-gray-100 text-gray-300 ${className}`}>—</div>;
+    return <div className={`flex items-center justify-center bg-gray-100 text-gray-300 ${className}`}>{t.placeholder}</div>;
   }
   const scaleX = 100 / page.width;
   const scaleY = 100 / page.height;

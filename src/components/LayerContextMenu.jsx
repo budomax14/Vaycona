@@ -19,6 +19,8 @@ import {
   MousePointerClick,
 } from "lucide-react";
 import { clampPositionToViewport } from "../clampToViewport";
+import { useLanguage } from "../languageContext";
+import { STATUS_BAR_STRINGS } from "../i18n/statusBarAndMenus";
 
 // Reuses the same .context-menu / .context-menu-divider CSS already used
 // by the canvas right-click menu (ContextMenu.jsx) for visual consistency,
@@ -27,6 +29,8 @@ import { clampPositionToViewport } from "../clampToViewport";
 // which only ever opens inside the workspace).
 export default function LayerContextMenu({ item, pages, activePageId, position, onClose, onAction }) {
   const menuRef = useRef(null);
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].layerContextMenu;
   const [clampedPos, setClampedPos] = useState(position);
   const [movePageOpen, setMovePageOpen] = useState(false);
 
@@ -65,73 +69,73 @@ export default function LayerContextMenu({ item, pages, activePageId, position, 
       ref={menuRef}
       className="context-menu"
       role="menu"
-      aria-label={`${item.name || item.type} actions`}
+      aria-label={t.actionsLabel(item.name || item.type)}
       style={{ left: clampedPos.x, top: clampedPos.y }}
     >
       <button role="menuitem" onClick={() => run("rename")}>
-        <Pencil size={15} /> Rename
+        <Pencil size={15} /> {t.rename}
       </button>
       <button role="menuitem" onClick={() => run("duplicate")}>
-        <Copy size={15} /> Duplicate
+        <Copy size={15} /> {t.duplicate}
       </button>
       <button role="menuitem" onClick={() => run("copy")}>
-        <Copy size={15} /> Copy
+        <Copy size={15} /> {t.copy}
       </button>
       <button role="menuitem" onClick={() => run("cut")}>
-        <Scissors size={15} /> Cut
+        <Scissors size={15} /> {t.cut}
       </button>
       <div className="context-menu-divider" />
       <button role="menuitem" onClick={() => run("front")}>
-        <ArrowUpToLine size={15} /> Bring to front
+        <ArrowUpToLine size={15} /> {t.bringToFront}
       </button>
       <button role="menuitem" onClick={() => run("forward")}>
-        <ChevronUp size={15} /> Bring forward
+        <ChevronUp size={15} /> {t.bringForward}
       </button>
       <button role="menuitem" onClick={() => run("backward")}>
-        <ChevronDown size={15} /> Send backward
+        <ChevronDown size={15} /> {t.sendBackward}
       </button>
       <button role="menuitem" onClick={() => run("back")}>
-        <SendToBack size={15} /> Send to back
+        <SendToBack size={15} /> {t.sendToBack}
       </button>
       <div className="context-menu-divider" />
       <button role="menuitem" onClick={() => run("toggle-lock")}>
-        {item.locked ? <Unlock size={15} /> : <Lock size={15} />} {item.locked ? "Unlock" : "Lock"}
+        {item.locked ? <Unlock size={15} /> : <Lock size={15} />} {item.locked ? t.unlock : t.lock}
       </button>
       <button role="menuitem" onClick={() => run("toggle-hidden")}>
-        {item.hidden ? <Eye size={15} /> : <EyeOff size={15} />} {item.hidden ? "Show" : "Hide"}
+        {item.hidden ? <Eye size={15} /> : <EyeOff size={15} />} {item.hidden ? t.show : t.hide}
       </button>
       <div className="context-menu-divider" />
       {isGroup ? (
         <button role="menuitem" onClick={() => run("ungroup")}>
-          <UngroupIcon size={15} /> Ungroup
+          <UngroupIcon size={15} /> {t.ungroup}
         </button>
       ) : (
         <button role="menuitem" onClick={() => run("group")}>
-          <GroupIcon size={15} /> Group
+          <GroupIcon size={15} /> {t.group}
         </button>
       )}
       {isGroup && (
         <button role="menuitem" onClick={() => run("select-children")}>
-          <MousePointerClick size={15} /> Select children
+          <MousePointerClick size={15} /> {t.selectChildren}
         </button>
       )}
       {otherPages.length > 0 && (
         <>
           <div className="context-menu-divider" />
           <button role="menuitem" onClick={() => setMovePageOpen((v) => !v)}>
-            <FileInput size={15} /> Move to page {movePageOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            <FileInput size={15} /> {t.moveToPage} {movePageOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
           </button>
           {movePageOpen &&
             otherPages.map((page, index) => (
               <button key={page.id} role="menuitem" className="pl-6" onClick={() => run("move-to-page", page.id)}>
-                {page.name || `Page ${index + 1}`}
+                {page.name || t.pageDefaultName(index + 1)}
               </button>
             ))}
         </>
       )}
       <div className="context-menu-divider" />
       <button role="menuitem" className="danger" onClick={() => run("delete")}>
-        <Trash2 size={15} /> Delete
+        <Trash2 size={15} /> {t.delete}
       </button>
     </div>
   );

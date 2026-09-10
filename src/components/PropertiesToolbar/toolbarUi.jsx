@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp, Link2, Unlink } from "lucide-react";
 import { useRecentColors } from "../../recentColorsContext";
 import { useBrandKits } from "../../brandKitContext";
 import { useDocumentColors } from "../../documentColorsContext";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 import ToolbarPopover from "./ToolbarPopover";
 
 export function ToolbarDivider() {
@@ -62,6 +64,8 @@ export function LabeledField({ label, children, width }) {
 // lets the draft be anything mid-edit, including empty, without upstream
 // clamping fighting the keystrokes.
 export function NumberField({ label, value, onChange, min, max, step = 1, width = 64, mixed }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].toolbarUi;
   const [draft, setDraft] = useState(() => (mixed ? "" : String(value ?? "")));
   const inputRef = useRef(null);
 
@@ -108,7 +112,7 @@ export function NumberField({ label, value, onChange, min, max, step = 1, width 
           inputMode="decimal"
           className="w-full min-w-0 bg-transparent px-2 py-1.5 text-sm text-gray-700 outline-none placeholder:text-gray-400"
           value={draft}
-          placeholder={mixed ? "Mixed" : undefined}
+          placeholder={mixed ? t.mixed : undefined}
           aria-label={label}
           onChange={(event) => setDraft(event.target.value)}
           onFocus={(event) => event.currentTarget.select()}
@@ -131,7 +135,7 @@ export function NumberField({ label, value, onChange, min, max, step = 1, width 
             tabIndex={-1}
             className="flex h-1/2 w-4 items-center justify-center text-gray-400 hover:bg-gray-200 hover:text-gray-700"
             onClick={() => bump(step)}
-            aria-label={`Increase ${label}`}
+            aria-label={t.increaseLabel(label)}
           >
             <ChevronUp size={10} />
           </button>
@@ -140,7 +144,7 @@ export function NumberField({ label, value, onChange, min, max, step = 1, width 
             tabIndex={-1}
             className="flex h-1/2 w-4 items-center justify-center border-t border-gray-200 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
             onClick={() => bump(-step)}
-            aria-label={`Decrease ${label}`}
+            aria-label={t.decreaseLabel(label)}
           >
             <ChevronDown size={10} />
           </button>
@@ -151,6 +155,8 @@ export function NumberField({ label, value, onChange, min, max, step = 1, width 
 }
 
 export function SliderField({ label, value, onChange, min = 0, max = 1, step = 0.05, width = 90, mixed }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].toolbarUi;
   return (
     <LabeledField label={label} width={width}>
       <input
@@ -161,7 +167,7 @@ export function SliderField({ label, value, onChange, min = 0, max = 1, step = 0
         max={max}
         step={step}
         onChange={(event) => onChange(Number(event.target.value))}
-        title={mixed ? "Mixed" : undefined}
+        title={mixed ? t.mixed : undefined}
       />
     </LabeledField>
   );
@@ -175,6 +181,8 @@ export function SliderField({ label, value, onChange, min = 0, max = 1, step = 0
 // everywhere else in the app; this is an additive sibling, not a change to
 // that shared, already-working component).
 export function GroupedSliderField({ label, value, onLiveChange, onCommit, min = 0, max = 1, step = 0.05, width = 90, mixed }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].toolbarUi;
   return (
     <LabeledField label={label} width={width}>
       <input
@@ -188,7 +196,7 @@ export function GroupedSliderField({ label, value, onLiveChange, onCommit, min =
         onMouseUp={onCommit}
         onTouchEnd={onCommit}
         onKeyUp={onCommit}
-        title={mixed ? "Mixed" : undefined}
+        title={mixed ? t.mixed : undefined}
       />
     </LabeledField>
   );
@@ -250,6 +258,8 @@ function isValidHex(value) {
 // pre-existing call site) can omit them — brand swatches then just call
 // `onChange(hex)` like any other swatch.
 export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, onApplyToken, onDetach }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].toolbarUi;
   const [open, setOpen] = useState(false);
   const [hexDraft, setHexDraft] = useState(value || "");
   const anchorRef = useRef(null);
@@ -287,8 +297,8 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
               mixed ? "border-dashed border-gray-300 bg-[repeating-linear-gradient(45deg,#e5e7eb,#e5e7eb_4px,#ffffff_4px,#ffffff_8px)]" : "border-gray-200"
             }`}
             style={mixed ? undefined : { backgroundColor: value }}
-            title={mixed ? "Mixed" : tokenRef ? `${value} — linked to ${linkedToken?.name || "a brand color"}` : value}
-            aria-label={`${label}${/color/i.test(label) ? "" : " color"}${mixed ? " (mixed)" : ""}${tokenRef ? " (linked to brand color)" : ""}`}
+            title={mixed ? t.mixed : tokenRef ? t.linkedTitle(value, linkedToken?.name || t.aBrandColor) : value}
+            aria-label={`${label}${/color/i.test(label) ? "" : t.colorSuffix}${mixed ? t.mixedSuffix : ""}${tokenRef ? t.linkedSuffix : ""}`}
             onClick={() => setOpen((v) => !v)}
           >
             {tokenRef && !mixed && (
@@ -314,7 +324,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
               type="text"
               className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
               value={hexDraft}
-              placeholder={mixed ? "Mixed" : "#000000"}
+              placeholder={mixed ? t.mixed : "#000000"}
               onChange={(event) => setHexDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && isValidHex(hexDraft)) applyColor(hexDraft);
@@ -328,7 +338,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
           {tokenRef && onDetach && (
             <div className="mt-2 flex items-center justify-between rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700">
               <span className="flex items-center gap-1 truncate">
-                <Link2 size={11} /> Linked{linkedToken ? `: ${linkedToken.name}` : " (missing token)"}
+                <Link2 size={11} /> {t.linked}{linkedToken ? t.linkedName(linkedToken.name) : t.missingToken}
               </span>
               <button
                 type="button"
@@ -338,7 +348,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
                   setOpen(false);
                 }}
               >
-                <Unlink size={11} /> Detach
+                <Unlink size={11} /> {t.detach}
               </button>
             </div>
           )}
@@ -346,7 +356,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
           {brandColors.length > 0 && (
             <>
               <div className="mt-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Brand colors
+                {t.brandColors}
               </div>
               <div className="grid grid-cols-8 gap-1">
                 {brandColors.map((token) => (
@@ -356,7 +366,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
                     className="h-5 w-5 rounded border border-gray-200"
                     style={{ backgroundColor: token.hex }}
                     title={`${token.name} (${token.hex})`}
-                    aria-label={`Use brand color ${token.name}`}
+                    aria-label={t.useBrandColor(token.name)}
                     onClick={() => applyBrandColor(token)}
                   />
                 ))}
@@ -367,7 +377,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
           {documentColors.length > 0 && (
             <>
               <div className="mt-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Document colors
+                {t.documentColors}
               </div>
               <div className="grid grid-cols-8 gap-1">
                 {documentColors.map(({ hex }) => (
@@ -377,7 +387,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
                     className="h-5 w-5 rounded border border-gray-200"
                     style={{ backgroundColor: hex }}
                     title={hex}
-                    aria-label={`Use document color ${hex}`}
+                    aria-label={t.useDocumentColor(hex)}
                     onClick={() => applyColor(hex)}
                   />
                 ))}
@@ -388,7 +398,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
           {recentColors.length > 0 && (
             <>
               <div className="mt-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Recent
+                {t.recent}
               </div>
               <div className="grid grid-cols-8 gap-1">
                 {recentColors.map((hex) => (
@@ -398,7 +408,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
                     className="h-5 w-5 rounded border border-gray-200"
                     style={{ backgroundColor: hex }}
                     title={hex}
-                    aria-label={`Use recent color ${hex}`}
+                    aria-label={t.useRecentColor(hex)}
                     onClick={() => applyColor(hex)}
                   />
                 ))}
@@ -407,7 +417,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
           )}
 
           <div className="mt-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            Palette
+            {t.palette}
           </div>
           <div className="grid grid-cols-8 gap-1">
             {STARTER_PALETTE.map((hex) => (
@@ -417,7 +427,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
                 className="h-5 w-5 rounded border border-gray-200"
                 style={{ backgroundColor: hex }}
                 title={hex}
-                aria-label={`Use palette color ${hex}`}
+                aria-label={t.usePaletteColor(hex)}
                 onClick={() => applyColor(hex)}
               />
             ))}
@@ -432,7 +442,7 @@ export function ColorField({ label, value, onChange, mixed, onReset, tokenRef, o
                 setOpen(false);
               }}
             >
-              Reset to white
+              {t.resetToWhite}
             </button>
           )}
         </div>

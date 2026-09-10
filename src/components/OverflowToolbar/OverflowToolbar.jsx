@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { MoreHorizontal } from "lucide-react";
 import { useResizeObserver } from "../../useResizeObserver";
 import { clampHorizontalShift } from "../../clampToViewport";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 const MORE_BUTTON_WIDTH = 40;
 
@@ -26,7 +28,10 @@ OverflowItem.isOverflowItem = true;
 // wrapped in <OverflowItem keepOnMobile> to stay pinned inline. At desktop
 // widths, where these rows essentially never overflow today, this renders
 // every child inline with no "More" button — visually identical to before.
-export default function OverflowToolbar({ className = "", innerClassName = "justify-start gap-3", children, moreLabel = "More" }) {
+export default function OverflowToolbar({ className = "", innerClassName = "justify-start gap-3", children, moreLabel }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].overflowToolbar;
+  const resolvedMoreLabel = moreLabel ?? t.more;
   const containerRef = useRef(null);
   const measureRefs = useRef([]);
   const moreButtonRef = useRef(null);
@@ -120,8 +125,8 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
               ref={moreButtonRef}
               type="button"
               className="toolbar-hit-target flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
-              title={moreLabel}
-              aria-label={moreLabel}
+              title={resolvedMoreLabel}
+              aria-label={resolvedMoreLabel}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
             >
@@ -133,7 +138,7 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
                 <>
                   <button
                     className="fixed inset-0 z-40 cursor-default"
-                    aria-label="Close menu"
+                    aria-label={t.closeMenu}
                     onClick={() => setMenuOpen(false)}
                   />
                   <div

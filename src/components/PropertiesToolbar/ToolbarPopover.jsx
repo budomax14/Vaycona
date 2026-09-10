@@ -2,6 +2,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GripHorizontal } from "lucide-react";
 import { clampHorizontalShift, getViewportSize } from "../../clampToViewport";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 
 // PropertiesToolbar.jsx's row is `overflow-x-auto` — per the CSS overflow
 // spec, setting overflow-x to anything but `visible` forces overflow-y to
@@ -15,6 +17,8 @@ import { clampHorizontalShift, getViewportSize } from "../../clampToViewport";
 const VIEWPORT_MARGIN = 8;
 
 export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "left", children }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].toolbarPopover;
   const [rect, setRect] = useState(null);
   const [shift, setShift] = useState(0);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -142,7 +146,7 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
       <div
         className="mx-auto mb-0.5 flex w-9 cursor-move touch-none items-center justify-center rounded-md bg-white/95 py-0.5 text-gray-400 shadow-sm hover:text-gray-600"
         onPointerDown={handleDragHandlePointerDown}
-        title="Drag to move"
+        title={t.dragToMove}
       >
         <GripHorizontal size={14} />
       </div>

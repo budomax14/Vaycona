@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { FONT_CATEGORIES, FONT_LIBRARY } from "../../fontLibrary";
 import { useFontLoader } from "../../useFontLoader";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 import ToolbarPopover from "./ToolbarPopover";
 
 const RECENT_FONTS_KEY = "personal-canva-recent-fonts-v1";
@@ -23,6 +25,8 @@ function recordRecentFont(name) {
 }
 
 function FontRow({ name, cssStack, onSelect }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].fontFamilyPicker;
   const ready = useFontLoader(name);
   return (
     <button
@@ -32,7 +36,7 @@ function FontRow({ name, cssStack, onSelect }) {
       onClick={onSelect}
     >
       <span>{name}</span>
-      {!ready && <span className="text-[10px] text-gray-400">loading…</span>}
+      {!ready && <span className="text-[10px] text-gray-400">{t.loading}</span>}
     </button>
   );
 }
@@ -44,6 +48,8 @@ function FontRow({ name, cssStack, onSelect }) {
 // PropertiesToolbar's row clips ordinary anchored dropdowns, see that
 // component's comment.
 export default function FontFamilyPicker({ value, mixed, onChange }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].fontFamilyPicker;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState(loadRecentFonts);
@@ -68,9 +74,9 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
         type="button"
         className="flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 hover:border-amber-400"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Font family"
+        aria-label={t.fontFamilyLabel}
       >
-        <span className="max-w-[100px] truncate">{mixed ? "Mixed" : value || "Arial"}</span>
+        <span className="max-w-[100px] truncate">{mixed ? t.mixed : value || "Arial"}</span>
         <ChevronDown size={14} />
       </button>
 
@@ -83,7 +89,7 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search fonts"
+              placeholder={t.searchPlaceholder}
               className="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-7 pr-2 text-sm outline-none focus:border-amber-400 focus:bg-white"
             />
           </div>
@@ -91,7 +97,7 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
           <div className="max-h-64 overflow-y-auto">
             {!query && recent.length > 0 && (
               <>
-                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Recently used</div>
+                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.recentlyUsed}</div>
                 {recent.map((name) => {
                   const entry = FONT_LIBRARY.find((f) => f.name === name);
                   if (!entry) return null;
@@ -111,7 +117,7 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
                 </div>
               );
             })}
-            {filtered.length === 0 && <p className="px-2 py-3 text-sm text-gray-400">No fonts match "{query}".</p>}
+            {filtered.length === 0 && <p className="px-2 py-3 text-sm text-gray-400">{t.noFontsMatch(query)}</p>}
           </div>
         </div>
       </ToolbarPopover>

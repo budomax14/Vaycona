@@ -2,6 +2,8 @@ import React, { useRef, useState } from "react";
 import { Link2, Palette, Unlink } from "lucide-react";
 import { useBrandKits } from "../../brandKitContext";
 import ToolbarPopover from "./ToolbarPopover";
+import { useLanguage } from "../../languageContext";
+import { TOOLBAR_MENU_STRINGS } from "../../i18n/toolbarMenus";
 
 // Popover shared by Shape/Line/Icon/Frame properties bars for applying a
 // reusable brand object style (spec §37-39/§56-58). `compatibleWith`: the
@@ -10,6 +12,8 @@ export default function ObjectStylePicker({ compatibleWith, style: brand }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const { activeBrandKit } = useBrandKits();
+  const { language } = useLanguage();
+  const t = TOOLBAR_MENU_STRINGS[language].objectStyle;
 
   if (!activeBrandKit) return null;
   const compatibleStyles = activeBrandKit.objectStyles.filter((s) => s.appliesTo.includes(compatibleWith));
@@ -21,9 +25,9 @@ export default function ObjectStylePicker({ compatibleWith, style: brand }) {
         <button
           className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium ${linkedStyleId ? "bg-amber-100 text-amber-700" : "text-gray-600 hover:bg-gray-100"}`}
           onClick={() => setOpen((v) => !v)}
-          title="Brand object styles"
+          title={t.brandObjectStyles}
         >
-          <Palette size={15} /> Styles
+          <Palette size={15} /> {t.styles}
         </button>
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
@@ -33,10 +37,10 @@ export default function ObjectStylePicker({ compatibleWith, style: brand }) {
               className="mb-2 flex w-full items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
               onClick={() => { brand.onDetach(); setOpen(false); }}
             >
-              <Unlink size={12} /> Detach current style
+              <Unlink size={12} /> {t.detachCurrentStyle}
             </button>
           )}
-          {compatibleStyles.length === 0 && <p className="px-1 py-1 text-xs text-gray-400">No compatible styles yet.</p>}
+          {compatibleStyles.length === 0 && <p className="px-1 py-1 text-xs text-gray-400">{t.noCompatibleStylesYet}</p>}
           <div className="max-h-56 space-y-1 overflow-y-auto">
             {compatibleStyles.map((s) => (
               <button
@@ -54,7 +58,7 @@ export default function ObjectStylePicker({ compatibleWith, style: brand }) {
             className="mt-2 w-full rounded-lg border border-dashed border-gray-300 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50"
             onClick={() => { brand.onCreateFromSelection(); setOpen(false); }}
           >
-            + Save current appearance as style
+            {t.saveCurrentAppearanceAsStyle}
           </button>
         </div>
       </ToolbarPopover>

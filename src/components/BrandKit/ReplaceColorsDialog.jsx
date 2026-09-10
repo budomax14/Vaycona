@@ -3,17 +3,20 @@ import BrandModal from "./BrandModal";
 import { collectDocumentColors } from "../../styleUsage";
 import { planColorReplacement } from "../../colorReplace";
 import { isValidColor } from "../../brandColor";
-
-const SCOPE_OPTIONS = [
-  { key: "page", label: "Current page" },
-  { key: "pages", label: "Selected pages" },
-  { key: "project", label: "Entire project" },
-];
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Document-wide color replacement (spec §51/§52). Defaults to exact
 // matching (tolerance 0) — similar-color matching is opt-in via the
 // tolerance slider, never the default.
 export default function ReplaceColorsDialog({ isOpen, onClose, items, pages, activePageId, selectedPageIds, onReplace }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].replaceColors;
+  const SCOPE_OPTIONS = [
+    { key: "page", label: t.scopeOptions.page },
+    { key: "pages", label: t.scopeOptions.pages },
+    { key: "project", label: t.scopeOptions.project },
+  ];
   const documentColors = useMemo(() => (isOpen ? collectDocumentColors(items) : []), [isOpen, items]);
   const [fromColor, setFromColor] = useState(null);
   const [toColor, setToColor] = useState("#000000");
@@ -41,25 +44,25 @@ export default function ReplaceColorsDialog({ isOpen, onClose, items, pages, act
     <BrandModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Replace colors"
+      title={t.title}
       width="max-w-lg"
       footer={
         <>
-          <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>Cancel</button>
+          <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>{t.cancel}</button>
           <button
             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:pointer-events-none disabled:opacity-40"
             onClick={handleApply}
             disabled={!plan || plan.changes.length === 0 || applying}
           >
-            {applying ? "Replacing…" : `Replace (${plan?.changes.length || 0})`}
+            {applying ? t.replacing : t.replaceButton(plan?.changes.length || 0)}
           </button>
         </>
       }
     >
       <div className="space-y-3">
         <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Document colors</p>
-          {documentColors.length === 0 && <p className="text-xs text-gray-400">No colors found in this project yet.</p>}
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.documentColors}</p>
+          {documentColors.length === 0 && <p className="text-xs text-gray-400">{t.noColorsFound}</p>}
           <div className="flex flex-wrap gap-1.5">
             {documentColors.map(({ hex, count }) => (
               <button
@@ -76,9 +79,9 @@ export default function ReplaceColorsDialog({ isOpen, onClose, items, pages, act
         {fromColor && (
           <>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Replace</span>
+              <span className="text-xs text-gray-500">{t.replaceLabel}</span>
               <span className="h-5 w-5 rounded-full border border-gray-200" style={{ backgroundColor: fromColor }} />
-              <span className="text-xs text-gray-500">with</span>
+              <span className="text-xs text-gray-500">{t.withLabel}</span>
               <input type="color" className="h-8 w-8 cursor-pointer rounded-md border border-gray-200" value={toColor} onChange={(event) => setToColor(event.target.value)} />
               <input
                 type="text"
@@ -89,7 +92,7 @@ export default function ReplaceColorsDialog({ isOpen, onClose, items, pages, act
             </div>
 
             <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Scope</p>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.scope}</p>
               <div className="flex gap-1.5">
                 {SCOPE_OPTIONS.map((opt) => (
                   <button
@@ -105,16 +108,16 @@ export default function ReplaceColorsDialog({ isOpen, onClose, items, pages, act
 
             <label className="block">
               <span className="mb-1 flex justify-between text-xs text-gray-500">
-                <span>Similar-color tolerance</span>
-                <span>{tolerance === 0 ? "Exact match" : `${Math.round(tolerance * 100)}%`}</span>
+                <span>{t.similarColorTolerance}</span>
+                <span>{tolerance === 0 ? t.exactMatch : t.percentMatch(Math.round(tolerance * 100))}</span>
               </span>
               <input type="range" className="w-full accent-amber-600" min={0} max={0.3} step={0.02} value={tolerance} onChange={(event) => setTolerance(Number(event.target.value))} />
             </label>
 
             {plan && (
               <div className="rounded-lg bg-gray-50 p-2 text-xs text-gray-600">
-                {plan.changes.length} field(s) across {plan.affectedItemIds.length} object(s) on {plan.affectedPageIds.length} page(s) will change.
-                Image pixels are never modified.
+                {t.changeSummary(plan)}
+                {" "}{t.imagePixelsNote}
               </div>
             )}
           </>

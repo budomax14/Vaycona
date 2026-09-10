@@ -4,14 +4,8 @@ import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
 import { TEMPLATE_CATEGORIES } from "../templateService";
 import { TIER_RANK } from "../subscriptionContext";
-
-const SORT_OPTIONS = [
-  { key: "recommended", label: "Recommended" },
-  { key: "recent-used", label: "Recently used" },
-  { key: "recent-created", label: "Recently created" },
-  { key: "name", label: "Name" },
-  { key: "most-used", label: "Most used" },
-];
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 function toUnit(px, unitKey) {
   return Math.round(getUnit(unitKey).fromPx(px) * 100) / 100;
@@ -54,6 +48,15 @@ export default function TemplateBrowser({
   unit: sharedUnit,
   onUnitChange,
 }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].templateBrowser;
+  const SORT_OPTIONS = [
+    { key: "recommended", label: t.sortRecommended },
+    { key: "recent-used", label: t.sortRecentUsed },
+    { key: "recent-created", label: t.sortRecentCreated },
+    { key: "name", label: t.sortName },
+    { key: "most-used", label: t.sortMostUsed },
+  ];
   const [tab, setTab] = useState("templates"); // templates | pages | sections
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -165,12 +168,12 @@ export default function TemplateBrowser({
             ref={closeRef}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t.closeAria}
           >
             <X size={18} />
           </button>
           <h2 id="template-browser-title" className="flex-1 text-center text-base font-semibold text-gray-900">
-            New design
+            {t.title}
           </h2>
           {/* Mirrors the close button's width so the title lands in the true center. */}
           <span className="h-8 w-8 shrink-0" aria-hidden="true" />
@@ -178,18 +181,18 @@ export default function TemplateBrowser({
 
         <div className="flex gap-1 border-b border-gray-100 px-5 pt-2">
           {[
-            { key: "templates", label: "Templates" },
-            { key: "pages", label: "Reusable pages" },
-            { key: "sections", label: "Reusable sections" },
-          ].map((t) => (
+            { key: "templates", label: t.tabTemplates },
+            { key: "pages", label: t.tabPages },
+            { key: "sections", label: t.tabSections },
+          ].map((tabOption) => (
             <button
-              key={t.key}
+              key={tabOption.key}
               className={`rounded-t-lg px-3 py-2 text-sm font-medium ${
-                tab === t.key ? "border-b-2 border-amber-600 text-amber-700" : "text-gray-500 hover:text-gray-700"
+                tab === tabOption.key ? "border-b-2 border-amber-600 text-amber-700" : "text-gray-500 hover:text-gray-700"
               }`}
-              onClick={() => setTab(t.key)}
+              onClick={() => setTab(tabOption.key)}
             >
-              {t.label}
+              {tabOption.label}
             </button>
           ))}
         </div>
@@ -199,7 +202,7 @@ export default function TemplateBrowser({
             <div className="border-b border-gray-100 px-5 py-3">
               <div className="mb-2 rounded-xl border border-dashed border-gray-200 p-3">
                 <div className="mb-2.5 flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Unit</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t.unit}</h3>
                   <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
                     {UNITS.map((u) => (
                       <button
@@ -241,14 +244,14 @@ export default function TemplateBrowser({
                     className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
                     onClick={() => onCreateBlank(customWidth && getUnit(customUnit).toPx(customWidth), customHeight && getUnit(customUnit).toPx(customHeight))}
                   >
-                    <Plus size={14} /> Blank design
+                    <Plus size={14} /> {t.blankDesign}
                   </button>
                   <label className="flex flex-col gap-1">
-                    <span className="text-[10px] font-medium text-gray-500">Width</span>
+                    <span className="text-[10px] font-medium text-gray-500">{t.width}</span>
                     <input
                       type="number"
                       min="1"
-                      aria-label="Custom width"
+                      aria-label={t.customWidthAria}
                       className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
                       value={customWidth}
                       onChange={(event) => setCustomWidth(Number(event.target.value))}
@@ -257,17 +260,17 @@ export default function TemplateBrowser({
                   <button
                     className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
                     onClick={swapCustomDimensions}
-                    title="Swap width and height"
-                    aria-label="Swap width and height"
+                    title={t.swapAria}
+                    aria-label={t.swapAria}
                   >
                     <Repeat2 size={14} />
                   </button>
                   <label className="flex flex-col gap-1">
-                    <span className="text-[10px] font-medium text-gray-500">Height</span>
+                    <span className="text-[10px] font-medium text-gray-500">{t.height}</span>
                     <input
                       type="number"
                       min="1"
-                      aria-label="Custom height"
+                      aria-label={t.customHeightAria}
                       className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
                       value={customHeight}
                       onChange={(event) => setCustomHeight(Number(event.target.value))}
@@ -280,7 +283,7 @@ export default function TemplateBrowser({
                       }`}
                       onClick={() => setCustomOrientation("portrait")}
                     >
-                      <RectangleVertical size={13} /> Portrait
+                      <RectangleVertical size={13} /> {t.portrait}
                     </button>
                     <button
                       className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium ${
@@ -288,7 +291,7 @@ export default function TemplateBrowser({
                       }`}
                       onClick={() => setCustomOrientation("landscape")}
                     >
-                      <RectangleHorizontal size={13} /> Landscape
+                      <RectangleHorizontal size={13} /> {t.landscape}
                     </button>
                   </div>
                 </div>
@@ -299,8 +302,8 @@ export default function TemplateBrowser({
                   <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="search"
-                    aria-label="Search templates"
-                    placeholder="Search by name, tag, or size…"
+                    aria-label={t.searchAria}
+                    placeholder={t.searchPlaceholder}
                     className="w-full rounded-lg border border-gray-200 py-1.5 pl-8 pr-7 text-sm outline-none focus:border-amber-400"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
@@ -309,14 +312,14 @@ export default function TemplateBrowser({
                     <button
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       onClick={() => setQuery("")}
-                      aria-label="Clear search"
+                      aria-label={t.clearSearchAria}
                     >
                       <X size={13} />
                     </button>
                   )}
                 </div>
                 <select
-                  aria-label="Sort templates"
+                  aria-label={t.sortAria}
                   className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-600"
                   value={sort}
                   onChange={(event) => setSort(event.target.value)}
@@ -338,7 +341,7 @@ export default function TemplateBrowser({
                     }`}
                     onClick={() => setScope(s)}
                   >
-                    {s === "all" ? "All" : s === "favorites" ? "Favorites" : s === "recent" ? "Recently used" : "My templates"}
+                    {s === "all" ? t.scopeAll : s === "favorites" ? t.scopeFavorites : s === "recent" ? t.scopeRecent : t.scopeMine}
                   </button>
                 ))}
                 <span className="mx-1 h-3 w-px bg-gray-200" />
@@ -362,7 +365,7 @@ export default function TemplateBrowser({
                     }`}
                     onClick={() => setOrientation((cur) => (cur === o ? null : o))}
                   >
-                    {o}
+                    {o === "square" ? t.square : o === "landscape" ? t.landscape : t.portrait}
                   </button>
                 ))}
                 {activeFilterCount > 0 && (
@@ -374,7 +377,7 @@ export default function TemplateBrowser({
                       setScope("all");
                     }}
                   >
-                    Reset filters
+                    {t.resetFilters}
                   </button>
                 )}
               </div>
@@ -383,7 +386,7 @@ export default function TemplateBrowser({
             <div className="flex-1 overflow-y-auto p-5">
               {filtered.length === 0 ? (
                 <div className="py-16 text-center text-sm text-gray-400">
-                  <p className="mb-2">No templates match your search.</p>
+                  <p className="mb-2">{t.noMatches}</p>
                   <button
                     className="text-amber-600 hover:underline"
                     onClick={() => {
@@ -393,7 +396,7 @@ export default function TemplateBrowser({
                       setScope("all");
                     }}
                   >
-                    Clear filters
+                    {t.clearFilters}
                   </button>
                 </div>
               ) : (
@@ -409,6 +412,7 @@ export default function TemplateBrowser({
                       onToggleFavorite={() => onToggleFavorite(template.id)}
                       onDelete={!template.builtIn ? () => onDeleteTemplate(template.id) : null}
                       onDuplicate={() => onDuplicateTemplate(template.id)}
+                      t={t}
                     />
                   ))}
                 </div>
@@ -419,18 +423,20 @@ export default function TemplateBrowser({
 
         {tab === "pages" && (
           <ReusableList
-            emptyLabel="No reusable pages yet. Use “Save page as reusable” from the Pages panel."
+            emptyLabel={t.emptyPages}
             items={reusablePages}
             onInsert={onInsertPage}
             onDelete={onDeletePage}
+            t={t}
           />
         )}
         {tab === "sections" && (
           <ReusableList
-            emptyLabel="No reusable sections yet. Select objects, then “Save as reusable section.”"
+            emptyLabel={t.emptySections}
             items={reusableSections}
             onInsert={onInsertSection}
             onDelete={onDeleteSection}
+            t={t}
           />
         )}
       </div>
@@ -438,7 +444,7 @@ export default function TemplateBrowser({
   );
 }
 
-function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrade, onToggleFavorite, onDelete, onDuplicate }) {
+function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrade, onToggleFavorite, onDelete, onDuplicate, t }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const orientation = orientationOf(template.pageWidth, template.pageHeight);
   return (
@@ -448,8 +454,8 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
         onClick={locked ? onRequireUpgrade : onSelect}
         aria-label={
           locked
-            ? `${template.name} requires an upgrade`
-            : `Preview ${template.name}, ${toUnit(template.pageWidth, unit)} by ${toUnit(template.pageHeight, unit)} ${getUnit(unit).label}`
+            ? t.requiresUpgrade(template.name)
+            : t.previewAria(template.name, toUnit(template.pageWidth, unit), toUnit(template.pageHeight, unit), getUnit(unit).label)
         }
       >
         <div className="relative aspect-square w-full bg-gray-50">
@@ -466,7 +472,7 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
             <div className="absolute inset-0 flex items-center justify-center bg-black/40">
               <span className="flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-amber-700">
                 <Lock size={11} />
-                {template.tier === "business" ? "Business" : "Pro"}
+                {template.tier === "business" ? t.business : t.pro}
               </span>
             </div>
           )}
@@ -477,7 +483,7 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
             <span>
               {toUnit(template.pageWidth, unit)}×{toUnit(template.pageHeight, unit)} {unit} · {orientation}
             </span>
-            {!template.builtIn && <span className="rounded bg-amber-50 px-1 text-amber-500">Mine</span>}
+            {!template.builtIn && <span className="rounded bg-amber-50 px-1 text-amber-500">{t.mine}</span>}
           </div>
         </div>
       </button>
@@ -485,7 +491,7 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
       <button
         className={`absolute right-1.5 top-1.5 rounded-full bg-white/90 p-1.5 shadow-sm ${template.favorite ? "text-red-500" : "text-gray-400"}`}
         onClick={onToggleFavorite}
-        aria-label={template.favorite ? `Unfavorite ${template.name}` : `Favorite ${template.name}`}
+        aria-label={template.favorite ? t.unfavorite(template.name) : t.favorite(template.name)}
       >
         <Heart size={13} fill={template.favorite ? "currentColor" : "none"} />
       </button>
@@ -494,7 +500,7 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
         <button
           className="rounded-full bg-white/90 p-1.5 text-gray-500 shadow-sm"
           onClick={() => setMenuOpen((v) => !v)}
-          aria-label={`More actions for ${template.name}`}
+          aria-label={t.moreActions(template.name)}
           aria-expanded={menuOpen}
         >
           <MoreVertical size={13} />
@@ -508,7 +514,7 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
                 onDuplicate();
               }}
             >
-              Duplicate
+              {t.duplicate}
             </button>
             {onDelete && (
               <button
@@ -518,7 +524,7 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
                   onDelete();
                 }}
               >
-                Delete
+                {t.delete}
               </button>
             )}
           </div>
@@ -528,7 +534,7 @@ function TemplateCard({ template, unit = "in", locked, onSelect, onRequireUpgrad
   );
 }
 
-function ReusableList({ items, emptyLabel, onInsert, onDelete }) {
+function ReusableList({ items, emptyLabel, onInsert, onDelete, t }) {
   return (
     <div className="flex-1 overflow-y-auto p-5">
       {items.length === 0 ? (
@@ -553,12 +559,12 @@ function ReusableList({ items, emptyLabel, onInsert, onDelete }) {
                   className="flex-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100"
                   onClick={() => onInsert(item.id)}
                 >
-                  Insert
+                  {t.insert}
                 </button>
                 <button
                   className="rounded-lg p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
                   onClick={() => onDelete(item.id)}
-                  aria-label={`Delete ${item.name}`}
+                  aria-label={t.deleteItemAria(item.name)}
                 >
                   <Trash2 size={13} />
                 </button>

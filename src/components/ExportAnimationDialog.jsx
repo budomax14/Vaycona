@@ -3,6 +3,8 @@ import { X, Download, AlertTriangle } from "lucide-react";
 import { runAnimatedExport, isVideoExportSupported } from "../animation/export/animatedExportService";
 import { downloadExportResult } from "../export/exportService";
 import { FRAME_RATE_PRESETS, DEFAULT_ANIMATED_EXPORT_FPS, ANIMATED_EXPORT_FORMATS } from "../export/exportConstants";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 // Phase 12 — GIF/WebM export dialog (spec §69-79). Kept as its own
 // component rather than folded into the large existing ExportDialog.jsx
@@ -10,6 +12,8 @@ import { FRAME_RATE_PRESETS, DEFAULT_ANIMATED_EXPORT_FPS, ANIMATED_EXPORT_FORMAT
 // static PNG/JPEG/PDF/SVG export is untouched; this only calls the new
 // animatedExportService orchestrator.
 export default function ExportAnimationDialog({ isOpen, onClose, pages, items, activePageId, projectName, reducedMotion }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].exportAnimation;
   const [format, setFormat] = useState("gif");
   const [scope, setScope] = useState("single");
   const [fps, setFps] = useState(DEFAULT_ANIMATED_EXPORT_FPS);
@@ -66,7 +70,7 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
         setStep("form");
         return;
       }
-      setErrorMessage(err?.message || "Animated export failed.");
+      setErrorMessage(err?.message || t.errorFallback);
       setStep("error");
     } finally {
       abortRef.current = null;
@@ -81,11 +85,11 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-800">Export animation</h2>
+          <h2 className="text-base font-semibold text-gray-800">{t.title}</h2>
           <button
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100"
             onClick={step === "progress" ? cancelExport : onClose}
-            aria-label="Close"
+            aria-label={t.closeAria}
           >
             <X size={16} />
           </button>
@@ -94,7 +98,7 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
         {step === "form" && (
           <>
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-gray-600">Format</span>
+              <span className="text-xs font-medium text-gray-600">{t.format}</span>
               <div className="flex gap-2">
                 {ANIMATED_EXPORT_FORMATS.map((f) => (
                   <button
@@ -110,32 +114,32 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
                 ))}
               </div>
               {format === "webm" && !videoSupported && (
-                <p className="text-[11px] text-amber-600">This browser doesn't support local WebM encoding — try GIF instead.</p>
+                <p className="text-[11px] text-amber-600">{t.webmUnsupported}</p>
               )}
             </div>
 
             <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
-              Scope
+              {t.scope}
               <select value={scope} onChange={(e) => setScope(e.target.value)} className="rounded border border-gray-200 px-2 py-1.5 text-sm">
-                <option value="single">Current page</option>
-                <option value="presentation">Entire presentation ({pages.length} pages)</option>
+                <option value="single">{t.currentPage}</option>
+                <option value="presentation">{t.entirePresentation(pages.length)}</option>
               </select>
             </label>
 
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
-                Frame rate
+                {t.frameRate}
                 <select value={fps} onChange={(e) => setFps(Number(e.target.value))} className="rounded border border-gray-200 px-2 py-1.5 text-sm">
                   {FRAME_RATE_PRESETS.map((f) => (
-                    <option key={f} value={f}>{f} fps</option>
+                    <option key={f} value={f}>{t.fpsOption(f)}</option>
                   ))}
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
-                Scale
+                {t.scaleLabel}
                 <select value={scale} onChange={(e) => setScale(Number(e.target.value))} className="rounded border border-gray-200 px-2 py-1.5 text-sm">
                   {[0.5, 1, 1.5, 2].map((s) => (
-                    <option key={s} value={s}>{s}×</option>
+                    <option key={s} value={s}>{t.scaleOption(s)}</option>
                   ))}
                 </select>
               </label>
@@ -144,16 +148,14 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
             {format === "gif" && (
               <label className="flex items-center gap-2 text-xs text-gray-600">
                 <input type="checkbox" checked={loopForever} onChange={(e) => setLoopForever(e.target.checked)} />
-                Loop forever
+                {t.loopForever}
               </label>
             )}
 
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-700">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
               <span>
-                {format === "gif"
-                  ? "GIF export uses a 256-color palette with no partial transparency and no audio. Large or long exports may take a while."
-                  : "WebM export has no audio. Encoding happens locally in your browser and may take a while for longer exports."}
+                {format === "gif" ? t.gifWarning : t.webmWarning}
               </span>
             </div>
 
@@ -162,7 +164,7 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
               disabled={format === "webm" && !videoSupported}
               className="flex items-center justify-center gap-2 rounded-lg bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-40"
             >
-              <Download size={15} /> Export {format.toUpperCase()}
+              <Download size={15} /> {t.exportFormat(format.toUpperCase())}
             </button>
           </>
         )}
@@ -172,25 +174,25 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-200 border-t-amber-600" />
             <p className="text-sm text-gray-600">
               {progress?.stage === "rendering" || progress?.stage === "encoding"
-                ? `Rendering frame ${progress.frameIndex} of ${progress.frameCount}…`
+                ? t.renderingFrame(progress.frameIndex, progress.frameCount)
                 : progress?.stage === "loading-fonts"
-                  ? "Loading fonts…"
+                  ? t.loadingFonts
                   : progress?.stage === "finalizing"
-                    ? "Finalizing file…"
-                    : "Preparing…"}
+                    ? t.finalizingFile
+                    : t.preparing}
             </p>
             <button onClick={cancelExport} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
-              Cancel
+              {t.cancel}
             </button>
           </div>
         )}
 
         {step === "done" && (
           <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <p className="text-sm font-medium text-gray-800">Exported {resultInfo?.filename}</p>
+            <p className="text-sm font-medium text-gray-800">{t.exported(resultInfo?.filename)}</p>
             <p className="text-xs text-gray-500">{Math.round((resultInfo?.size || 0) / 1024)} KB</p>
             <button onClick={onClose} className="mt-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
-              Done
+              {t.done}
             </button>
           </div>
         )}
@@ -201,10 +203,10 @@ export default function ExportAnimationDialog({ isOpen, onClose, pages, items, a
             <p className="text-sm text-gray-700">{errorMessage}</p>
             <div className="mt-2 flex gap-2">
               <button onClick={() => setStep("form")} className="rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
-                Try again
+                {t.tryAgain}
               </button>
               <button onClick={onClose} className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
-                Close
+                {t.close}
               </button>
             </div>
           </div>

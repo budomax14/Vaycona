@@ -1,6 +1,8 @@
 import React from "react";
 import { ColorField } from "../../PropertiesToolbar/toolbarUi";
 import { useBrandKits } from "../../../brandKitContext";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
 const SWATCHES = [
   "#ffffff",
@@ -18,13 +20,15 @@ const SWATCHES = [
 // show up in fill/stroke pickers too, and vice versa.
 export default function BackgroundsPanel({ background, onBackgroundChange, backgroundStyleRef, onApplyBrandBackgroundStyle }) {
   const { activeBrandKit } = useBrandKits();
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].backgrounds;
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-gray-800">Backgrounds</h3>
+      <h3 className="text-sm font-semibold text-gray-800">{t.title}</h3>
 
       <ColorField
-        label="Page background"
+        label={t.pageBackground}
         value={background}
         onChange={onBackgroundChange}
         onReset={() => onBackgroundChange("#ffffff")}
@@ -46,7 +50,7 @@ export default function BackgroundsPanel({ background, onBackgroundChange, backg
 
       {activeBrandKit?.backgroundStyles.length > 0 && (
         <div>
-          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Brand backgrounds</h4>
+          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.brandBackgrounds}</h4>
           <div className="space-y-1.5">
             {activeBrandKit.backgroundStyles.map((bg) => {
               const color = activeBrandKit.colors.find((c) => c.id === bg.colorId);
@@ -59,7 +63,7 @@ export default function BackgroundsPanel({ background, onBackgroundChange, backg
                 >
                   <span className="h-5 w-5 shrink-0 rounded border border-gray-200" style={{ backgroundColor: color?.hex || bg.color || "#ffffff" }} />
                   <span className="font-medium text-gray-700">{bg.name}</span>
-                  {isApplied && <span className="ml-auto text-[10px] font-semibold text-amber-600">Applied</span>}
+                  {isApplied && <span className="ml-auto text-[10px] font-semibold text-amber-600">{t.applied}</span>}
                 </button>
               );
             })}

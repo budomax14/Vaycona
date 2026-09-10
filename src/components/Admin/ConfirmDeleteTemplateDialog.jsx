@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { AlertTriangle, X } from "lucide-react";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Shared delete-confirmation modal — used by both the admin dashboard and
 // (via App.jsx) the existing end-user "My templates" delete action, so
@@ -9,6 +11,8 @@ import { AlertTriangle, X } from "lucide-react";
 // stronger warning since a built-in delete removes it from every user's
 // gallery, not just this browser's own copy.
 export default function ConfirmDeleteTemplateDialog({ isOpen, templateName, isBuiltIn, onConfirm, onCancel }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].confirmDeleteTemplate;
   const confirmRef = useRef(null);
 
   useEffect(() => {
@@ -33,28 +37,26 @@ export default function ConfirmDeleteTemplateDialog({ isOpen, templateName, isBu
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
             <AlertTriangle size={19} />
           </div>
-          <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onCancel} aria-label="Cancel">
+          <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onCancel} aria-label={t.cancelAriaLabel}>
             <X size={16} />
           </button>
         </div>
         <h2 id="confirm-delete-title" className="mt-3 text-sm font-semibold text-gray-900">
-          Delete {templateName ? `"${templateName}"` : "this template"}?
+          {t.deleteTitle(templateName)}
         </h2>
         <p className="mt-1.5 text-sm text-gray-500">
-          {isBuiltIn
-            ? "This is a built-in starter template — deleting it removes it from every user's Designs panel, not just this browser. This action cannot be undone."
-            : "Are you sure you want to permanently delete this template? This action cannot be undone."}
+          {isBuiltIn ? t.builtInWarning : t.confirmWarning}
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onCancel}>
-            Cancel
+            {t.cancel}
           </button>
           <button
             ref={confirmRef}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
             onClick={onConfirm}
           >
-            Delete permanently
+            {t.deletePermanently}
           </button>
         </div>
       </div>

@@ -210,7 +210,17 @@ export default function SimpleTextNode({ item, commonProps }) {
           ref={textNodeRef}
           text={textTransformContent(item)}
           width={width}
-          height={height}
+          // Konva.Text clips its own rendered lines to an explicit `height`
+          // regardless of any wrapper clipFunc — passing the item's height
+          // unconditionally clipped off wrapped lines for flexible (non-
+          // "fixed") boxes whenever the auto-fit measurement in App.jsx
+          // (a separate canvas-based estimate) came out even slightly
+          // shorter than Konva's own word-wrap needs, silently hiding the
+          // last line. Only pass height when clipping is actually the
+          // intended behavior (`shouldClip`, same condition already used
+          // for the Group's own clipFunc below) — otherwise let Konva size
+          // itself to the text it actually wrapped.
+          height={shouldClip ? height : undefined}
           fontSize={fontSize}
           fontFamily={item.fontFamily || "Arial"}
           fontStyle={buildFontStyle(item)}

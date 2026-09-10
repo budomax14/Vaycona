@@ -49,6 +49,7 @@ export default function PropertiesToolbar({
   onEditText,
   onExitTextEdit,
   onEditChartData,
+  chartStyleOpenRequest,
   tableEdit,
   onApplyFormat,
   onApplyListFormat,
@@ -269,6 +270,7 @@ export default function PropertiesToolbar({
           hasCopiedTextStyle={hasCopiedTextStyle}
           onClearTextFormatting={single.type === "text" ? () => onClearTextFormatting(single.id) : undefined}
           onEditChartData={single.type === "chart" ? () => onEditChartData(single.id) : undefined}
+          chartStyleOpenRequest={single.type === "chart" ? chartStyleOpenRequest : undefined}
           tableEdit={single.type === "table" ? tableEdit : undefined}
           onApplyProjectTextStyle={single.type === "text" ? (style) => onApplyProjectTextStyle(single.id, style) : undefined}
           onEnterImageFillEditMode={

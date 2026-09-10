@@ -3,6 +3,8 @@ import { Plus, Trash2, X } from "lucide-react";
 import ChartRenderer from "./ChartRenderer";
 import { parsePastedTable } from "../chartDataParse";
 import { CHART_SERIES_PALETTE } from "../chartKinds";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 // Spreadsheet-like data editor for a chart item. Styled as the same
 // centered-overlay modal shell ResizeModal.jsx uses (fixed inset-0,
@@ -12,6 +14,8 @@ import { CHART_SERIES_PALETTE } from "../chartKinds";
 // LIVE") and this app's existing convention of every field committing on
 // its own change event (see toolbarUi.jsx's SliderField).
 export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].chartDataEditor;
   useEffect(() => {
     if (!isOpen) return undefined;
     function handleKey(event) {
@@ -37,7 +41,7 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
   }
 
   function addRow() {
-    const newRow = { category: `Row ${data.length + 1}` };
+    const newRow = { category: t.rowDefaultName(data.length + 1) };
     series.forEach((s) => {
       newRow[s.key] = 0;
     });
@@ -53,7 +57,7 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
 
   function addSeries() {
     const key = `series${Date.now().toString(36)}${series.length}`;
-    const newSeries = { key, name: `Series ${series.length + 1}`, color: CHART_SERIES_PALETTE[series.length % CHART_SERIES_PALETTE.length] };
+    const newSeries = { key, name: t.seriesDefaultName(series.length + 1), color: CHART_SERIES_PALETTE[series.length % CHART_SERIES_PALETTE.length] };
     onChange({ series: [...series, newSeries], data: data.map((row) => ({ ...row, [key]: 0 })) });
   }
 
@@ -94,8 +98,8 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
     >
       <div className="flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Edit chart data</h2>
-          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close data editor">
+          <h2 className="text-base font-semibold text-gray-900">{t.title}</h2>
+          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.closeAria}>
             <X size={18} />
           </button>
         </div>
@@ -103,13 +107,13 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5 md:flex-row">
           <div className="flex-1 space-y-3" onPaste={handlePaste}>
             <p className="text-xs text-gray-400">
-              Tip: paste tabular data copied from Excel, Google Sheets, Numbers, or a CSV file directly into the table.
+              {t.tip}
             </p>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="border-b border-gray-200 px-2 py-2 text-left text-xs font-semibold text-gray-500">Category</th>
+                    <th className="border-b border-gray-200 px-2 py-2 text-left text-xs font-semibold text-gray-500">{t.category}</th>
                     {series.map((s, i) => (
                       <th key={s.key} className="border-b border-gray-200 px-2 py-2">
                         <div className="flex items-center gap-1">
@@ -122,7 +126,7 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
                             type="button"
                             className="shrink-0 text-gray-300 hover:text-red-500"
                             onClick={() => deleteSeries(i)}
-                            aria-label={`Delete series ${s.name}`}
+                            aria-label={t.deleteSeriesAria(s.name)}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -153,7 +157,7 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
                         </td>
                       ))}
                       <td className="border-b border-gray-100 px-1 text-center">
-                        <button type="button" className="text-gray-300 hover:text-red-500" onClick={() => deleteRow(rowIndex)} aria-label="Delete row">
+                        <button type="button" className="text-gray-300 hover:text-red-500" onClick={() => deleteRow(rowIndex)} aria-label={t.deleteRowAria}>
                           <Trash2 size={13} />
                         </button>
                       </td>
@@ -162,7 +166,7 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
                   {data.length === 0 && (
                     <tr>
                       <td colSpan={series.length + 2} className="px-2 py-6 text-center text-xs text-gray-400">
-                        No rows yet — add one below or paste data from a spreadsheet.
+                        {t.emptyRows}
                       </td>
                     </tr>
                   )}
@@ -175,20 +179,20 @@ export default function ChartDataEditor({ isOpen, item, onClose, onChange }) {
                 className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                 onClick={addRow}
               >
-                <Plus size={13} /> Add row
+                <Plus size={13} /> {t.addRow}
               </button>
               <button
                 type="button"
                 className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                 onClick={addSeries}
               >
-                <Plus size={13} /> Add series
+                <Plus size={13} /> {t.addSeries}
               </button>
             </div>
           </div>
 
           <div className="flex w-full shrink-0 flex-col items-center gap-2 md:w-72">
-            <span className="self-start text-xs font-semibold uppercase tracking-wide text-gray-400">Preview</span>
+            <span className="self-start text-xs font-semibold uppercase tracking-wide text-gray-400">{t.preview}</span>
             <div className="relative flex h-56 w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2">
               <ChartRenderer item={item} width={248} height={200} interactive />
             </div>

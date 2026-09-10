@@ -2,8 +2,12 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 import { ZOOM_PRESETS } from "../../constants";
 import PopoverPortal from "./PopoverPortal";
+import { useLanguage } from "../../languageContext";
+import { STATUS_BAR_STRINGS } from "../../i18n/statusBarAndMenus";
 
 export default function ZoomControl({ scale, onZoomTo, onZoomIn, onZoomOut }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].zoomControl;
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const triggerRef = useRef(null);
@@ -30,7 +34,7 @@ export default function ZoomControl({ scale, onZoomTo, onZoomIn, onZoomOut }) {
 
   return (
     <div className="flex items-center gap-1">
-      <button className="rounded-md p-1 text-gray-500 hover:bg-gray-100" onClick={onZoomOut} title="Zoom out">
+      <button className="rounded-md p-1 text-gray-500 hover:bg-gray-100" onClick={onZoomOut} title={t.zoomOut}>
         <Minus size={14} />
       </button>
 
@@ -42,7 +46,7 @@ export default function ZoomControl({ scale, onZoomTo, onZoomIn, onZoomOut }) {
           const value = Number(event.target.value);
           if (Number.isFinite(value) && value > 0) onZoomTo(value / 100);
         }}
-        aria-label="Zoom percentage"
+        aria-label={t.zoomPercentage}
       />
       <span className="text-xs text-gray-500">%</span>
 
@@ -50,7 +54,7 @@ export default function ZoomControl({ scale, onZoomTo, onZoomIn, onZoomOut }) {
         ref={triggerRef}
         className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Zoom presets"
+        aria-label={t.zoomPresets}
         aria-expanded={open}
       >
         <ChevronDown size={12} />
@@ -75,7 +79,7 @@ export default function ZoomControl({ scale, onZoomTo, onZoomIn, onZoomOut }) {
         )}
       </PopoverPortal>
 
-      <button className="rounded-md p-1 text-gray-500 hover:bg-gray-100" onClick={onZoomIn} title="Zoom in">
+      <button className="rounded-md p-1 text-gray-500 hover:bg-gray-100" onClick={onZoomIn} title={t.zoomIn}>
         <Plus size={14} />
       </button>
     </div>

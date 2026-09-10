@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Crown, Download, Home, LogOut, Loader2, Redo2, Save, Scaling, Settings, Share2, ShieldCheck, Undo2, User } from "lucide-react";
 import { useAuth } from "../authContext";
 import { useSubscription } from "../subscriptionContext";
-import { useTheme } from "../themeContext";
 import { useLanguage } from "../languageContext";
 import { STRINGS } from "../i18n";
 import { navigateTo } from "../adminRoute";
 import ToolbarPopover from "./PropertiesToolbar/ToolbarPopover";
+import ThemeToggle from "./ThemeToggle";
+import LanguageToggle from "./LanguageToggle";
 import OverflowToolbar from "./OverflowToolbar/OverflowToolbar";
 
 // Tailwind's built-in `md:` variant only reads viewport WIDTH — a landscape
@@ -381,7 +382,7 @@ export default function TopNavBar({
             </div>
             <div className="flex justify-between gap-4">
               <span>{t.shortcutPanCanvas}</span>
-              <span>Hold Space</span>
+              <span>{t.holdSpace}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span>{t.shortcutZoom}</span>
@@ -478,10 +479,10 @@ export default function TopNavBar({
             <button
               className="toolbar-hit-target flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 md:px-3"
               onClick={onOpenPricing}
-              title="Upgrade"
-              aria-label="Upgrade"
+              title={t.upgrade}
+              aria-label={t.upgrade}
             >
-              <Crown size={16} /> <span className="hidden md:inline">Upgrade</span>
+              <Crown size={16} /> <span className="hidden md:inline">{t.upgrade}</span>
             </button>
           </OverflowToolbar.Item>
         )}
@@ -509,8 +510,7 @@ export default function TopNavBar({
 }
 
 function SettingsMenu() {
-  const { theme, setTheme } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const c = STRINGS[language].common;
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -529,40 +529,14 @@ function SettingsMenu() {
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
         <div className="w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
-          <span className="mb-1.5 block text-xs font-medium text-gray-500">{c.language}</span>
-          <div className="mb-3 flex gap-1 rounded-lg border border-gray-200 p-1">
-            {[
-              { key: "en", label: "English" },
-              { key: "fr", label: "Français" },
-            ].map((option) => (
-              <button
-                key={option.key}
-                className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium ${
-                  language === option.key ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
-                }`}
-                onClick={() => setLanguage(option.key)}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500">{c.language}</span>
+            <LanguageToggle />
           </div>
 
-          <span className="mb-1.5 block text-xs font-medium text-gray-500">{c.theme}</span>
-          <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
-            {[
-              { key: "light", label: c.light },
-              { key: "dark", label: c.dark },
-            ].map((option) => (
-              <button
-                key={option.key}
-                className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium ${
-                  theme === option.key ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
-                }`}
-                onClick={() => setTheme(option.key)}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500">{c.theme}</span>
+            <ThemeToggle />
           </div>
         </div>
       </ToolbarPopover>

@@ -17,23 +17,25 @@ import TemplateMiniPreview from "../TemplateMiniPreview";
 import TemplatePreviewDialog from "../TemplatePreviewDialog";
 import ConfirmDeleteTemplateDialog from "./ConfirmDeleteTemplateDialog";
 import { orientationOf } from "../../pageSizes";
-
-const STATUS_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "published", label: "Published" },
-  { key: "draft", label: "Draft" },
-];
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // "custom" mirrors templateService.listTemplateSummaries' own sortOrder
 // sort exactly (no extra client sort applied — see `filtered` below), so
 // it's the one option that both matches the order end users see in the
 // Designs panel AND is safe to drag-and-drop reorder.
-const SORT_OPTIONS = [
-  { key: "custom", label: "My order (drag to reorder)" },
-  { key: "recent-updated", label: "Recently updated" },
-  { key: "recent-created", label: "Recently created" },
-  { key: "name", label: "Name" },
-  { key: "most-used", label: "Most used" },
+const SORT_KEYS = [
+  { key: "custom", labelKey: "custom" },
+  { key: "recent-updated", labelKey: "recentUpdated" },
+  { key: "recent-created", labelKey: "recentCreated" },
+  { key: "name", labelKey: "name" },
+  { key: "most-used", labelKey: "mostUsed" },
+];
+
+const STATUS_KEYS = [
+  { key: "all", labelKey: "all" },
+  { key: "published", labelKey: "published" },
+  { key: "draft", labelKey: "draft" },
 ];
 
 function formatDate(ts) {
@@ -42,6 +44,10 @@ function formatDate(ts) {
 }
 
 export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmin }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].adminDashboard;
+  const STATUS_FILTERS = STATUS_KEYS.map((s) => ({ key: s.key, label: t.statusFilters[s.labelKey] }));
+  const SORT_OPTIONS = SORT_KEYS.map((s) => ({ key: s.key, label: t.sortOptions[s.labelKey] }));
   const [templates, setTemplates] = useState(null); // null = loading
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(null);
@@ -148,12 +154,12 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
       workspaceId: previewTemplate.id,
     });
     if (result.ok) downloadBlob(result.blob, result.filename);
-    else showToast("Could not export this template.");
+    else showToast(t.couldNotExport);
   }
 
   async function handleDuplicate(id) {
     await duplicateTemplate(id);
-    showToast("Template duplicated.");
+    showToast(t.templateDuplicated);
     refresh();
   }
 
@@ -163,17 +169,17 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
       showToast(result.error);
       return;
     }
-    showToast("Published — now visible in the template gallery.");
+    showToast(t.publishedToast);
     refresh();
   }
 
   async function handleUnpublish(id) {
     const result = await unpublishTemplate(id);
     if (!result) {
-      showToast("Template not found.");
+      showToast(t.templateNotFound);
       return;
     }
-    showToast("Unpublished — removed from the gallery, not deleted.");
+    showToast(t.unpublishedToast);
     refresh();
   }
 
@@ -182,10 +188,10 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
     const ok = await deleteTemplate(deleteTarget.id);
     setDeleteTarget(null);
     if (ok) {
-      showToast("Template deleted.");
+      showToast(t.templateDeleted);
       refresh();
     } else {
-      showToast("This template can't be deleted.");
+      showToast(t.cannotDelete);
     }
   }
 
@@ -196,15 +202,15 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
           <LayoutTemplate size={18} />
         </div>
         <div>
-          <h1 className="text-sm font-semibold text-gray-900">Template Admin</h1>
-          <p className="text-xs text-gray-400">Create, edit, and publish templates for the design gallery</p>
+          <h1 className="text-sm font-semibold text-gray-900">{t.adminTitle}</h1>
+          <p className="text-xs text-gray-400">{t.adminSubtitle}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <button
             className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
             onClick={onExitAdmin}
           >
-            <LogOut size={15} /> Back to editor
+            <LogOut size={15} /> {t.backToEditor}
           </button>
         </div>
       </header>
@@ -215,21 +221,21 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
             className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-700"
             onClick={onCreateNew}
           >
-            <Plus size={16} /> Create new template
+            <Plus size={16} /> {t.createNewTemplate}
           </button>
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="search"
-              aria-label="Search templates"
-              placeholder="Search by name, tag, or category…"
+              aria-label={t.searchTemplatesAriaLabel}
+              placeholder={t.searchTemplatesPlaceholder}
               className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-3 text-sm outline-none focus:border-amber-400"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
           <select
-            aria-label="Sort templates"
+            aria-label={t.sortTemplatesAriaLabel}
             className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-600"
             value={sort}
             onChange={(event) => setSort(event.target.value)}
@@ -270,17 +276,15 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
 
         {sort === "custom" && (
           <p className="mb-4 -mt-2 text-xs text-gray-400">
-            {canReorder
-              ? "Drag a template by its handle to place it anywhere — this is the order shown in everyone's Designs panel."
-              : "Clear the search and status/category filters to drag-and-drop reorder templates."}
+            {canReorder ? t.dragReorderNote : t.clearFiltersNote}
           </p>
         )}
 
         {templates === null ? (
-          <p className="py-16 text-center text-sm text-gray-400">Loading templates…</p>
+          <p className="py-16 text-center text-sm text-gray-400">{t.loadingTemplates}</p>
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center text-sm text-gray-400">
-            <p className="mb-2">No templates match your search.</p>
+            <p className="mb-2">{t.noTemplatesMatch}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -370,6 +374,8 @@ function AdminTemplateCard({
   onDragOver,
   onDrop,
 }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].adminDashboard;
   const status = template.status || "published";
   const orientation = orientationOf(template.pageWidth, template.pageHeight);
 
@@ -390,7 +396,7 @@ function AdminTemplateCard({
           <GripVertical size={13} />
         </div>
       )}
-      <button className="block w-full text-left" onClick={onPreview} aria-label={`Preview ${template.name}`}>
+      <button className="block w-full text-left" onClick={onPreview} aria-label={t.previewAriaLabel(template.name)}>
         <div className="aspect-square w-full bg-gray-50">
           {template.thumbnail ? (
             <img src={template.thumbnail} alt="" className="h-full w-full object-cover" />
@@ -411,10 +417,10 @@ function AdminTemplateCard({
               status === "published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
             }`}
           >
-            {status}
+            {status === "published" ? t.statusFilters.published : t.statusFilters.draft}
           </span>
           {template.builtIn && (
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">Built-in</span>
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">{t.builtIn}</span>
           )}
           <span className="truncate text-[10px] text-gray-400 capitalize">{template.category}</span>
         </div>
@@ -423,32 +429,32 @@ function AdminTemplateCard({
           {template.pageWidth}×{template.pageHeight} · {orientation}
         </div>
         <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-gray-400">
-          <span>Created {formatDate(template.createdAt)}</span>
-          <span>Updated {formatDate(template.updatedAt)}</span>
-          <span>Used {template.usageCount || 0}×</span>
+          <span>{t.createdLabel(formatDate(template.createdAt))}</span>
+          <span>{t.updatedLabel(formatDate(template.updatedAt))}</span>
+          <span>{t.usedCountLabel(template.usageCount || 0)}</span>
         </div>
 
         <div className="mt-2.5 flex flex-wrap gap-1">
           <button className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100" onClick={onEdit}>
-            <Edit3 size={11} /> Edit
+            <Edit3 size={11} /> {t.edit}
           </button>
           <button className="flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100" onClick={onPreview}>
-            <Eye size={11} /> Preview
+            <Eye size={11} /> {t.preview}
           </button>
           <button className="flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100" onClick={onDuplicate}>
-            <Copy size={11} /> Duplicate
+            <Copy size={11} /> {t.duplicate}
           </button>
           {status === "published" ? (
             <button className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100" onClick={onUnpublish}>
-              <X size={11} /> Unpublish
+              <X size={11} /> {t.unpublish}
             </button>
           ) : (
             <button className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100" onClick={onPublish}>
-              <Upload size={11} /> Publish
+              <Upload size={11} /> {t.publish}
             </button>
           )}
           <button className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100" onClick={onDelete}>
-            <Trash2 size={11} /> Delete
+            <Trash2 size={11} /> {t.deleteLabel}
           </button>
         </div>
       </div>

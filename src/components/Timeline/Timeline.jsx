@@ -3,6 +3,8 @@ import { Play, Pause, Square, X, ZoomIn, ZoomOut, Lock, EyeOff } from "lucide-re
 import { buildTimelineTracks, collectSnapTargets, snapTime, msToPx, pxToMs, fitPxPerSecond } from "../../animation/timelineService";
 import { DEFAULT_PAGE_DURATION_MS, MIN_ANIMATION_DURATION_MS } from "../../animation/animationSchema";
 import { getPreset } from "../../animation/animationRegistry";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 const STAGE_COLORS = {
   entrance: "bg-emerald-400 border-emerald-600",
@@ -38,6 +40,8 @@ export default function Timeline({
   onFitDuration,
   onClearPage,
 }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].timeline;
   const containerRef = useRef(null);
   const trackAreaRef = useRef(null);
   const [pxPerSecond, setPxPerSecond] = useState(80);
@@ -134,38 +138,38 @@ export default function Timeline({
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="region"
-      aria-label="Animation timeline"
+      aria-label={t.timelineAriaLabel}
       className="flex h-56 shrink-0 flex-col border-t border-gray-200 bg-white outline-none"
     >
       <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
-        <button onClick={isPlaying ? onPause : onPlay} className="rounded bg-gray-900 p-1.5 text-white" aria-label={isPlaying ? "Pause" : "Play"}>
+        <button onClick={isPlaying ? onPause : onPlay} className="rounded bg-gray-900 p-1.5 text-white" aria-label={isPlaying ? t.pause : t.play}>
           {isPlaying ? <Pause size={13} /> : <Play size={13} />}
         </button>
-        <button onClick={onStop} className="rounded p-1.5 text-gray-500 hover:bg-gray-100" aria-label="Stop">
+        <button onClick={onStop} className="rounded p-1.5 text-gray-500 hover:bg-gray-100" aria-label={t.stop}>
           <Square size={13} />
         </button>
         <span className="text-xs tabular-nums text-gray-600">{formatTime(timeMs)} / {formatTime(pageDuration)}</span>
         <div className="ml-2 flex items-center gap-1">
-          <button onClick={() => setPxPerSecond((v) => Math.max(10, v / 1.4))} className="rounded p-1 text-gray-400 hover:bg-gray-100" aria-label="Zoom out timeline">
+          <button onClick={() => setPxPerSecond((v) => Math.max(10, v / 1.4))} className="rounded p-1 text-gray-400 hover:bg-gray-100" aria-label={t.zoomOutTimeline}>
             <ZoomOut size={13} />
           </button>
-          <button onClick={() => setPxPerSecond((v) => Math.min(500, v * 1.4))} className="rounded p-1 text-gray-400 hover:bg-gray-100" aria-label="Zoom in timeline">
+          <button onClick={() => setPxPerSecond((v) => Math.min(500, v * 1.4))} className="rounded p-1 text-gray-400 hover:bg-gray-100" aria-label={t.zoomInTimeline}>
             <ZoomIn size={13} />
           </button>
           <button
             onClick={() => setPxPerSecond(fitPxPerSecond(pageDuration, trackAreaRef.current?.clientWidth || 600))}
             className="rounded px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-100"
           >
-            Fit
+            {t.fit}
           </button>
         </div>
         <button onClick={onFitDuration} className="rounded px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-100">
-          Fit page to content
+          {t.fitPageToContent}
         </button>
         <button onClick={onClearPage} className="rounded px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-100">
-          Clear page
+          {t.clearPage}
         </button>
-        <button onClick={onClose} className="ml-auto rounded p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close timeline">
+        <button onClick={onClose} className="ml-auto rounded p-1.5 text-gray-400 hover:bg-gray-100" aria-label={t.closeTimeline}>
           <X size={14} />
         </button>
       </div>
@@ -185,7 +189,7 @@ export default function Timeline({
               {track.hidden && <EyeOff size={10} className="shrink-0 text-gray-400" />}
             </div>
           ))}
-          {tracks.length === 0 && <div className="p-3 text-[11px] text-gray-400">No objects on this page yet.</div>}
+          {tracks.length === 0 && <div className="p-3 text-[11px] text-gray-400">{t.noObjectsYet}</div>}
         </div>
 
         <div ref={trackAreaRef} className="relative flex-1 overflow-x-auto overflow-y-auto" onClick={() => setSelectedClip(null)}>

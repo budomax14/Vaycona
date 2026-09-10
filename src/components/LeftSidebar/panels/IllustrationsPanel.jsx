@@ -19,6 +19,8 @@ import {
 } from "../../../aiIllustrationService";
 import { useAsset } from "../../../useAsset";
 import { getAssetBlob } from "../../../assetStore";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
 // Converts a generated image (currently always a data: URI — see
 // functions/providers/openai.js) into a File so it can go through the same
@@ -41,6 +43,8 @@ function slugFromPrompt(prompt) {
 
 function IllustrationCard({ entry, onAddToCanvas, onDownload, onRegenerate, onFavorite, generationInFlight }) {
   const { status, objectUrl } = useAsset(entry.assetId);
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].illustrations;
   const ready = status === "ready" && !entry.regenerating;
 
   return (
@@ -53,8 +57,8 @@ function IllustrationCard({ entry, onAddToCanvas, onDownload, onRegenerate, onFa
           event.dataTransfer.setData("application/x-upload-asset-id", entry.assetId);
         }}
         onClick={() => ready && onAddToCanvas(entry)}
-        title={ready ? "Click to add, or drag onto the canvas" : "Loading…"}
-        aria-label={`Add "${entry.prompt}" illustration to the page`}
+        title={ready ? t.clickToAddOrDrag : t.loadingEllipsis}
+        aria-label={t.addIllustrationAria(entry.prompt)}
       >
         {objectUrl ? (
           <img src={objectUrl} alt={entry.prompt} className="h-full w-full object-cover" />
@@ -77,7 +81,7 @@ function IllustrationCard({ entry, onAddToCanvas, onDownload, onRegenerate, onFa
             event.stopPropagation();
             onFavorite(entry);
           }}
-          aria-label={entry.favorite ? "Remove from favorites" : "Add to favorites"}
+          aria-label={entry.favorite ? t.removeFromFavorites : t.addToFavorites}
           aria-pressed={entry.favorite}
         >
           <Heart size={11} fill={entry.favorite ? "currentColor" : "none"} />
@@ -89,17 +93,17 @@ function IllustrationCard({ entry, onAddToCanvas, onDownload, onRegenerate, onFa
           className="flex flex-1 items-center justify-center gap-1 rounded-md border border-gray-200 py-1 text-[10px] font-medium text-gray-600 hover:border-amber-400 hover:text-amber-700 disabled:opacity-50"
           onClick={() => onAddToCanvas(entry)}
           disabled={!ready}
-          title="Add to canvas"
+          title={t.addToCanvas}
         >
-          <Plus size={11} /> Add
+          <Plus size={11} /> {t.add}
         </button>
         <button
           type="button"
           className="flex items-center justify-center rounded-md border border-gray-200 p-1 text-gray-500 hover:border-amber-400 hover:text-amber-700 disabled:opacity-50"
           onClick={() => onDownload(entry)}
           disabled={!ready}
-          title="Download"
-          aria-label="Download illustration"
+          title={t.download}
+          aria-label={t.downloadIllustrationAria}
         >
           <Download size={12} />
         </button>
@@ -108,8 +112,8 @@ function IllustrationCard({ entry, onAddToCanvas, onDownload, onRegenerate, onFa
           className="flex items-center justify-center rounded-md border border-gray-200 p-1 text-gray-500 hover:border-amber-400 hover:text-amber-700 disabled:opacity-50"
           onClick={() => onRegenerate(entry)}
           disabled={generationInFlight || entry.regenerating}
-          title="Regenerate"
-          aria-label="Regenerate illustration"
+          title={t.regenerate}
+          aria-label={t.regenerateIllustrationAria}
         >
           <RefreshCw size={12} className={entry.regenerating ? "animate-spin" : ""} />
         </button>
@@ -126,6 +130,8 @@ function IllustrationCard({ entry, onAddToCanvas, onDownload, onRegenerate, onFa
 // normal local asset library as they arrive so "Add to Canvas" and
 // drag-to-canvas both reuse the exact same asset pipeline as Uploads.
 export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onStatus }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].illustrations;
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState(ILLUSTRATION_STYLES[0].key);
   const [aspectRatio, setAspectRatio] = useState(ASPECT_RATIOS[0].key);
@@ -160,7 +166,7 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
     if (isGenerating) return; // prevent duplicate concurrent requests
     const trimmed = promptText.trim();
     if (!trimmed) {
-      setError("Please describe the illustration you want to create.");
+      setError(t.errorNoPrompt);
       return;
     }
 
@@ -204,7 +210,7 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
         }));
 
       if (newEntries.length === 0) {
-        throw new Error("The generated illustrations could not be saved to your library.");
+        throw new Error(t.errorSaveFailed);
       }
 
       if (replaceEntryId && newEntries.length === 1) {
@@ -212,10 +218,10 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
       } else {
         illustrationGallery.addMany(newEntries);
       }
-      onStatus?.(`Generated ${newEntries.length} illustration${newEntries.length > 1 ? "s" : ""}.`);
+      onStatus?.(t.generatedStatus(newEntries.length));
     } catch (err) {
       if (err.name !== "AbortError") {
-        setError(err.message || "Something went wrong generating your illustration.");
+        setError(err.message || t.errorGeneric);
         if (replaceEntryId) illustrationGallery.update(replaceEntryId, { regenerating: false });
       }
     } finally {
@@ -259,19 +265,19 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <h3 className="text-sm font-semibold text-gray-800">AI Illustrations</h3>
+      <h3 className="text-sm font-semibold text-gray-800">{t.title}</h3>
 
       <textarea
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
-        placeholder="Describe the illustration you want to create..."
+        placeholder={t.promptPlaceholder}
         rows={3}
-        aria-label="Illustration prompt"
+        aria-label={t.promptAria}
         className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
       />
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Style</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.style}</span>
         <div className="grid grid-cols-2 gap-1.5">
           {ILLUSTRATION_STYLES.map((opt) => (
             <button
@@ -292,7 +298,7 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Aspect ratio</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.aspectRatio}</span>
         <div className="grid grid-cols-3 gap-1.5">
           {ASPECT_RATIOS.map((opt) => (
             <button
@@ -314,7 +320,7 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Number of images</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.numberOfImages}</span>
         <div className="grid grid-cols-4 gap-1.5">
           {Array.from({ length: MAX_ILLUSTRATION_COUNT }, (_, i) => i + 1).map((n) => (
             <button
@@ -342,15 +348,15 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
           aria-expanded={advancedOpen}
         >
           {advancedOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-          Advanced settings
+          {t.advancedSettings}
         </button>
         {advancedOpen && (
           <textarea
             value={extraDetails}
             onChange={(event) => setExtraDetails(event.target.value)}
-            placeholder="Additional details (lighting, color palette, composition...)"
+            placeholder={t.additionalDetailsPlaceholder}
             rows={2}
-            aria-label="Additional prompt details"
+            aria-label={t.additionalDetailsAria}
             className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
           />
         )}
@@ -365,12 +371,12 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
         {isGenerating ? (
           <>
             <Loader2 size={15} className="animate-spin" />
-            Generating… {elapsed}s
+            {t.generating(elapsed)}
           </>
         ) : (
           <>
             <Wand2 size={15} />
-            Generate
+            {t.generate}
           </>
         )}
       </button>
@@ -388,7 +394,7 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
       )}
 
       {gallery.length === 0 ? (
-        <p className="text-xs text-gray-400">Your generated illustrations will appear here.</p>
+        <p className="text-xs text-gray-400">{t.emptyGallery}</p>
       ) : (
         <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto pb-2">
           {gallery.map((entry) => (

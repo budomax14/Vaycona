@@ -23,6 +23,8 @@ import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import FontFamilyPicker from "./FontFamilyPicker";
 import ObjectMoreMenu from "./ObjectMoreMenu";
 import TableStylePanel from "./TableStylePanel";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 // Registry propertiesBar for type:"table". Branches into two very
 // different bars depending on whether the table is merely selected (whole-
@@ -51,13 +53,15 @@ function TableWholeBar({
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].table;
   const [isStyleOpen, setIsStyleOpen] = useState(false);
   return (
     <>
       <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
         <OverflowToolbar.Item keepOnMobile>
           <span className="shrink-0 text-xs font-medium text-gray-400">
-            Table · {item.rows}×{item.columns}
+            {t.tableDimensions(item.rows, item.columns)}
           </span>
         </OverflowToolbar.Item>
 
@@ -72,7 +76,7 @@ function TableWholeBar({
               onClick={() => setIsStyleOpen((v) => !v)}
             >
               <SlidersHorizontal size={15} />
-              Style
+              {t.style}
             </button>
           </>
         </OverflowToolbar.Item>
@@ -80,7 +84,7 @@ function TableWholeBar({
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
+            <SliderField label={t.opacity} value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
           </>
         </OverflowToolbar.Item>
 
@@ -111,6 +115,8 @@ function TableWholeBar({
 }
 
 function TableCellBar({ item, tableEdit }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].table;
   const {
     style,
     hasSelection,
@@ -129,7 +135,7 @@ function TableCellBar({ item, tableEdit }) {
   } = tableEdit;
 
   if (!hasSelection) {
-    return <span className="shrink-0 text-xs font-medium text-gray-400">Click a cell to select it</span>;
+    return <span className="shrink-0 text-xs font-medium text-gray-400">{t.clickCellToSelect}</span>;
   }
 
   return (
@@ -141,12 +147,12 @@ function TableCellBar({ item, tableEdit }) {
       <OverflowToolbar.Item keepOnMobile>
         <>
           <ToolbarDivider />
-          <IconToggleButton icon={Bold} active={!!style.bold} title="Bold" onClick={() => onApplyCellStyle({ bold: !style.bold })} />
-          <IconToggleButton icon={Italic} active={!!style.italic} title="Italic" onClick={() => onApplyCellStyle({ italic: !style.italic })} />
+          <IconToggleButton icon={Bold} active={!!style.bold} title={t.bold} onClick={() => onApplyCellStyle({ bold: !style.bold })} />
+          <IconToggleButton icon={Italic} active={!!style.italic} title={t.italic} onClick={() => onApplyCellStyle({ italic: !style.italic })} />
           <IconToggleButton
             icon={Underline}
             active={!!style.underline}
-            title="Underline"
+            title={t.underline}
             onClick={() => onApplyCellStyle({ underline: !style.underline })}
           />
         </>
@@ -166,37 +172,37 @@ function TableCellBar({ item, tableEdit }) {
           <IconToggleButton
             icon={AlignLeft}
             active={(style.align || "left") === "left"}
-            title="Align left"
+            title={t.alignLeft}
             onClick={() => onApplyCellStyle({ align: "left" })}
           />
           <IconToggleButton
             icon={AlignCenter}
             active={style.align === "center"}
-            title="Align center"
+            title={t.alignCenter}
             onClick={() => onApplyCellStyle({ align: "center" })}
           />
           <IconToggleButton
             icon={AlignRight}
             active={style.align === "right"}
-            title="Align right"
+            title={t.alignRight}
             onClick={() => onApplyCellStyle({ align: "right" })}
           />
           <IconToggleButton
             icon={AlignVerticalJustifyStart}
             active={style.valign === "top"}
-            title="Align top"
+            title={t.alignTop}
             onClick={() => onApplyCellStyle({ valign: "top" })}
           />
           <IconToggleButton
             icon={AlignVerticalJustifyCenter}
             active={(style.valign || "middle") === "middle"}
-            title="Align middle"
+            title={t.alignMiddle}
             onClick={() => onApplyCellStyle({ valign: "middle" })}
           />
           <IconToggleButton
             icon={AlignVerticalJustifyEnd}
             active={style.valign === "bottom"}
-            title="Align bottom"
+            title={t.alignBottom}
             onClick={() => onApplyCellStyle({ valign: "bottom" })}
           />
         </>
@@ -206,8 +212,8 @@ function TableCellBar({ item, tableEdit }) {
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            {canMerge && <IconToggleButton icon={Combine} title="Merge cells" onClick={onMerge} />}
-            {canUnmerge && <IconToggleButton icon={Grid2x2X} title="Unmerge cells" onClick={onUnmerge} />}
+            {canMerge && <IconToggleButton icon={Combine} title={t.mergeCells} onClick={onMerge} />}
+            {canUnmerge && <IconToggleButton icon={Grid2x2X} title={t.unmergeCells} onClick={onUnmerge} />}
           </>
         </OverflowToolbar.Item>
       )}
@@ -215,18 +221,18 @@ function TableCellBar({ item, tableEdit }) {
       <OverflowToolbar.Item>
         <>
           <ToolbarDivider />
-          <IconToggleButton icon={ArrowUpToLine} title="Insert row above" onClick={onInsertRowAbove} />
-          <IconToggleButton icon={ArrowDownToLine} title="Insert row below" onClick={onInsertRowBelow} />
-          <IconToggleButton icon={Rows3} title="Delete row" onClick={onDeleteRow} />
+          <IconToggleButton icon={ArrowUpToLine} title={t.insertRowAbove} onClick={onInsertRowAbove} />
+          <IconToggleButton icon={ArrowDownToLine} title={t.insertRowBelow} onClick={onInsertRowBelow} />
+          <IconToggleButton icon={Rows3} title={t.deleteRow} onClick={onDeleteRow} />
         </>
       </OverflowToolbar.Item>
 
       <OverflowToolbar.Item>
         <>
           <ToolbarDivider />
-          <IconToggleButton icon={Columns3} title="Insert column left" onClick={onInsertColLeft} />
-          <IconToggleButton icon={Trash2} title="Delete column" onClick={onDeleteColumn} />
-          <IconToggleButton icon={Columns3} title="Insert column right" onClick={onInsertColRight} />
+          <IconToggleButton icon={Columns3} title={t.insertColLeft} onClick={onInsertColLeft} />
+          <IconToggleButton icon={Trash2} title={t.deleteColumn} onClick={onDeleteColumn} />
+          <IconToggleButton icon={Columns3} title={t.insertColRight} onClick={onInsertColRight} />
         </>
       </OverflowToolbar.Item>
     </OverflowToolbar>

@@ -2,18 +2,22 @@ import React, { useMemo } from "react";
 import BrandModal from "./BrandModal";
 import { useBrandKits } from "../../brandKitContext";
 import { runBrandAudit, summarizeAuditForDisplay } from "../../brandAudit";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Read-only Brand Audit report (spec §64) — fixes are separate, explicit,
 // confirmed actions (spec §65); this dialog surfaces findings and lets the
 // caller decide what to apply through the normal commit()/history path.
 export default function BrandAuditDialog({ isOpen, onClose, items, pages, onSelectUsages }) {
   const { activeBrandKit } = useBrandKits();
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].brandAudit;
   const findings = useMemo(() => (isOpen ? runBrandAudit({ items, pages }, activeBrandKit) : null), [isOpen, items, pages, activeBrandKit]);
   const summary = findings ? summarizeAuditForDisplay(findings) : [];
 
   return (
-    <BrandModal isOpen={isOpen} onClose={onClose} title="Brand audit" subtitle="Advisory only — not a legal or official compliance check." width="max-w-xl">
-      {!activeBrandKit && <p className="mb-3 text-xs text-amber-600">No active brand kit — showing document color/font usage only.</p>}
+    <BrandModal isOpen={isOpen} onClose={onClose} title={t.title} subtitle={t.subtitle} width="max-w-xl">
+      {!activeBrandKit && <p className="mb-3 text-xs text-amber-600">{t.noActiveBrandKit}</p>}
 
       <div className="mb-3 grid grid-cols-2 gap-2">
         {summary.map((row) => (
@@ -28,15 +32,15 @@ export default function BrandAuditDialog({ isOpen, onClose, items, pages, onSele
         <div className="space-y-3 text-sm">
           {findings.missingFonts.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Missing fonts</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.missingFonts}</p>
               <ul className="space-y-0.5 text-xs text-gray-600">
-                {findings.missingFonts.map((f) => <li key={f.fontFamily}>{f.fontFamily} ({f.count} object(s))</li>)}
+                {findings.missingFonts.map((f) => <li key={f.fontFamily}>{f.fontFamily} {t.objectCount(f.count)}</li>)}
               </ul>
             </div>
           )}
           {findings.nonBrandColors.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Non-brand colors</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.nonBrandColors}</p>
               <div className="flex flex-wrap gap-1.5">
                 {findings.nonBrandColors.slice(0, 16).map((c) => (
                   <span key={c.hex} className="flex items-center gap-1 rounded-lg border border-gray-200 px-1.5 py-0.5 text-[11px]">
@@ -48,13 +52,13 @@ export default function BrandAuditDialog({ isOpen, onClose, items, pages, onSele
           )}
           {findings.contrastWarnings.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Low contrast text</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.lowContrastText}</p>
               <ul className="space-y-0.5 text-xs text-gray-600">
                 {findings.contrastWarnings.slice(0, 10).map((w) => (
                   <li key={w.itemId} className="flex items-center justify-between">
-                    <span>Ratio {w.ratio}:1 — {w.foreground} on {w.background}</span>
+                    <span>{t.ratioLabel(w)}</span>
                     {onSelectUsages && (
-                      <button className="text-amber-600 hover:underline" onClick={() => onSelectUsages(w.pageId, [w.itemId])}>Select</button>
+                      <button className="text-amber-600 hover:underline" onClick={() => onSelectUsages(w.pageId, [w.itemId])}>{t.select}</button>
                     )}
                   </li>
                 ))}
@@ -63,13 +67,13 @@ export default function BrandAuditDialog({ isOpen, onClose, items, pages, onSele
           )}
           {findings.stretchedLogos.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Stretched logos</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.stretchedLogos}</p>
               <ul className="space-y-0.5 text-xs text-gray-600">
                 {findings.stretchedLogos.map((w) => (
                   <li key={w.itemId} className="flex items-center justify-between">
-                    <span>Expected ratio {w.expectedRatio.toFixed(2)}, actual {w.actualRatio.toFixed(2)}</span>
+                    <span>{t.expectedActualRatio(w)}</span>
                     {onSelectUsages && (
-                      <button className="text-amber-600 hover:underline" onClick={() => onSelectUsages(w.pageId, [w.itemId])}>Select</button>
+                      <button className="text-amber-600 hover:underline" onClick={() => onSelectUsages(w.pageId, [w.itemId])}>{t.select}</button>
                     )}
                   </li>
                 ))}
@@ -78,14 +82,14 @@ export default function BrandAuditDialog({ isOpen, onClose, items, pages, onSele
           )}
           {findings.lowResolutionLogos.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Low-resolution logos</p>
-              <p className="text-xs text-gray-600">{findings.lowResolutionLogos.length} logo instance(s) are displayed larger than their source resolution.</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.lowResolutionLogos}</p>
+              <p className="text-xs text-gray-600">{t.lowResolutionLogosCount(findings.lowResolutionLogos.length)}</p>
             </div>
           )}
           {findings.detachedStyles.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Detachable brand-matching text</p>
-              <p className="text-xs text-gray-600">{findings.detachedStyles.length} text object(s) match a brand typography style's values but aren't linked to it.</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.detachableBrandText}</p>
+              <p className="text-xs text-gray-600">{t.detachedStylesCount(findings.detachedStyles.length)}</p>
             </div>
           )}
         </div>

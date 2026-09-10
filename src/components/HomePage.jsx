@@ -2,8 +2,9 @@ import React, { useMemo, useState } from "react";
 import { LogOut, Plus, Search, Settings, User, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
-import { useTheme } from "../themeContext";
 import { useLanguage } from "../languageContext";
+import ThemeToggle from "./ThemeToggle";
+import LanguageToggle from "./LanguageToggle";
 import { useAuth } from "../authContext";
 import { STRINGS } from "../i18n";
 
@@ -28,8 +29,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
   const [customUnit, setCustomUnit] = useState("in");
   const [customWidth, setCustomWidth] = useState(11.25);
   const [customHeight, setCustomHeight] = useState(11.25);
-  const { language, setLanguage } = useLanguage();
-  const { theme, setTheme } = useTheme();
+  const { language } = useLanguage();
   const { user, signOut } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -85,50 +85,20 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
                   <button
                     className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
                     onClick={() => setSettingsOpen(false)}
-                    aria-label="Close settings"
+                    aria-label={c.closeSettings}
                   >
                     <X size={14} />
                   </button>
                 </div>
 
-                <div className="mb-3">
-                  <span className="mb-1.5 block text-xs font-medium text-gray-500">{c.language}</span>
-                  <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
-                    {[
-                      { key: "en", label: "English" },
-                      { key: "fr", label: "Français" },
-                    ].map((option) => (
-                      <button
-                        key={option.key}
-                        className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium ${
-                          language === option.key ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
-                        }`}
-                        onClick={() => setLanguage(option.key)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">{c.language}</span>
+                  <LanguageToggle />
                 </div>
 
-                <div>
-                  <span className="mb-1.5 block text-xs font-medium text-gray-500">{c.theme}</span>
-                  <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
-                    {[
-                      { key: "light", label: c.light },
-                      { key: "dark", label: c.dark },
-                    ].map((option) => (
-                      <button
-                        key={option.key}
-                        className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium ${
-                          theme === option.key ? "bg-amber-100 text-amber-700" : "text-gray-500 hover:bg-gray-50"
-                        }`}
-                        onClick={() => setTheme(option.key)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">{c.theme}</span>
+                  <ThemeToggle />
                 </div>
               </div>
             </>
@@ -202,7 +172,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
             <input
               type="number"
               min="1"
-              aria-label="Custom width"
+              aria-label={t.customWidth}
               className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
               value={customWidth}
               onChange={(event) => setCustomWidth(Number(event.target.value))}
@@ -211,13 +181,13 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
             <input
               type="number"
               min="1"
-              aria-label="Custom height"
+              aria-label={t.customHeight}
               className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
               value={customHeight}
               onChange={(event) => setCustomHeight(Number(event.target.value))}
             />
             <select
-              aria-label="Custom size unit"
+              aria-label={t.customSizeUnit}
               className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
               value={customUnit}
               onChange={(event) => changeUnit(event.target.value)}
@@ -248,7 +218,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
               <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
-                aria-label="Search templates"
+                aria-label={t.searchTemplates}
                 placeholder={t.searchPlaceholder}
                 className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-sm outline-none focus:border-amber-400"
                 value={query}

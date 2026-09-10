@@ -6,6 +6,8 @@ import {
   visibleFractionToItemLocal,
   screenPointToItemLocal,
 } from "../grabIt/grabItCoordinates";
+import { useLanguage } from "../languageContext";
+import { STATUS_BAR_STRINGS } from "../i18n/statusBarAndMenus";
 
 // Grab It's on-canvas DOM overlay — modeled directly on FadeOverlay.jsx's
 // "DOM sibling positioned via contentToScreen + CSS rotate, so it naturally
@@ -19,6 +21,8 @@ import {
 // current pointer position and detected regions to decide what to
 // highlight/extract.
 export default function GrabItOverlay({ item, viewport, scale, regions, detectionMeta, hoveredRegionId, onHoverChange, showAllRegions, isDetecting, onPick }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].grabItOverlay;
   const wrapperRef = useRef(null);
   const [poppingId, setPoppingId] = useState(null);
 
@@ -152,7 +156,7 @@ export default function GrabItOverlay({ item, viewport, scale, regions, detectio
               boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
             }}
           >
-            Analyzing…
+            {t.analyzing}
           </span>
         </div>
       )}

@@ -1,26 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Clock, FileWarning, X } from "lucide-react";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
-function formatTimestamp(ts) {
-  if (!ts) return "Unknown time";
+function formatTimestamp(ts, t) {
+  if (!ts) return t.unknownTime;
   const diff = Date.now() - ts;
   const date = new Date(ts);
   const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  if (diff < 24 * 60 * 60 * 1000 && date.getDate() === new Date().getDate()) return `Today at ${time}`;
+  if (diff < 24 * 60 * 60 * 1000 && date.getDate() === new Date().getDate()) return t.todayAt(time);
   return `${date.toLocaleDateString()} at ${time}`;
 }
-
-const REASON_LABELS = {
-  "periodic-dirty": "unsaved work was backed up automatically",
-  "save-failure": "the last normal save didn't succeed",
-  "before-migration": "a project update was about to run",
-  "before-replacement": "a project replacement was about to happen",
-  "before-reset": "the project was about to be cleared",
-  "before-repair": "the project was about to be repaired",
-  "unload-preparation": "the editor closed before saving",
-  "manual-safety": "a manual safety snapshot was created",
-  "unclean-session": "the last editing session didn't close normally",
-};
 
 // Focused, accessible recovery prompt (Phase 7C) — modeled on
 // ResizeModal.jsx's overlay/panel convention. Shown at startup only when a
@@ -36,6 +26,19 @@ export default function RecoveryDialog({
   onDelete,
   onClose,
 }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].recoveryDialog;
+  const REASON_LABELS = {
+    "periodic-dirty": t.reasonPeriodicDirty,
+    "save-failure": t.reasonSaveFailure,
+    "before-migration": t.reasonBeforeMigration,
+    "before-replacement": t.reasonBeforeReplacement,
+    "before-reset": t.reasonBeforeReset,
+    "before-repair": t.reasonBeforeRepair,
+    "unload-preparation": t.reasonUnloadPreparation,
+    "manual-safety": t.reasonManualSafety,
+    "unclean-session": t.reasonUncleanSession,
+  };
   const [showDetails, setShowDetails] = useState(false);
   const primaryRef = useRef(null);
   const dialogRef = useRef(null);
@@ -73,7 +76,7 @@ export default function RecoveryDialog({
 
   if (!isOpen) return null;
 
-  const reasonText = REASON_LABELS[reason] || "unsaved work was found";
+  const reasonText = REASON_LABELS[reason] || t.reasonFallback;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation">
@@ -91,13 +94,13 @@ export default function RecoveryDialog({
           </div>
           <div className="flex-1">
             <h2 id="recovery-dialog-title" className="text-base font-semibold text-gray-900">
-              Unsaved work was found
+              {t.title}
             </h2>
             <p id="recovery-dialog-desc" className="mt-0.5 text-sm text-gray-500">
-              It looks like {reasonText}. You can recover it or keep your last saved version.
+              {t.description(reasonText)}
             </p>
           </div>
-          <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onOpenSaved} aria-label="Close and keep saved version">
+          <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100" onClick={onOpenSaved} aria-label={t.closeAria}>
             <X size={16} />
           </button>
         </div>
@@ -105,35 +108,34 @@ export default function RecoveryDialog({
         <div className="space-y-3 px-5 py-4 text-sm">
           <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
             <div>
-              <div className="font-medium text-amber-900">Recoverable work</div>
+              <div className="font-medium text-amber-900">{t.recoverableWork}</div>
               <div className="flex items-center gap-1 text-xs text-amber-600">
-                <Clock size={12} /> {formatTimestamp(recoverySummary?.createdAt)}
+                <Clock size={12} /> {formatTimestamp(recoverySummary?.createdAt, t)}
               </div>
             </div>
             <div className="text-right text-xs text-amber-700">
-              <div>{recoverySummary?.pageCount ?? "—"} pages</div>
-              <div>{recoverySummary?.objectCount ?? "—"} objects</div>
+              <div>{recoverySummary?.pageCount ?? "—"} {t.pagesSuffix}</div>
+              <div>{recoverySummary?.objectCount ?? "—"} {t.objectsSuffix}</div>
             </div>
           </div>
 
           <div className="flex items-center justify-between rounded-xl border border-gray-200 px-3.5 py-3">
             <div>
-              <div className="font-medium text-gray-700">Last saved version</div>
+              <div className="font-medium text-gray-700">{t.lastSavedVersion}</div>
               <div className="flex items-center gap-1 text-xs text-gray-400">
-                <Clock size={12} /> {savedSummary?.updatedAt ? formatTimestamp(savedSummary.updatedAt) : "Never saved"}
+                <Clock size={12} /> {savedSummary?.updatedAt ? formatTimestamp(savedSummary.updatedAt, t) : t.neverSaved}
               </div>
             </div>
             <div className="text-right text-xs text-gray-500">
-              <div>{savedSummary?.pageCount ?? "—"} pages</div>
-              <div>{savedSummary?.objectCount ?? "—"} objects</div>
+              <div>{savedSummary?.pageCount ?? "—"} {t.pagesSuffix}</div>
+              <div>{savedSummary?.objectCount ?? "—"} {t.objectsSuffix}</div>
             </div>
           </div>
 
           {recoverySummary?.missingAssetCount > 0 && (
             <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
               <FileWarning size={14} />
-              {recoverySummary.missingAssetCount} image{recoverySummary.missingAssetCount === 1 ? "" : "s"} referenced in this
-              recovery could not be found and will show as missing.
+              {t.missingAssetsNote(recoverySummary.missingAssetCount)}
             </div>
           )}
 
@@ -143,15 +145,15 @@ export default function RecoveryDialog({
             onClick={() => setShowDetails((v) => !v)}
             aria-expanded={showDetails}
           >
-            {showDetails ? "Hide details" : "View recovery details"}
+            {showDetails ? t.hideDetails : t.viewDetails}
           </button>
           {showDetails && (
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-              <dt>Referenced assets</dt>
+              <dt>{t.referencedAssets}</dt>
               <dd>{recoverySummary?.assetCount ?? 0}</dd>
-              <dt>Base save revision</dt>
+              <dt>{t.baseSaveRevision}</dt>
               <dd>{recoverySummary?.baseRevision ?? "—"}</dd>
-              <dt>Reason</dt>
+              <dt>{t.reason}</dt>
               <dd>{recoverySummary?.reason || "—"}</dd>
             </dl>
           )}
@@ -162,20 +164,20 @@ export default function RecoveryDialog({
             className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
             onClick={onDelete}
           >
-            Delete recovery
+            {t.deleteRecovery}
           </button>
           <button
             className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
             onClick={onOpenSaved}
           >
-            Open saved version
+            {t.openSavedVersion}
           </button>
           <button
             ref={primaryRef}
             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
             onClick={onRecover}
           >
-            Recover latest work
+            {t.recoverLatestWork}
           </button>
         </div>
       </div>

@@ -11,6 +11,8 @@ import {
   validateLayoutGridGeometry,
 } from "../precisionDefaults";
 import { SNAP_SENSITIVITY_PRESETS } from "../precisionPreferences";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 function Section({ title, children }) {
   return (
@@ -57,6 +59,8 @@ export default function PrecisionSettingsDialog({
   onUpdateBaselineGrid,
   onResetView,
 }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].precisionSettings;
   const dialogRef = useRef(null);
   const [layoutGridError, setLayoutGridError] = useState(null);
 
@@ -97,20 +101,20 @@ export default function PrecisionSettingsDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" role="presentation">
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="precision-settings-title" className="flex max-h-[88vh] w-full max-w-xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 id="precision-settings-title" className="text-base font-semibold text-gray-900">Precision settings</h2>
+          <h2 id="precision-settings-title" className="text-base font-semibold text-gray-900">{t.title}</h2>
           <div className="flex items-center gap-1">
-            <button className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100" onClick={onResetView} title="Reset precision view">
-              <RotateCcw size={12} /> Reset view
+            <button className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100" onClick={onResetView} title={t.resetViewTitle}>
+              <RotateCcw size={12} /> {t.resetView}
             </button>
-            <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close precision settings">
+            <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.closeAria}>
               <X size={18} />
             </button>
           </div>
         </div>
 
         <div className="overflow-y-auto">
-          <Section title="Units">
-            <Row label="Preferred unit">
+          <Section title={t.sectionUnits}>
+            <Row label={t.preferredUnit}>
               <select className={numInput} style={{ width: 96 }} value={prefs.defaultUnit} onChange={(event) => onUpdatePrefs({ defaultUnit: event.target.value })}>
                 {UNITS.map((u) => (
                   <option key={u.key} value={u.key}>{u.label}</option>
@@ -119,19 +123,19 @@ export default function PrecisionSettingsDialog({
             </Row>
           </Section>
 
-          <Section title="Rulers and guides">
-            <Toggle label="Show rulers" checked={prefs.showRulers} onChange={(v) => onUpdatePrefs({ showRulers: v })} />
-            <Toggle label="Snap to guides" checked={prefs.snapToGuides} onChange={(v) => onUpdatePrefs({ snapToGuides: v })} />
+          <Section title={t.sectionRulersGuides}>
+            <Toggle label={t.showRulers} checked={prefs.showRulers} onChange={(v) => onUpdatePrefs({ showRulers: v })} />
+            <Toggle label={t.snapToGuides} checked={prefs.snapToGuides} onChange={(v) => onUpdatePrefs({ snapToGuides: v })} />
           </Section>
 
-          <Section title="Smart snapping">
-            <Toggle label="Show smart guides" checked={prefs.showSmartGuides} onChange={(v) => onUpdatePrefs({ showSmartGuides: v })} />
-            <Toggle label="Snap to objects" checked={prefs.snapToObjects} onChange={(v) => onUpdatePrefs({ snapToObjects: v })} />
-            <Toggle label="Snap to page edges/center" checked={prefs.snapToPage} onChange={(v) => onUpdatePrefs({ snapToPage: v })} />
-            <Toggle label="Snap to margins" checked={prefs.snapToMargins} onChange={(v) => onUpdatePrefs({ snapToMargins: v })} />
-            <Toggle label="Snap to layout grid" checked={prefs.snapToLayoutGrid} onChange={(v) => onUpdatePrefs({ snapToLayoutGrid: v })} />
-            <Toggle label="Snap to equal spacing" checked={prefs.snapToEqualSpacing} onChange={(v) => onUpdatePrefs({ snapToEqualSpacing: v })} />
-            <Row label="Snap sensitivity">
+          <Section title={t.sectionSmartSnapping}>
+            <Toggle label={t.showSmartGuides} checked={prefs.showSmartGuides} onChange={(v) => onUpdatePrefs({ showSmartGuides: v })} />
+            <Toggle label={t.snapToObjects} checked={prefs.snapToObjects} onChange={(v) => onUpdatePrefs({ snapToObjects: v })} />
+            <Toggle label={t.snapToPageEdges} checked={prefs.snapToPage} onChange={(v) => onUpdatePrefs({ snapToPage: v })} />
+            <Toggle label={t.snapToMargins} checked={prefs.snapToMargins} onChange={(v) => onUpdatePrefs({ snapToMargins: v })} />
+            <Toggle label={t.snapToLayoutGrid} checked={prefs.snapToLayoutGrid} onChange={(v) => onUpdatePrefs({ snapToLayoutGrid: v })} />
+            <Toggle label={t.snapToEqualSpacing} checked={prefs.snapToEqualSpacing} onChange={(v) => onUpdatePrefs({ snapToEqualSpacing: v })} />
+            <Row label={t.snapSensitivity}>
               <select
                 className={numInput}
                 style={{ width: 110 }}
@@ -142,29 +146,29 @@ export default function PrecisionSettingsDialog({
                   onUpdatePrefs({ snapSensitivityKey: key, snapSensitivityPx: SNAP_SENSITIVITY_PRESETS[key] });
                 }}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="custom">Custom</option>
+                <option value="low">{t.low}</option>
+                <option value="medium">{t.medium}</option>
+                <option value="high">{t.high}</option>
+                <option value="custom">{t.custom}</option>
               </select>
             </Row>
             {Object.entries(SNAP_SENSITIVITY_PRESETS).every(([, v]) => v !== prefs.snapSensitivityPx) && (
-              <Row label="Custom sensitivity (px)">
+              <Row label={t.customSensitivity}>
                 <input type="number" min={1} max={60} className={numInput} value={prefs.snapSensitivityPx} onChange={(event) => onUpdatePrefs({ snapSensitivityPx: Number(event.target.value) })} />
               </Row>
             )}
           </Section>
 
-          <Section title="Grid (this page)">
-            <Row label="Type">
+          <Section title={t.sectionGrid}>
+            <Row label={t.type}>
               <select className={numInput} style={{ width: 96 }} value={grid.type} onChange={(event) => onUpdateGrid({ type: event.target.value })}>
-                <option value="square">Square</option>
-                <option value="dot">Dot</option>
+                <option value="square">{t.square}</option>
+                <option value="dot">{t.dot}</option>
               </select>
             </Row>
-            <Toggle label="Show grid" checked={grid.visible} onChange={(v) => onUpdateGrid({ visible: v })} />
-            <Toggle label="Snap to grid" checked={grid.snap} onChange={(v) => onUpdateGrid({ snap: v })} />
-            <Row label="Spacing preset">
+            <Toggle label={t.showGrid} checked={grid.visible} onChange={(v) => onUpdateGrid({ visible: v })} />
+            <Toggle label={t.snapToGrid} checked={grid.snap} onChange={(v) => onUpdateGrid({ snap: v })} />
+            <Row label={t.spacingPreset}>
               <select
                 className={numInput}
                 style={{ width: 96 }}
@@ -174,40 +178,40 @@ export default function PrecisionSettingsDialog({
                   if (v) onUpdateGrid({ spacingX: v, spacingY: v });
                 }}
               >
-                <option value="">Custom</option>
+                <option value="">{t.customOption}</option>
                 {GRID_SPACING_PRESETS.map((p) => (
                   <option key={p} value={p}>{p}px</option>
                 ))}
               </select>
             </Row>
-            <Row label="Spacing X / Y (px)">
+            <Row label={t.spacingXY}>
               <span className="flex gap-1.5">
                 <input type="number" min={1} className={numInput} style={{ width: 64 }} value={grid.spacingX} onChange={(event) => onUpdateGrid({ spacingX: Number(event.target.value), spacingY: grid.equalSpacing ? Number(event.target.value) : grid.spacingY })} />
                 <input type="number" min={1} className={numInput} style={{ width: 64 }} value={grid.spacingY} disabled={grid.equalSpacing} onChange={(event) => onUpdateGrid({ spacingY: Number(event.target.value) })} />
               </span>
             </Row>
-            <Toggle label="Lock equal X/Y spacing" checked={grid.equalSpacing} onChange={(v) => onUpdateGrid({ equalSpacing: v, spacingY: v ? grid.spacingX : grid.spacingY })} />
-            <Row label="Offset X / Y (px)">
+            <Toggle label={t.lockEqualSpacing} checked={grid.equalSpacing} onChange={(v) => onUpdateGrid({ equalSpacing: v, spacingY: v ? grid.spacingX : grid.spacingY })} />
+            <Row label={t.offsetXY}>
               <span className="flex gap-1.5">
                 <input type="number" className={numInput} style={{ width: 64 }} value={grid.offsetX} onChange={(event) => onUpdateGrid({ offsetX: Number(event.target.value) })} />
                 <input type="number" className={numInput} style={{ width: 64 }} value={grid.offsetY} onChange={(event) => onUpdateGrid({ offsetY: Number(event.target.value) })} />
               </span>
             </Row>
-            <Row label="Subdivisions">
+            <Row label={t.subdivisions}>
               <input type="number" min={1} max={20} className={numInput} value={grid.subdivisions} onChange={(event) => onUpdateGrid({ subdivisions: Number(event.target.value) })} />
             </Row>
-            <Row label="Major line every N">
+            <Row label={t.majorLineEvery}>
               <input type="number" min={1} max={50} className={numInput} value={grid.majorInterval} onChange={(event) => onUpdateGrid({ majorInterval: Number(event.target.value) })} />
             </Row>
-            <Row label="Opacity">
+            <Row label={t.opacity}>
               <input type="range" min={0.1} max={1} step={0.05} value={grid.opacity} onChange={(event) => onUpdateGrid({ opacity: Number(event.target.value) })} />
             </Row>
           </Section>
 
-          <Section title="Margins (this page)">
-            <Toggle label="Show margins" checked={margins.visible} onChange={(v) => onUpdateMargins({ visible: v })} />
-            <Toggle label="Snap to margins" checked={margins.snap} onChange={(v) => onUpdateMargins({ snap: v })} />
-            <Row label="Preset">
+          <Section title={t.sectionMargins}>
+            <Toggle label={t.showMargins} checked={margins.visible} onChange={(v) => onUpdateMargins({ visible: v })} />
+            <Toggle label={t.snapToMargins} checked={margins.snap} onChange={(v) => onUpdateMargins({ snap: v })} />
+            <Row label={t.preset}>
               <select
                 className={numInput}
                 style={{ width: 110 }}
@@ -220,11 +224,11 @@ export default function PrecisionSettingsDialog({
                 {Object.keys(MARGIN_PRESETS).map((key) => (
                   <option key={key} value={key}>{key}</option>
                 ))}
-                <option value="custom">custom</option>
+                <option value="custom">{t.customLower}</option>
               </select>
             </Row>
-            <Toggle label="Link all sides" checked={margins.linked} onChange={(v) => onUpdateMargins({ linked: v })} />
-            <Row label="Top / Right / Bottom / Left (px)">
+            <Toggle label={t.linkAllSides} checked={margins.linked} onChange={(v) => onUpdateMargins({ linked: v })} />
+            <Row label={t.marginSides}>
               <span className="flex gap-1">
                 {["top", "right", "bottom", "left"].map((side) => (
                   <input
@@ -245,9 +249,9 @@ export default function PrecisionSettingsDialog({
             </Row>
           </Section>
 
-          <Section title="Safe area">
-            <Toggle label="Show safe area" checked={safeArea.visible} onChange={(v) => onUpdateSafeArea({ visible: v })} />
-            <Row label="Preset">
+          <Section title={t.sectionSafeArea}>
+            <Toggle label={t.showSafeArea} checked={safeArea.visible} onChange={(v) => onUpdateSafeArea({ visible: v })} />
+            <Row label={t.preset}>
               <select
                 className={numInput}
                 style={{ width: 170 }}
@@ -264,17 +268,17 @@ export default function PrecisionSettingsDialog({
             </Row>
           </Section>
 
-          <Section title="Bleed preview">
-            <Toggle label="Show bleed" checked={bleed.visible} onChange={(v) => onUpdateBleed({ visible: v })} />
-            <Row label="Bleed size (px)">
+          <Section title={t.sectionBleedPreview}>
+            <Toggle label={t.showBleed} checked={bleed.visible} onChange={(v) => onUpdateBleed({ visible: v })} />
+            <Row label={t.bleedSize}>
               <input type="number" min={0} className={numInput} value={bleed.sizePx} onChange={(event) => onUpdateBleed({ sizePx: Number(event.target.value), preset: "custom" })} />
             </Row>
           </Section>
 
-          <Section title="Columns and rows">
-            <Toggle label="Show layout grid" checked={layoutGrid.visible} onChange={(v) => onUpdateLayoutGrid({ visible: v })} />
-            <Toggle label="Snap to layout grid" checked={layoutGrid.snap} onChange={(v) => onUpdateLayoutGrid({ snap: v })} />
-            <Row label="Preset">
+          <Section title={t.sectionColumnsRows}>
+            <Toggle label={t.showLayoutGrid} checked={layoutGrid.visible} onChange={(v) => onUpdateLayoutGrid({ visible: v })} />
+            <Toggle label={t.snapToLayoutGrid} checked={layoutGrid.snap} onChange={(v) => onUpdateLayoutGrid({ snap: v })} />
+            <Row label={t.preset}>
               <select
                 className={numInput}
                 style={{ width: 170 }}
@@ -285,56 +289,56 @@ export default function PrecisionSettingsDialog({
                   event.target.value = "";
                 }}
               >
-                <option value="" disabled>Choose preset…</option>
+                <option value="" disabled>{t.choosePreset}</option>
                 {LAYOUT_GRID_PRESETS.map((p) => (
                   <option key={p.key} value={p.key}>{p.label}</option>
                 ))}
               </select>
             </Row>
-            <Row label={`Columns (0-${MAX_COLUMNS})`}>
+            <Row label={t.columns(MAX_COLUMNS)}>
               <input type="number" min={0} max={MAX_COLUMNS} className={numInput} value={layoutGrid.columns} onChange={(event) => applyLayoutGridChange({ columns: Number(event.target.value) })} />
             </Row>
-            <Row label={`Rows (0-${MAX_ROWS})`}>
+            <Row label={t.rows(MAX_ROWS)}>
               <input type="number" min={0} max={MAX_ROWS} className={numInput} value={layoutGrid.rows} onChange={(event) => applyLayoutGridChange({ rows: Number(event.target.value) })} />
             </Row>
-            <Row label="Gutter (px)">
+            <Row label={t.gutter}>
               <input type="number" min={0} className={numInput} value={layoutGrid.gutter} onChange={(event) => applyLayoutGridChange({ gutter: Number(event.target.value) })} />
             </Row>
             {layoutGridError && <p className="text-xs text-red-600" role="alert">{layoutGridError}</p>}
           </Section>
 
-          <Section title="Baseline grid">
-            <Toggle label="Show baseline grid" checked={baselineGrid.visible} onChange={(v) => onUpdateBaselineGrid({ visible: v })} />
-            <Toggle label="Snap text to baseline" checked={baselineGrid.snap} onChange={(v) => onUpdateBaselineGrid({ snap: v })} />
-            <Row label="Baseline spacing (px)">
+          <Section title={t.sectionBaselineGrid}>
+            <Toggle label={t.showBaselineGrid} checked={baselineGrid.visible} onChange={(v) => onUpdateBaselineGrid({ visible: v })} />
+            <Toggle label={t.snapTextToBaseline} checked={baselineGrid.snap} onChange={(v) => onUpdateBaselineGrid({ snap: v })} />
+            <Row label={t.baselineSpacing}>
               <input type="number" min={1} className={numInput} value={baselineGrid.spacing} onChange={(event) => onUpdateBaselineGrid({ spacing: Number(event.target.value) })} />
             </Row>
-            <Row label="Offset (px)">
+            <Row label={t.offset}>
               <input type="number" className={numInput} value={baselineGrid.offset} onChange={(event) => onUpdateBaselineGrid({ offset: Number(event.target.value) })} />
             </Row>
-            <p className="text-xs text-gray-400">Baseline snapping applies to a text box's top position only — it does not rewrite internal line-height layout.</p>
+            <p className="text-xs text-gray-400">{t.baselineNote}</p>
           </Section>
 
-          <Section title="Keyboard">
-            <Row label="Standard nudge (px)">
+          <Section title={t.sectionKeyboard}>
+            <Row label={t.standardNudge}>
               <input type="number" min={0.01} className={numInput} value={prefs.nudgeStandard} onChange={(event) => onUpdatePrefs({ nudgeStandard: Number(event.target.value) })} />
             </Row>
-            <Row label="Large nudge — Shift (px)">
+            <Row label={t.largeNudge}>
               <input type="number" min={0.01} className={numInput} value={prefs.nudgeLarge} onChange={(event) => onUpdatePrefs({ nudgeLarge: Number(event.target.value) })} />
             </Row>
-            <Row label="Fine nudge — Alt (px)">
+            <Row label={t.fineNudge}>
               <input type="number" min={0.001} step={0.01} className={numInput} value={prefs.nudgeFine} onChange={(event) => onUpdatePrefs({ nudgeFine: Number(event.target.value) })} />
             </Row>
           </Section>
 
-          <Section title="Measurements">
-            <Toggle label="Show distance labels while dragging" checked={prefs.showMeasurementLabels} onChange={(v) => onUpdatePrefs({ showMeasurementLabels: v })} />
+          <Section title={t.sectionMeasurements}>
+            <Toggle label={t.showMeasurementLabels} checked={prefs.showMeasurementLabels} onChange={(v) => onUpdatePrefs({ showMeasurementLabels: v })} />
           </Section>
         </div>
 
         <div className="flex justify-end border-t border-gray-200 px-5 py-3">
           <button className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={onClose}>
-            Done
+            {t.done}
           </button>
         </div>
       </div>

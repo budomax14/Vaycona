@@ -2,6 +2,8 @@ import React, { useRef } from "react";
 import { Plus } from "lucide-react";
 import { contentToScreen } from "../viewport";
 import { computeTableLayout, normalizeRange, MIN_COL_WIDTH, MIN_ROW_HEIGHT } from "../tableUtils";
+import { useLanguage } from "../languageContext";
+import { STATUS_BAR_STRINGS } from "../i18n/statusBarAndMenus";
 
 // DOM overlay providing every cell-level interaction while a table is in
 // edit mode (spec §5–§9/§43) — same architectural slot LineEndpointHandles
@@ -22,6 +24,8 @@ export default function TableEditChrome({
   onAddRow,
   onAddColumn,
 }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].tableEditChrome;
   const dragRef = useRef(null);
   const layout = computeTableLayout(item);
   const origin = contentToScreen({ x: item.x, y: item.y }, viewport);
@@ -202,7 +206,7 @@ export default function TableEditChrome({
       <button
         type="button"
         data-text-toolbar-safe
-        title="Add row"
+        title={t.addRow}
         onClick={() => onAddRow(item.rows)}
         className="pointer-events-auto absolute flex h-5 w-5 items-center justify-center rounded-full border border-amber-400 bg-white text-amber-600 shadow hover:bg-amber-50"
         style={{
@@ -216,7 +220,7 @@ export default function TableEditChrome({
       <button
         type="button"
         data-text-toolbar-safe
-        title="Add column"
+        title={t.addColumn}
         onClick={() => onAddColumn(item.columns)}
         className="pointer-events-auto absolute flex h-5 w-5 items-center justify-center rounded-full border border-amber-400 bg-white text-amber-600 shadow hover:bg-amber-50"
         style={{

@@ -3,6 +3,8 @@ import { ColorField, SliderField, ToolbarDivider } from "./toolbarUi";
 import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import ObjectMoreMenu from "./ObjectMoreMenu";
 import ObjectStylePicker from "./ObjectStylePicker";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 export default function IconPropertiesBar({
   item,
@@ -20,11 +22,13 @@ export default function IconPropertiesBar({
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].icon;
   return (
     <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
       <OverflowToolbar.Item keepOnMobile>
         <ColorField
-          label="Color"
+          label={t.color}
           value={item.fill || "#111827"}
           onChange={(value) => onChange({ fill: value })}
           {...(brand ? brand.colorField("fill") : {})}
@@ -41,7 +45,7 @@ export default function IconPropertiesBar({
         <>
           <ToolbarDivider />
           <SliderField
-            label="Opacity"
+            label={t.opacity}
             value={item.opacity ?? 1}
             min={0.1}
             max={1}

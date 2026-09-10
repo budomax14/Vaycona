@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
+import { Group, Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import DesignNode from "./DesignNode";
 import CanvasOverlays from "./CanvasOverlays";
 import ContextMenu from "./ContextMenu";
@@ -8,8 +8,11 @@ import RotationIndicator from "./components/RotationIndicator";
 import TopNavBar from "./components/TopNavBar";
 import PropertiesToolbar from "./components/PropertiesToolbar/PropertiesToolbar";
 import LeftSidebar, { SECTIONS } from "./components/LeftSidebar/LeftSidebar";
+import { useLanguage } from "./languageContext";
+import { PANEL_STRINGS } from "./i18n/panels";
 import UploadsPanel from "./components/LeftSidebar/panels/UploadsPanel";
 import TextPanel from "./components/LeftSidebar/panels/TextPanel";
+import BrushPanel from "./components/LeftSidebar/panels/BrushPanel";
 import ChartPanel from "./components/LeftSidebar/panels/ChartPanel";
 import TablePanel from "./components/LeftSidebar/panels/TablePanel";
 import BackgroundsPanel from "./components/LeftSidebar/panels/BackgroundsPanel";
@@ -699,6 +702,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // of App), so it's safe to consume it here directly.
   const { activeBrandKit, activeBrandKitId, refresh: refreshBrandKits } = useBrandKits();
   const { tier: subscriptionTier, canEdit, isTrialing, currentPeriodEnd } = useSubscription();
+  const { language } = useLanguage();
 
   // Mirrors the itemsRef/pagesRef pattern below: several handlers that
   // consult this were memoized with empty dep arrays at mount, so a plain
@@ -924,6 +928,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [isBusinessInfoOpen, setIsBusinessInfoOpen] = useState(false);
   const [editingChartId, setEditingChartId] = useState(null);
+  const [chartStyleOpenRequest, setChartStyleOpenRequest] = useState(0);
 
   // Table cell-edit mode — parallel in shape to editingTextId/croppingItemId
   // above: the table stays selected (selectedIds still holds its id) while
@@ -947,6 +952,21 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // separately inside Workspace.jsx, since it's fully self-contained there.
   const [interactionMode, setInteractionMode] = useState("idle");
   const [rotationAngle, setRotationAngle] = useState(0);
+
+  // Brush tool state. Active only while activeSidebarSection === "brush"
+  // (see handleStageMouseDown) — draw/erase are a continuous canvas mode,
+  // not a one-shot "add" like the other panels, so they don't live in the
+  // items array until a stroke/erase gesture actually finishes.
+  const [brushColor, setBrushColor] = useState("#111827");
+  const [brushSize, setBrushSize] = useState(8);
+  const [brushMode, setBrushMode] = useState("draw"); // "draw" | "erase"
+  const [liveStroke, setLiveStroke] = useState(null); // { points: [x1,y1,x2,y2,...] } while drawing
+  const [erasePreviewIds, setErasePreviewIds] = useState(() => new Set()); // hidden immediately, deleted on release
+  const [isEyedropperActive, setIsEyedropperActive] = useState(false);
+  const brushDrawingRef = useRef(false);
+  const brushPointsRef = useRef([]);
+  const eraseDrawingRef = useRef(false);
+  const pendingEraseIdsRef = useRef(new Set());
 
   const [guides, setGuides] = useState(initialWorkspace.guides);
   const [snapToGuides, setSnapToGuides] = useState(initialWorkspace.snapToGuides);
@@ -1002,6 +1022,22 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [contextMenu, setContextMenu] = useState(null);
 
   const [activeSidebarSection, setActiveSidebarSection] = useState(null);
+
+  // Leaving the brush panel mid-gesture (clicking another sidebar section,
+  // undo/redo, etc.) should abandon whatever in-progress stroke/erase was
+  // live rather than leave it stuck — nothing has been committed yet at
+  // this point, so there's nothing to finalize, just clear the preview.
+  useEffect(() => {
+    if (activeSidebarSection === "brush") return;
+    brushDrawingRef.current = false;
+    brushPointsRef.current = [];
+    setLiveStroke(null);
+    eraseDrawingRef.current = false;
+    pendingEraseIdsRef.current = new Set();
+    setErasePreviewIds(new Set());
+    setIsEyedropperActive(false);
+  }, [activeSidebarSection]);
+
   const breakpoint = useBreakpoint();
   const { isCompact } = breakpoint;
   const { hasCoarsePointer } = usePointerCapability();
@@ -2995,11 +3031,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function addText(presetKey = "heading") {
     const preset = getPresetByKey(presetKey) || getPresetByKey("heading");
+    const presetText = PANEL_STRINGS[language].text.presets[preset.key]?.text ?? preset.text;
     addItem({
       type: "text",
       ...getDefaultProps("text"),
       ...centerPositionFor(preset.width, preset.height),
-      text: preset.text,
+      text: presetText,
       width: preset.width,
       height: preset.height,
       fontSize: preset.fontSize,
@@ -3262,6 +3299,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
     else if (item?.type === "frame" && item.contentAssetId && !isEffectivelyLocked(item, itemsById)) enterCropMode(itemId);
     else if (item?.type === "shape" && item.fillImage?.assetId && !isEffectivelyLocked(item, itemsById)) enterImageFillEditMode(itemId);
     else if (item?.type === "table" && !isEffectivelyLocked(item, itemsById)) enterTableEditMode(itemId);
+    else if (item?.type === "chart" && !isEffectivelyLocked(item, itemsById)) enterChartStyleMode(itemId);
+  }
+
+  function enterChartStyleMode(itemId) {
+    setSelectedIds([itemId]);
+    setChartStyleOpenRequest((n) => n + 1);
   }
 
   // --- Inline text editing (Phase 4) ---
@@ -5363,6 +5406,145 @@ export default function App({ editorMode = "workspace", templateSession = null }
     }
   }
 
+  // Distance from point p to segment a-b, in content-space units — used to
+  // hit-test the eraser against a brush stroke's polyline.
+  function distanceToSegment(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lengthSq = dx * dx + dy * dy;
+    if (lengthSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+  }
+
+  function eraserHitsBrushItem(item, point, radius) {
+    const pts = item.points || [];
+    const hitRadius = radius + (item.strokeWidth || 8) / 2;
+    if (pts.length < 4) {
+      if (pts.length < 2) return false;
+      return Math.hypot(point.x - (item.x + pts[0]), point.y - (item.y + pts[1])) <= hitRadius;
+    }
+    for (let i = 0; i < pts.length - 2; i += 2) {
+      const a = { x: item.x + pts[i], y: item.y + pts[i + 1] };
+      const b = { x: item.x + pts[i + 2], y: item.y + pts[i + 3] };
+      if (distanceToSegment(point, a, b) <= hitRadius) return true;
+    }
+    return false;
+  }
+
+  // Called on every pointer move while erasing — marks touched strokes as
+  // "pending erase" immediately (erasePreviewIds hides them from render
+  // right away) but doesn't delete anything until the gesture ends
+  // (finalizeErase), matching the single-commit-per-gesture pattern used
+  // elsewhere (commitCropGesture etc.) so a whole erase drag is one undo step.
+  function handleEraseMove(pointer) {
+    const radius = brushSize / 2 + 6;
+    let changed = false;
+    for (const item of itemsRef.current) {
+      if (item.type !== "brush" || item.pageId !== activePageId) continue;
+      if (pendingEraseIdsRef.current.has(item.id)) continue;
+      if (eraserHitsBrushItem(item, pointer, radius)) {
+        pendingEraseIdsRef.current.add(item.id);
+        changed = true;
+      }
+    }
+    if (changed) setErasePreviewIds(new Set(pendingEraseIdsRef.current));
+  }
+
+  function finalizeErase() {
+    const ids = Array.from(pendingEraseIdsRef.current);
+    pendingEraseIdsRef.current = new Set();
+    setErasePreviewIds(new Set());
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    commit(itemsRef.current.filter((item) => !idSet.has(item.id)), {
+      type: "delete-object",
+      label: ids.length > 1 ? `Erase ${ids.length} drawings` : "Erase drawing",
+      itemIds: ids,
+    });
+    setSelectedIds((prev) => prev.filter((id) => !idSet.has(id)));
+  }
+
+  function finalizeBrushStroke() {
+    const rawPoints = brushPointsRef.current;
+    brushPointsRef.current = [];
+    setLiveStroke(null);
+    if (!rawPoints || rawPoints.length < 2) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < rawPoints.length; i += 2) {
+      const x = rawPoints[i];
+      const y = rawPoints[i + 1];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const relativePoints = [];
+    for (let i = 0; i < rawPoints.length; i += 2) {
+      relativePoints.push(rawPoints[i] - minX, rawPoints[i + 1] - minY);
+    }
+
+    addItem(
+      {
+        type: "brush",
+        x: minX,
+        y: minY,
+        width: Math.max(1, maxX - minX),
+        height: Math.max(1, maxY - minY),
+        ...getDefaultProps("brush"),
+        points: relativePoints,
+        stroke: brushColor,
+        strokeWidth: brushSize,
+      },
+      "Add drawing"
+    );
+  }
+
+  // Native EyeDropper (Chromium) samples the whole screen with the OS's own
+  // picker UI — simplest and most accurate path where it exists. Elsewhere,
+  // fall back to a click-to-sample mode: the next canvas click reads a
+  // single pixel back off the rendered Stage (handleEyedropperPick below),
+  // which works for any object type (image/gradient/text/shape) since it
+  // samples the actual composited output, not per-object color fields.
+  async function activateEyedropper() {
+    if (typeof window !== "undefined" && window.EyeDropper) {
+      try {
+        const eyeDropper = new window.EyeDropper();
+        const result = await eyeDropper.open();
+        if (result?.sRGBHex) setBrushColor(result.sRGBHex);
+      } catch {
+        // User cancelled (Escape/click-away) — no-op.
+      }
+      return;
+    }
+    setIsEyedropperActive(true);
+  }
+
+  function handleEyedropperPick(event) {
+    event?.evt?.preventDefault?.();
+    setIsEyedropperActive(false);
+    const stage = stageRef.current;
+    if (!stage) return;
+    try {
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+      const canvas = stage.toCanvas({ pixelRatio: 1 });
+      const ctx = canvas.getContext("2d");
+      const { data } = ctx.getImageData(Math.round(pos.x), Math.round(pos.y), 1, 1);
+      if (data[3] === 0) return; // transparent — nothing to pick there
+      const hex = "#" + [data[0], data[1], data[2]].map((c) => c.toString(16).padStart(2, "0")).join("");
+      setBrushColor(hex);
+    } catch {
+      setStatus("Couldn't pick that color.");
+      window.setTimeout(() => setStatus(""), 3000);
+    }
+  }
+
   function isEmptyClickTarget(event) {
     const clickedEmpty = event.target === event.target.getStage();
     const clickedBackground = event.target.name() === "canvas-background";
@@ -5373,6 +5555,26 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (workspaceRef.current?.isGestureActive?.()) return;
     setContextMenu(null);
     if (isSpaceDown || event.evt.button === 1) return;
+
+    if (isEyedropperActive) {
+      handleEyedropperPick(event);
+      return;
+    }
+
+    if (activeSidebarSection === "brush") {
+      const pointer = stageRef.current.getRelativePointerPosition();
+      if (!pointer) return;
+      if (brushMode === "erase") {
+        eraseDrawingRef.current = true;
+        handleEraseMove(pointer);
+      } else {
+        brushDrawingRef.current = true;
+        brushPointsRef.current = [pointer.x, pointer.y];
+        setLiveStroke({ points: brushPointsRef.current });
+      }
+      return;
+    }
+
     if (!isEmptyClickTarget(event)) return;
     if (editingTableIdRef.current) exitTableEditMode();
 
@@ -5408,6 +5610,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const pointer = stage.getRelativePointerPosition();
     if (pointer) setCursorPos(pointer);
 
+    if (pointer && brushDrawingRef.current) {
+      brushPointsRef.current = [...brushPointsRef.current, pointer.x, pointer.y];
+      setLiveStroke({ points: brushPointsRef.current });
+    }
+    if (pointer && eraseDrawingRef.current) {
+      handleEraseMove(pointer);
+    }
+
     if (emptyLongPressTimerRef.current && emptyLongPressStartRef.current) {
       const dx = event.evt.clientX - emptyLongPressStartRef.current.clientX;
       const dy = event.evt.clientY - emptyLongPressStartRef.current.clientY;
@@ -5429,6 +5639,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function handleStageMouseUp() {
+    if (brushDrawingRef.current) {
+      brushDrawingRef.current = false;
+      finalizeBrushStroke();
+    }
+    if (eraseDrawingRef.current) {
+      eraseDrawingRef.current = false;
+      finalizeErase();
+    }
+
     if (emptyLongPressTimerRef.current) {
       clearTimeout(emptyLongPressTimerRef.current);
       emptyLongPressTimerRef.current = null;
@@ -6820,6 +7039,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
               height: konvaHeight,
               transform: `scale(${displayScale})`,
               transformOrigin: "top left",
+              cursor:
+                activeSidebarSection === "brush"
+                  ? brushMode === "erase"
+                    ? "cell"
+                    : "crosshair"
+                  : isEyedropperActive
+                    ? "crosshair"
+                    : undefined,
             }}
           >
             <div
@@ -6862,14 +7089,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     registerNode/nodesMapRef. */}
                 <Group name="page-clip-group" clipX={0} clipY={0} clipWidth={page.width} clipHeight={page.height}>
                   {displayPageItems
-                    .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById) && !unclippedRenderIds.has(item.id))
+                    .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById) && !unclippedRenderIds.has(item.id) && !erasePreviewIds.has(item.id))
                     .map((item) => (
                       <DesignNode
                         key={item.id}
                         item={item}
                         isSpaceDown={isSpaceDown || isPreviewPlaying}
                         isEditingText={editingTextId === item.id}
-                        isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById)}
+                        isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById) || activeSidebarSection === "brush"}
                         onSelect={handleSelect}
                         onContextMenu={handleItemContextMenu}
                         onDragStart={onItemDragStart}
@@ -6882,14 +7109,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     ))}
                 </Group>
                 {displayPageItems
-                  .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById) && unclippedRenderIds.has(item.id))
+                  .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById) && unclippedRenderIds.has(item.id) && !erasePreviewIds.has(item.id))
                   .map((item) => (
                     <DesignNode
                       key={item.id}
                       item={item}
                       isSpaceDown={isSpaceDown || isPreviewPlaying}
                       isEditingText={editingTextId === item.id}
-                      isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById)}
+                      isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById) || activeSidebarSection === "brush"}
                       onSelect={handleSelect}
                       onContextMenu={handleItemContextMenu}
                       onDragStart={onItemDragStart}
@@ -6900,6 +7127,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
                       registerNode={registerNode}
                     />
                   ))}
+                {liveStroke && (
+                  <Line
+                    points={liveStroke.points}
+                    stroke={brushColor}
+                    strokeWidth={brushSize}
+                    lineCap="round"
+                    lineJoin="round"
+                    tension={0.3}
+                    listening={false}
+                  />
+                )}
                 {activePage?.border?.enabled && (
                   <Rect
                     name="canvas-border"
@@ -7126,6 +7364,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     key={editingTextId}
                     ref={overlayRef}
                     item={editingItem}
+                    flexibleMaxWidth={textIsFlexibleBox(editingItem) ? availableTextWidth(editingItem) : null}
                     viewport={KONVA_VIEWPORT}
                     liveScale={scale}
                     initialClientPoint={pendingCaretPointRef.current}
@@ -7463,6 +7702,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onEditText={enterTextEdit}
         onExitTextEdit={exitTextEdit}
         onEditChartData={setEditingChartId}
+        chartStyleOpenRequest={chartStyleOpenRequest}
         tableEdit={tableEdit}
         onApplyFormat={applyTextFormat}
         onApplyListFormat={applyTextListFormat}
@@ -7542,6 +7782,18 @@ export default function App({ editorMode = "workspace", templateSession = null }
             />
           )}
           {activeSidebarSection === "text" && <TextPanel onAddPreset={addAndCloseIfCompact((key) => addText(key))} />}
+          {activeSidebarSection === "brush" && (
+            <BrushPanel
+              color={brushColor}
+              onColorChange={setBrushColor}
+              size={brushSize}
+              onSizeChange={setBrushSize}
+              mode={brushMode}
+              onModeChange={setBrushMode}
+              onPickColor={activateEyedropper}
+              isPicking={isEyedropperActive}
+            />
+          )}
           {activeSidebarSection === "chart" && <ChartPanel onAddChart={addAndCloseIfCompact(addChart)} />}
           {activeSidebarSection === "table" && <TablePanel onAddTable={addAndCloseIfCompact(addTable)} />}
           {activeSidebarSection === "elements" && (
@@ -7671,7 +7923,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
             />
           )}
           {activeSidebarSection &&
-            !["uploads", "text", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand"].includes(
+            !["uploads", "text", "brush", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand"].includes(
               activeSidebarSection
             ) &&
             !(activeSidebarSection === "projects" && editorMode === "workspace") && (
@@ -7811,6 +8063,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onToggleHidden={toggleItemHidden}
         onToggleLocked={toggleItemLocked}
         onRenameLayer={renameItem}
+        onReorderLayer={(draggedId, targetId, position) =>
+          commit((prev) => reorderLayerItems(prev, [draggedId], targetId, position), {
+            type: "reorder-layer",
+            label: "Reorder layer",
+            itemIds: [draggedId],
+          })
+        }
         unit={activeUnit}
         onUnitChange={(nextUnit) => setPreferredUnit(nextUnit)}
         timelineOpen={timelineOpen}

@@ -5,6 +5,8 @@ import ThumbnailStage from "./ThumbnailStage";
 import { usePageThumbnails } from "./usePageThumbnails";
 import { DEFAULT_PAGE_DURATION_MS } from "../../../animation/animationSchema";
 import { TRANSITION_TYPE_LIST, getTransitionPresetLabel } from "../../../animation/transitionService";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
 const THUMB_WIDTH = 120;
 const THUMB_HEIGHT = 82;
@@ -35,8 +37,10 @@ function PageRow({
   onSetDuration,
   onSetTransition,
 }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].pages;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(page.name || `Page ${index + 1}`);
+  const [draft, setDraft] = useState(page.name || t.pageDefaultName(index + 1));
 
   return (
     <div
@@ -52,7 +56,7 @@ function PageRow({
         className="relative flex items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white"
         style={{ width: "100%", height: THUMB_HEIGHT, aspectRatio: `${THUMB_WIDTH} / ${THUMB_HEIGHT}` }}
         onClick={() => onActivate(page.id)}
-        aria-label={`Activate ${page.name || `Page ${index + 1}`}`}
+        aria-label={t.activateAria(page.name || t.pageDefaultName(index + 1))}
         title={`${page.width} x ${page.height}`}
       >
         {thumbnailUrl ? (
@@ -63,7 +67,7 @@ function PageRow({
         {isRendering && <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" />}
         {isActive && (
           <span className="absolute left-1 top-1 rounded bg-amber-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
-            Active
+            {t.active}
           </span>
         )}
       </button>
@@ -76,13 +80,13 @@ function PageRow({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={() => {
-              onRename(page.id, draft.trim() || `Page ${index + 1}`);
+              onRename(page.id, draft.trim() || t.pageDefaultName(index + 1));
               setEditing(false);
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter") event.currentTarget.blur();
               if (event.key === "Escape") {
-                setDraft(page.name || `Page ${index + 1}`);
+                setDraft(page.name || t.pageDefaultName(index + 1));
                 setEditing(false);
               }
             }}
@@ -91,12 +95,12 @@ function PageRow({
           <button
             className="min-w-0 flex-1 truncate text-left text-xs font-medium text-gray-700"
             onDoubleClick={() => {
-              setDraft(page.name || `Page ${index + 1}`);
+              setDraft(page.name || t.pageDefaultName(index + 1));
               setEditing(true);
             }}
-            title="Double-click to rename"
+            title={t.doubleClickToRename}
           >
-            {index + 1}. {page.name || `Page ${index + 1}`}
+            {index + 1}. {page.name || t.pageDefaultName(index + 1)}
           </button>
         )}
       </div>
@@ -106,8 +110,8 @@ function PageRow({
           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30"
           onClick={() => onMoveToStart(page.id)}
           disabled={isFirst}
-          title="Move to beginning"
-          aria-label="Move page to beginning"
+          title={t.moveToBeginning}
+          aria-label={t.moveToBeginning}
         >
           <ChevronsUp size={13} />
         </button>
@@ -115,8 +119,8 @@ function PageRow({
           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30"
           onClick={() => onMoveUp(page.id)}
           disabled={isFirst}
-          title="Move up"
-          aria-label="Move page up"
+          title={t.moveUp}
+          aria-label={t.moveUp}
         >
           <ChevronUp size={13} />
         </button>
@@ -124,8 +128,8 @@ function PageRow({
           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30"
           onClick={() => onMoveDown(page.id)}
           disabled={isLast}
-          title="Move down"
-          aria-label="Move page down"
+          title={t.moveDown}
+          aria-label={t.moveDown}
         >
           <ChevronDown size={13} />
         </button>
@@ -133,8 +137,8 @@ function PageRow({
           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30"
           onClick={() => onMoveToEnd(page.id)}
           disabled={isLast}
-          title="Move to end"
-          aria-label="Move page to end"
+          title={t.moveToEnd}
+          aria-label={t.moveToEnd}
         >
           <ChevronsDown size={13} />
         </button>
@@ -178,16 +182,16 @@ function PageRow({
         <button
           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           onClick={() => onOpenResize(page.id)}
-          title="Resize page"
-          aria-label="Resize page"
+          title={t.resizePage}
+          aria-label={t.resizePage}
         >
           <FileImage size={13} />
         </button>
         <button
           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           onClick={() => onDuplicate(page.id)}
-          title="Duplicate page"
-          aria-label="Duplicate page"
+          title={t.duplicatePage}
+          aria-label={t.duplicatePage}
         >
           <Copy size={13} />
         </button>
@@ -195,8 +199,8 @@ function PageRow({
           className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:pointer-events-none disabled:opacity-30"
           onClick={() => onDelete(page.id)}
           disabled={isOnly}
-          title={isOnly ? "Can't delete the only page" : "Delete page"}
-          aria-label={isOnly ? "Can't delete the only page" : "Delete page"}
+          title={isOnly ? t.cantDeleteOnlyPage : t.deletePage}
+          aria-label={isOnly ? t.cantDeleteOnlyPage : t.deletePage}
         >
           <Trash2 size={13} />
         </button>
@@ -229,6 +233,8 @@ export default function PagesPanel({
   onApplyDurationToAll,
   onApplyTransitionToAll,
 }) {
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].pages;
   const { thumbnails, renderingPageId, handleCapture } = usePageThumbnails(pages, items);
   const activePage = pages.find((p) => p.id === activePageId) || pages[0];
   const [dragOverId, setDragOverId] = useState(null);
@@ -257,8 +263,8 @@ export default function PagesPanel({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-800">Pages</h3>
-        <span className="text-[11px] font-medium text-gray-400">{pages.length} pages</span>
+        <h3 className="text-sm font-semibold text-gray-800">{t.title}</h3>
+        <span className="text-[11px] font-medium text-gray-400">{t.pagesCount(pages.length)}</span>
       </div>
 
       <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto pb-2">
@@ -298,16 +304,16 @@ export default function PagesPanel({
           <button
             className="flex-1 rounded border border-gray-200 py-1 text-gray-500 hover:bg-gray-50"
             onClick={() => onApplyDurationToAll(activePage?.duration ?? DEFAULT_PAGE_DURATION_MS)}
-            title="Apply this page's duration to every page"
+            title={t.applyDurationTitle}
           >
-            Duration → all pages
+            {t.durationToAllPages}
           </button>
           <button
             className="flex-1 rounded border border-gray-200 py-1 text-gray-500 hover:bg-gray-50"
             onClick={() => onApplyTransitionToAll(activePage?.transition || { type: "none" })}
-            title="Apply this page's transition to every page boundary"
+            title={t.applyTransitionTitle}
           >
-            Transition → all pages
+            {t.transitionToAllPages}
           </button>
         </div>
       )}
@@ -316,7 +322,7 @@ export default function PagesPanel({
         className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 py-2 text-xs font-medium text-gray-500 hover:border-amber-400 hover:text-amber-700"
         onClick={onAdd}
       >
-        <Plus size={14} /> Add page
+        <Plus size={14} /> {t.addPage}
       </button>
 
       {renderingPageId && (

@@ -1,12 +1,15 @@
-// Shared translation strings for the app's common chrome: the Home page
-// and the editor's TopNavBar. Deep editor surfaces (sidebars, property
-// panels, per-object toolbars, modals) aren't translated yet — that was a
-// deliberate scope call given the size of the app; expand `common`/`home`/
-// `topNav` below (or add new sections) if that coverage grows later.
+// Shared translation strings for the app's common chrome: the Home page,
+// the landing page, and the editor's TopNavBar. Deep editor surfaces
+// (sidebars, property panels, per-object toolbars, status bar, dialogs,
+// admin tools) are translated too, but live in their own domain-specific
+// files under src/i18n/ (panels.js, textProperties.js, objectProperties.js,
+// toolbarMenus.js, statusBarAndMenus.js, dialogs.js, misc.js) rather than
+// here, each following the same `{ en: {...}, fr: {...} }` shape.
 export const STRINGS = {
   en: {
     common: {
       settings: "Settings",
+      closeSettings: "Close settings",
       language: "Language",
       theme: "Theme",
       light: "Light",
@@ -21,8 +24,12 @@ export const STRINGS = {
       startNewDesign: "Start a new design",
       blankDesign: "Blank design",
       orCustomSize: "or custom size:",
+      customWidth: "Custom width",
+      customHeight: "Custom height",
+      customSizeUnit: "Custom size unit",
       templates: "Templates",
       searchPlaceholder: "Search templates…",
+      searchTemplates: "Search templates",
       noMatches: "No templates match your search.",
     },
     topNav: {
@@ -93,6 +100,7 @@ export const STRINGS = {
       shortcutGroupUngroup: "Group / Ungroup",
       shortcutDelete: "Delete",
       shortcutPanCanvas: "Pan canvas",
+      holdSpace: "Hold Space",
       shortcutZoom: "Zoom",
       aboutVaycona: "About Vaycona",
 
@@ -121,6 +129,7 @@ export const STRINGS = {
       accountMenu: "Account menu",
       logOut: "Log out",
       adminPanel: "Admin panel",
+      upgrade: "Upgrade",
     },
     landing: {
       nav: {
@@ -220,6 +229,7 @@ export const STRINGS = {
   fr: {
     common: {
       settings: "Paramètres",
+      closeSettings: "Fermer les paramètres",
       language: "Langue",
       theme: "Thème",
       light: "Clair",
@@ -234,8 +244,12 @@ export const STRINGS = {
       startNewDesign: "Créer un nouveau design",
       blankDesign: "Design vierge",
       orCustomSize: "ou taille personnalisée :",
+      customWidth: "Largeur personnalisée",
+      customHeight: "Hauteur personnalisée",
+      customSizeUnit: "Unité de taille personnalisée",
       templates: "Modèles",
       searchPlaceholder: "Rechercher des modèles…",
+      searchTemplates: "Rechercher des modèles",
       noMatches: "Aucun modèle ne correspond à votre recherche.",
     },
     topNav: {
@@ -306,6 +320,7 @@ export const STRINGS = {
       shortcutGroupUngroup: "Grouper / Dissocier",
       shortcutDelete: "Supprimer",
       shortcutPanCanvas: "Déplacer le canevas",
+      holdSpace: "Maintenir Espace",
       shortcutZoom: "Zoom",
       aboutVaycona: "À propos de Vaycona",
 
@@ -334,6 +349,7 @@ export const STRINGS = {
       accountMenu: "Menu du compte",
       logOut: "Se déconnecter",
       adminPanel: "Panneau d'administration",
+      upgrade: "Passer au niveau supérieur",
     },
     landing: {
       nav: {

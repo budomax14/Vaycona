@@ -2,32 +2,36 @@ import React, { useState } from "react";
 import { Loader2, LogIn, UserPlus, X } from "lucide-react";
 import { useAuth } from "../../authContext";
 import { TERMS_AND_CONDITIONS } from "../../termsContent";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Friendly copy for the Firebase Auth error codes users actually hit here
 // (email/password only) — everything else falls back to a generic message
 // rather than leaking raw Firebase error text.
-function friendlyAuthError(error) {
+function friendlyAuthError(error, t) {
   switch (error?.code) {
     case "auth/invalid-email":
-      return "That email address doesn't look right.";
+      return t.errorInvalidEmail;
     case "auth/user-not-found":
     case "auth/invalid-credential":
     case "auth/wrong-password":
-      return "Incorrect email or password.";
+      return t.errorIncorrectCredentials;
     case "auth/email-already-in-use":
-      return "An account with this email already exists.";
+      return t.errorEmailInUse;
     case "auth/weak-password":
-      return "Password must be at least 6 characters.";
+      return t.errorWeakPassword;
     case "auth/too-many-requests":
-      return "Too many attempts. Please wait a moment and try again.";
+      return t.errorTooManyRequests;
     case "auth/popup-closed-by-user":
       return null; // user just closed the Google popup — not a real error
     default:
-      return "Something went wrong. Please try again.";
+      return t.errorGeneric;
   }
 }
 
 export default function LoginPage({ onBack, initialMode = "signin" }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].loginPage;
   const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
   const [mode, setMode] = useState(initialMode); // "signin" | "signup"
   const [email, setEmail] = useState("");
@@ -47,7 +51,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
     try {
       await signInWithGoogle();
     } catch (err) {
-      const message = friendlyAuthError(err);
+      const message = friendlyAuthError(err, t);
       if (message) setError(message);
     } finally {
       setGoogleBusy(false);
@@ -66,7 +70,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
         await signIn(email.trim(), password);
       }
     } catch (err) {
-      setError(friendlyAuthError(err));
+      setError(friendlyAuthError(err, t));
     } finally {
       setBusy(false);
     }
@@ -76,15 +80,15 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
     setError(null);
     setNotice(null);
     if (!email.trim()) {
-      setError("Enter your email above first, then click \"Forgot password?\".");
+      setError(t.enterEmailFirst);
       return;
     }
     setBusy(true);
     try {
       await resetPassword(email.trim());
-      setNotice("Password reset email sent — check your inbox.");
+      setNotice(t.passwordResetSent);
     } catch (err) {
-      setError(friendlyAuthError(err));
+      setError(friendlyAuthError(err, t));
     } finally {
       setBusy(false);
     }
@@ -99,9 +103,9 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
         <div className="pointer-events-none absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-orange-500/15 blur-[100px]" />
         <div className="relative flex flex-col items-center px-10 text-center">
           <img src="/login-brand-composite.png" alt="" aria-hidden="true" className="w-full max-w-md" />
-          <h2 className="-mt-6 text-2xl font-bold text-white">Design without limits.</h2>
+          <h2 className="-mt-6 text-2xl font-bold text-white">{t.heading}</h2>
           <p className="mt-2 max-w-sm text-sm text-slate-400">
-            Templates, charts, AI-generated art, and a full editor — everything you need to create, in one place.
+            {t.subheading}
           </p>
         </div>
       </div>
@@ -119,10 +123,10 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
           </button>
 
           <h1 className="text-lg font-semibold text-white">
-            {isSignUp ? "Create an account" : "Log in"}
+            {isSignUp ? t.createAccount : t.logIn}
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            {isSignUp ? "Sign up to start designing." : "Welcome back — sign in to continue."}
+            {isSignUp ? t.signUpSubtitle : t.welcomeBack}
           </p>
 
           <button
@@ -153,18 +157,18 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
                 />
               </svg>
             )}
-            Continue with Google
+            {t.continueWithGoogle}
           </button>
 
           <div className="my-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-white/10" />
-            <span className="text-xs text-slate-500">or</span>
+            <span className="text-xs text-slate-500">{t.or}</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
 
           <form className="space-y-3" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Email</span>
+              <span className="mb-1 block text-xs font-medium text-slate-400">{t.email}</span>
               <input
                 autoFocus
                 type="email"
@@ -176,7 +180,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Password</span>
+              <span className="mb-1 block text-xs font-medium text-slate-400">{t.password}</span>
               <input
                 type="password"
                 autoComplete={isSignUp ? "new-password" : "current-password"}
@@ -195,7 +199,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
                 onClick={handleForgotPassword}
                 disabled={busy}
               >
-                Forgot password?
+                {t.forgotPassword}
               </button>
             )}
 
@@ -214,12 +218,12 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
               ) : (
                 <LogIn size={16} />
               )}
-              {isSignUp ? "Sign up" : "Log in"}
+              {isSignUp ? t.signUp : t.logIn}
             </button>
           </form>
 
           <p className="mt-4 text-center text-xs text-slate-400">
-            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            {isSignUp ? t.alreadyHaveAccount : t.dontHaveAccount}{" "}
             <button
               type="button"
               className="font-medium text-amber-700 hover:underline"
@@ -229,7 +233,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
                 setNotice(null);
               }}
             >
-              {isSignUp ? "Log in" : "Sign up"}
+              {isSignUp ? t.logIn : t.signUp}
             </button>
           </p>
 
@@ -239,7 +243,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
               className="font-medium text-slate-400 hover:text-amber-700 hover:underline"
               onClick={() => setShowTerms(true)}
             >
-              Terms &amp; Conditions
+              {t.termsAndConditions}
             </button>
           </p>
         </div>
@@ -255,11 +259,11 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-              <h2 className="text-sm font-semibold text-black">Terms &amp; Conditions</h2>
+              <h2 className="text-sm font-semibold text-black">{t.termsAndConditions}</h2>
               <button
                 type="button"
                 onClick={() => setShowTerms(false)}
-                aria-label="Close"
+                aria-label={t.close}
                 className="p-1 text-black hover:bg-slate-100"
               >
                 <X size={16} />

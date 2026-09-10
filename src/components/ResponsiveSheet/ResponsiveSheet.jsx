@@ -2,6 +2,8 @@ import React from "react";
 import { createPortal } from "react-dom";
 import ToolbarPopover from "../PropertiesToolbar/ToolbarPopover";
 import { useBreakpoint } from "../../useBreakpoint";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 // Drop-in replacement for ToolbarPopover with the exact same
 // isOpen/anchorRef/onClose/align/children contract: at tablet/desktop it
@@ -12,6 +14,8 @@ import { useBreakpoint } from "../../useBreakpoint";
 // up mis-anchored or cramped when its trigger button itself is sitting in
 // a horizontally-scrolled/overflowed toolbar row on a phone.
 export default function ResponsiveSheet({ isOpen, anchorRef, onClose, align, children }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].responsiveSheet;
   const { tier } = useBreakpoint();
 
   if (tier !== "mobile") {
@@ -26,7 +30,7 @@ export default function ResponsiveSheet({ isOpen, anchorRef, onClose, align, chi
 
   return createPortal(
     <>
-      <button className="fixed inset-0 z-40 bg-black/20" aria-label="Close" onClick={onClose} />
+      <button className="fixed inset-0 z-40 bg-black/20" aria-label={t.close} onClick={onClose} />
       <div
         data-toolbar-popover
         className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"

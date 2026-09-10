@@ -3,12 +3,16 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { ColorField } from "./toolbarUi";
 import { CHART_KINDS, getSliceColor } from "../../chartKinds";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 // Quick, dedicated color access for a selected chart — same flyout shell
 // as ChartSettingsPanel/TextColorPanel, but scoped to just colors so it's
 // one click from the toolbar swatch button (mirrors how Shape has its own
 // "Shape fill" swatch + panel separate from the rest of its properties).
 export default function ChartColorsPanel({ isOpen, onClose, item, onChange }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].chartColors;
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -54,12 +58,12 @@ export default function ChartColorsPanel({ isOpen, onClose, item, onChange }) {
     <div
       ref={panelRef}
       role="dialog"
-      aria-label="Chart colors"
+      aria-label={t.dialogLabel}
       className="fixed right-0 top-32 bottom-9 z-40 flex w-full max-w-[85vw] flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-2xl sm:w-72 sm:max-w-none"
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-900">{isPie ? "Slice colors" : "Series colors"}</h2>
-        <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close">
+        <h2 className="text-sm font-semibold text-gray-900">{isPie ? t.sliceColors : t.seriesColors}</h2>
+        <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.close}>
           <X size={16} />
         </button>
       </div>
@@ -74,11 +78,11 @@ export default function ChartColorsPanel({ isOpen, onClose, item, onChange }) {
         {isPie &&
           (item.data || []).map((row, i) => (
             <div key={i} className="flex items-center gap-2">
-              <ColorField label={String(row.category ?? `Slice ${i + 1}`)} value={getSliceColor(item, i)} onChange={(value) => changeSliceColor(i, value)} />
+              <ColorField label={String(row.category ?? t.slice(i + 1))} value={getSliceColor(item, i)} onChange={(value) => changeSliceColor(i, value)} />
             </div>
           ))}
         {((!isPie && !(item.series || []).length) || (isPie && !(item.data || []).length)) && (
-          <p className="text-xs text-gray-400">Add data first (Edit Data) to set colors.</p>
+          <p className="text-xs text-gray-400">{t.addDataFirst}</p>
         )}
       </div>
     </div>,

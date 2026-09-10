@@ -10,12 +10,16 @@ import { computeImageFillLayout, normalizeImageFill } from "../../imageFill";
 import { useAsset } from "../../useAsset";
 import { useImageElement } from "../../useImageElement";
 import ImageAssetPickerModal from "../ImageAssetPickerModal";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 
 function isValidHex(value) {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
 }
 
 function SwatchGrid({ colors, onPick, size = "h-6 w-6" }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].textColor;
   return (
     <div className="grid grid-cols-9 gap-1.5">
       {colors.map((hex, i) => (
@@ -25,7 +29,7 @@ function SwatchGrid({ colors, onPick, size = "h-6 w-6" }) {
           className={`${size} rounded border border-gray-200`}
           style={{ backgroundColor: hex }}
           title={hex}
-          aria-label={`Use color ${hex}`}
+          aria-label={t.useColor(hex)}
           onClick={() => onPick(hex)}
         />
       ))}
@@ -38,6 +42,8 @@ function SwatchGrid({ colors, onPick, size = "h-6 w-6" }) {
 // canvas-drag interaction (ImageFillOverlay.jsx), which most users will
 // reach for first.
 function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPanY, onChangeImage, onOpenPicker, onRemove, description }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].textColor;
   if (!imageValue?.assetId) {
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
@@ -47,7 +53,7 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
           className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
           onClick={onOpenPicker}
         >
-          Choose image
+          {t.chooseImage}
         </button>
       </div>
     );
@@ -64,16 +70,16 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
           className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:border-amber-300 hover:text-amber-700"
           onClick={onOpenPicker}
         >
-          Replace image
+          {t.replaceImage}
         </button>
       </div>
 
       {assetStatus === "missing" && (
-        <div className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-700">This image is missing from your uploads.</div>
+        <div className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-700">{t.imageMissing}</div>
       )}
 
       <div>
-        <span className="mb-1 block text-xs font-medium text-gray-500">Fit</span>
+        <span className="mb-1 block text-xs font-medium text-gray-500">{t.fit}</span>
         <div className="flex gap-1.5">
           <button
             type="button"
@@ -81,9 +87,9 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
               (imageValue.fit || "fill") === "fill" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
             }`}
             onClick={() => onChangeImage({ fit: "fill" })}
-            title="Fill — cover the whole box, crop excess"
+            title={t.fillTitle}
           >
-            <Maximize2 size={12} /> Fill
+            <Maximize2 size={12} /> {t.fillLabel}
           </button>
           <button
             type="button"
@@ -91,9 +97,9 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
               imageValue.fit === "fit" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
             }`}
             onClick={() => onChangeImage({ fit: "fit" })}
-            title="Fit — show the whole image inside the box, no cropping (may leave empty space)"
+            title={t.fitTitle}
           >
-            <Minimize2 size={12} /> Fit
+            <Minimize2 size={12} /> {t.fitLabel}
           </button>
           <button
             type="button"
@@ -101,23 +107,22 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
               imageValue.fit === "stretch" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
             }`}
             onClick={() => onChangeImage({ fit: "stretch" })}
-            title="Stretch — show the whole image at the box's exact size, may distort"
+            title={t.stretchTitle}
           >
-            <StretchHorizontal size={12} /> Stretch
+            <StretchHorizontal size={12} /> {t.stretchLabel}
           </button>
         </div>
       </div>
 
       {imageValue.fit === "stretch" ? (
         <p className="text-[11px] text-gray-400">
-          Stretch draws the whole image at the box's exact size — it always fully fills the box, but may distort its
-          proportions. Zoom and position don't apply in this mode.
+          {t.stretchNote}
         </p>
       ) : (
         <>
           <label className="block">
             <span className="mb-1 flex justify-between text-xs font-medium text-gray-500">
-              <span>Zoom</span>
+              <span>{t.zoom}</span>
               <span>{Math.round(imageValue.zoom * 100)}%</span>
             </span>
             <input
@@ -133,7 +138,7 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
 
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">Position X</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.positionX}</span>
               <input
                 type="range"
                 min={0}
@@ -145,7 +150,7 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">Position Y</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.positionY}</span>
               <input
                 type="range"
                 min={0}
@@ -163,18 +168,17 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
               rather than "zoom in first" without this. */}
           {!canPanX || !canPanY ? (
             <p className="text-[11px] text-amber-600">
-              {!canPanX && !canPanY ? "Position" : !canPanX ? "Position X" : "Position Y"} needs more Zoom before it can move —
-              the image already fills the text at 100%.
+              {t.needsMoreZoom(!canPanX && !canPanY ? t.position : !canPanX ? t.positionX : t.positionY)}
             </p>
           ) : (
-            <p className="text-[11px] text-gray-400">Tip: drag the image directly on the canvas to reposition it.</p>
+            <p className="text-[11px] text-gray-400">{t.dragTip}</p>
           )}
         </>
       )}
 
       <label className="block">
         <span className="mb-1 flex justify-between text-xs font-medium text-gray-500">
-          <span>Rotation</span>
+          <span>{t.rotation}</span>
           <span>{Math.round(imageValue.rotation)}°</span>
         </span>
         <input
@@ -193,20 +197,20 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
           className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium ${imageValue.flipX ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}
           onClick={() => onChangeImage({ flipX: !imageValue.flipX })}
         >
-          Flip horizontal
+          {t.flipHorizontal}
         </button>
         <button
           type="button"
           className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium ${imageValue.flipY ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}
           onClick={() => onChangeImage({ flipY: !imageValue.flipY })}
         >
-          Flip vertical
+          {t.flipVertical}
         </button>
       </div>
 
       <label className="block">
         <span className="mb-1 flex justify-between text-xs font-medium text-gray-500">
-          <span>Opacity</span>
+          <span>{t.opacity}</span>
           <span>{Math.round(imageValue.opacity * 100)}%</span>
         </span>
         <input
@@ -226,14 +230,14 @@ function ImageFillTab({ imageValue, assetStatus, assetPreviewUrl, canPanX, canPa
           className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-amber-300 hover:text-amber-700"
           onClick={() => onChangeImage({ zoom: 1, offsetX: 0.5, offsetY: 0.5, rotation: 0 })}
         >
-          Reset position
+          {t.resetPosition}
         </button>
         <button
           type="button"
           className="flex-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
           onClick={onRemove}
         >
-          Remove image fill
+          {t.removeImageFill}
         </button>
       </div>
     </>
@@ -264,9 +268,13 @@ export default function TextColorPanel({
   tokenRef,
   onApplyToken,
   onDetach,
-  title = "Text color",
-  imageFillDescription = "Fill this text with an image, clipped to the letters.",
+  title,
+  imageFillDescription,
 }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].textColor;
+  const resolvedTitle = title ?? t.title;
+  const resolvedImageFillDescription = imageFillDescription ?? t.imageFillDescription;
   const [tab, setTab] = useState(imageValue?.assetId ? "image" : gradientValue ? "gradient" : "solid");
   const [hexDraft, setHexDraft] = useState(solidValue || "");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -410,30 +418,30 @@ export default function TextColorPanel({
         <div
           ref={panelRef}
           role="dialog"
-          aria-label={title}
+          aria-label={resolvedTitle}
           className="fixed right-0 top-32 bottom-9 z-40 flex w-full max-w-[85vw] flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-2xl sm:w-80 sm:max-w-none"
         >
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close">
+        <h2 className="text-sm font-semibold text-gray-900">{resolvedTitle}</h2>
+        <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.close}>
           <X size={16} />
         </button>
       </div>
 
       <div className="flex gap-1 border-b border-gray-100 px-4 pt-2">
         {[
-          { key: "solid", label: "Solid" },
-          { key: "gradient", label: "Gradient" },
-          { key: "image", label: "Image" },
-        ].map((t) => (
+          { key: "solid", label: t.solid },
+          { key: "gradient", label: t.gradient },
+          { key: "image", label: t.image },
+        ].map((tabOption) => (
           <button
-            key={t.key}
+            key={tabOption.key}
             className={`rounded-t-lg px-3 py-2 text-sm font-medium ${
-              tab === t.key ? "border-b-2 border-amber-600 text-amber-700" : "text-gray-500 hover:text-gray-700"
+              tab === tabOption.key ? "border-b-2 border-amber-600 text-amber-700" : "text-gray-500 hover:text-gray-700"
             }`}
-            onClick={() => setTab(t.key)}
+            onClick={() => setTab(tabOption.key)}
           >
-            {t.label}
+            {tabOption.label}
           </button>
         ))}
       </div>
@@ -466,17 +474,17 @@ export default function TextColorPanel({
             {tokenRef && onDetach && (
               <div className="flex items-center justify-between rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-700">
                 <span className="flex items-center gap-1 truncate">
-                  <Link2 size={12} /> Linked{linkedToken ? `: ${linkedToken.name}` : " (missing token)"}
+                  <Link2 size={12} /> {t.linked}{linkedToken ? t.linkedName(linkedToken.name) : t.missingToken}
                 </span>
                 <button type="button" className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-semibold hover:bg-amber-100" onClick={onDetach}>
-                  <Unlink size={12} /> Detach
+                  <Unlink size={12} /> {t.detach}
                 </button>
               </div>
             )}
 
             {brandColors.length > 0 && (
               <div>
-                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Brand colors</div>
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.brandColors}</div>
                 <div className="grid grid-cols-9 gap-1.5">
                   {brandColors.map((token) => (
                     <button
@@ -485,7 +493,7 @@ export default function TextColorPanel({
                       className="h-6 w-6 rounded border border-gray-200"
                       style={{ backgroundColor: token.hex }}
                       title={`${token.name} (${token.hex})`}
-                      aria-label={`Use brand color ${token.name}`}
+                      aria-label={t.useBrandColor(token.name)}
                       onClick={() => applyBrandColor(token)}
                     />
                   ))}
@@ -495,20 +503,20 @@ export default function TextColorPanel({
 
             {documentColors.length > 0 && (
               <div>
-                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Document colors</div>
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.documentColors}</div>
                 <SwatchGrid colors={documentColors.map((c) => c.hex)} onPick={applySolid} />
               </div>
             )}
 
             {recentColors.length > 0 && (
               <div>
-                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Recent</div>
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.recent}</div>
                 <SwatchGrid colors={recentColors} onPick={applySolid} />
               </div>
             )}
 
             <div>
-              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Palette</div>
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.palette}</div>
               <SwatchGrid colors={STARTER_PALETTE} onPick={applySolid} />
             </div>
           </>
@@ -520,15 +528,18 @@ export default function TextColorPanel({
             />
 
             <div className="flex gap-1.5">
-              {["linear", "radial"].map((type) => (
+              {[
+                { key: "linear", label: t.linear },
+                { key: "radial", label: t.radial },
+              ].map((type) => (
                 <button
-                  key={type}
+                  key={type.key}
                   className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium capitalize ${
-                    gradient.type === type ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
+                    gradient.type === type.key ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
                   }`}
-                  onClick={() => updateGradient({ type })}
+                  onClick={() => updateGradient({ type: type.key })}
                 >
-                  {type}
+                  {type.label}
                 </button>
               ))}
             </div>
@@ -536,7 +547,7 @@ export default function TextColorPanel({
             {gradient.type === "linear" && (
               <label className="block">
                 <span className="mb-1 flex justify-between text-xs font-medium text-gray-500">
-                  <span>Angle</span>
+                  <span>{t.angle2}</span>
                   <span>{gradient.angle ?? 90}°</span>
                 </span>
                 <input
@@ -552,14 +563,14 @@ export default function TextColorPanel({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">Color stops</span>
+                <span className="text-xs font-medium text-gray-500">{t.colorStops}</span>
                 <button
                   type="button"
                   className="flex items-center gap-1 rounded-lg border border-dashed border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-500 hover:border-amber-300 hover:text-amber-700 disabled:opacity-40"
                   onClick={addStop}
                   disabled={gradient.stops.length >= 6}
                 >
-                  <Plus size={11} /> Add stop
+                  <Plus size={11} /> {t.addStop}
                 </button>
               </div>
               {gradient.stops.map((stop, index) => (
@@ -585,7 +596,7 @@ export default function TextColorPanel({
                     className="shrink-0 rounded p-1 text-gray-300 hover:bg-red-50 hover:text-red-500 disabled:pointer-events-none disabled:opacity-0"
                     onClick={() => removeStop(index)}
                     disabled={gradient.stops.length <= 2}
-                    aria-label="Remove color stop"
+                    aria-label={t.removeColorStop}
                   >
                     <Minus size={13} />
                   </button>
@@ -594,7 +605,7 @@ export default function TextColorPanel({
             </div>
 
             <div>
-              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Presets</div>
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.presets}</div>
               <div className="grid grid-cols-4 gap-2">
                 {GRADIENT_PRESETS.map((preset, i) => (
                   <button
@@ -602,7 +613,7 @@ export default function TextColorPanel({
                     type="button"
                     className="h-10 rounded-lg border border-gray-200"
                     style={{ background: gradientToCss(preset) }}
-                    aria-label={`Use gradient preset ${i + 1}`}
+                    aria-label={t.useGradientPreset(i + 1)}
                     onClick={() => onChangeGradient(preset)}
                   />
                 ))}
@@ -619,7 +630,7 @@ export default function TextColorPanel({
             onChangeImage={onChangeImage}
             onOpenPicker={() => setIsPickerOpen(true)}
             onRemove={onRemoveImage}
-            description={imageFillDescription}
+            description={resolvedImageFillDescription}
           />
         )}
           </div>

@@ -10,6 +10,7 @@ import {
   Layers as LayersIcon,
   LayoutDashboard,
   LayoutTemplate,
+  Paintbrush,
   Palette,
   Sparkles,
   Sticker,
@@ -18,18 +19,25 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { useLanguage } from "../../languageContext";
+import { PANEL_STRINGS } from "../../i18n/panels";
 
+// `label` here stays the fixed English identifier used by other modules
+// (e.g. App.jsx passes SECTIONS.find(...).label straight into
+// ComingSoonPanel's title) that aren't part of this sidebar's i18n pass.
+// The rendered rail below looks up the translated text itself via
+// `t.sections[section.key]` instead of reading `section.label` directly.
 export const SECTIONS = [
-  { key: "templates", label: "Templates", icon: LayoutTemplate },
-  { key: "design", label: "Design", icon: LayoutDashboard },
-  { key: "elements", label: "Elements", icon: Blocks },
+  { key: "illustrations", label: "Illustrations", icon: Images },
   { key: "text", label: "Text", icon: Type },
+  { key: "elements", label: "Elements", icon: Blocks },
+  { key: "icons", label: "Icons", icon: Sticker },
+  { key: "brush", label: "Brush", icon: Paintbrush },
   { key: "uploads", label: "Uploads", icon: Upload },
+  { key: "design", label: "Design", icon: LayoutDashboard },
   { key: "photos", label: "Photos", icon: Camera },
   { key: "chart", label: "Chart", icon: BarChart3 },
   { key: "table", label: "Table", icon: Table2 },
-  { key: "icons", label: "Icons", icon: Sticker },
-  { key: "illustrations", label: "Illustrations", icon: Images },
   { key: "layers", label: "Layers", icon: LayersIcon },
   { key: "pages", label: "Pages", icon: Files },
   { key: "brand", label: "Brand Assets", icon: Sparkles },
@@ -45,7 +53,9 @@ export const SECTIONS = [
 // permanent 64px rail *and* a useful panel at the same time. The icon rail
 // itself hides while a panel is open on mobile and reappears once closed.
 export default function LeftSidebar({ activeSection, onSectionChange, tier = "desktop", children }) {
-  const activeLabel = SECTIONS.find((section) => section.key === activeSection)?.label;
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].sidebar;
+  const activeLabel = t.sections[activeSection];
   const isCompact = tier !== "desktop";
   const isMobile = tier === "mobile";
   const railHiddenForPanel = isMobile && Boolean(activeSection);
@@ -60,6 +70,7 @@ export default function LeftSidebar({ activeSection, onSectionChange, tier = "de
         {SECTIONS.map((section) => {
           const Icon = section.icon;
           const active = activeSection === section.key;
+          const label = t.sections[section.key];
           return (
             <button
               key={section.key}
@@ -67,12 +78,12 @@ export default function LeftSidebar({ activeSection, onSectionChange, tier = "de
                 active ? "bg-amber-50 text-amber-700" : "text-gray-500 hover:bg-gray-50"
               }`}
               onClick={() => onSectionChange(active ? null : section.key)}
-              title={section.label}
-              aria-label={section.label}
+              title={label}
+              aria-label={label}
               aria-pressed={active}
             >
               <Icon size={19} />
-              <span className="leading-none">{section.label.split(" ")[0]}</span>
+              <span className="leading-none">{label.split(" ")[0]}</span>
             </button>
           );
         })}
@@ -81,7 +92,7 @@ export default function LeftSidebar({ activeSection, onSectionChange, tier = "de
       {activeSection && isCompact && (
         <button
           className="fixed inset-0 z-30 bg-black/20 transition-opacity"
-          aria-label="Close panel"
+          aria-label={t.closePanel}
           onClick={() => onSectionChange(null)}
         />
       )}
@@ -100,7 +111,7 @@ export default function LeftSidebar({ activeSection, onSectionChange, tier = "de
             <button
               className="toolbar-hit-target absolute right-3 top-3 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100"
               onClick={() => onSectionChange(null)}
-              aria-label={`Close ${activeLabel} panel`}
+              aria-label={t.closeSectionPanel(activeLabel)}
             >
               <X size={16} />
             </button>

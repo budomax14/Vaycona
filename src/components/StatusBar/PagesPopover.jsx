@@ -1,10 +1,12 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from "lucide-react";
 import PopoverPortal from "./PopoverPortal";
+import { useLanguage } from "../../languageContext";
+import { STATUS_BAR_STRINGS } from "../../i18n/statusBarAndMenus";
 
-function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDelete, onRename, onMoveUp, onMoveDown, isFirst, isLast }) {
+function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDelete, onRename, onMoveUp, onMoveDown, isFirst, isLast, t }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(page.name || `Page ${index + 1}`);
+  const [draft, setDraft] = useState(page.name || t.pageDefaultName(index + 1));
 
   return (
     <div
@@ -17,7 +19,7 @@ function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDel
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => {
-            onRename(page.id, draft.trim() || `Page ${index + 1}`);
+            onRename(page.id, draft.trim() || t.pageDefaultName(index + 1));
             setEditing(false);
           }}
           onKeyDown={(event) => {
@@ -29,11 +31,11 @@ function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDel
           className={`flex-1 truncate text-left text-xs font-medium ${isActive ? "text-amber-700" : "text-gray-600"}`}
           onClick={() => onActivate(page.id)}
           onDoubleClick={() => {
-            setDraft(page.name || `Page ${index + 1}`);
+            setDraft(page.name || t.pageDefaultName(index + 1));
             setEditing(true);
           }}
         >
-          {page.name || `Page ${index + 1}`}
+          {page.name || t.pageDefaultName(index + 1)}
         </button>
       )}
 
@@ -41,8 +43,8 @@ function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDel
         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30"
         onClick={() => onMoveUp(page.id)}
         disabled={isFirst}
-        title="Move page up"
-        aria-label="Move page up"
+        title={t.movePageUp}
+        aria-label={t.movePageUp}
       >
         <ChevronUp size={13} />
       </button>
@@ -50,16 +52,16 @@ function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDel
         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30"
         onClick={() => onMoveDown(page.id)}
         disabled={isLast}
-        title="Move page down"
-        aria-label="Move page down"
+        title={t.movePageDown}
+        aria-label={t.movePageDown}
       >
         <ChevronDown size={13} />
       </button>
       <button
         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
         onClick={() => onDuplicate(page.id)}
-        title="Duplicate page"
-        aria-label="Duplicate page"
+        title={t.duplicatePage}
+        aria-label={t.duplicatePage}
       >
         <Copy size={13} />
       </button>
@@ -67,8 +69,8 @@ function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDel
         className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:pointer-events-none disabled:opacity-30"
         onClick={() => onDelete(page.id)}
         disabled={isOnly}
-        title={isOnly ? "Can't delete the only page" : "Delete page"}
-        aria-label={isOnly ? "Can't delete the only page" : "Delete page"}
+        title={isOnly ? t.cantDeleteOnlyPage : t.deletePage}
+        aria-label={isOnly ? t.cantDeleteOnlyPage : t.deletePage}
       >
         <Trash2 size={13} />
       </button>
@@ -77,6 +79,8 @@ function PageRow({ page, index, isActive, isOnly, onActivate, onDuplicate, onDel
 }
 
 export default function PagesPopover({ pages, activePageId, onActivate, onAdd, onDuplicate, onDelete, onRename, onMoveUp, onMoveDown }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].pagesPopover;
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const triggerRef = useRef(null);
@@ -111,10 +115,10 @@ export default function PagesPopover({ pages, activePageId, onActivate, onAdd, o
           open ? "bg-gray-100 text-gray-800" : "text-gray-500 hover:bg-gray-100"
         }`}
         onClick={() => setOpen((v) => !v)}
-        aria-label={`Pages, ${activeIndex + 1} of ${pages.length}`}
+        aria-label={t.pagesAriaLabel(activeIndex + 1, pages.length)}
         aria-expanded={open}
       >
-        Pages ({pages.length}) <ChevronUp size={12} />
+        {t.pagesCount(pages.length)} <ChevronUp size={12} />
       </button>
       <PopoverPortal ref={contentRef} anchorRect={anchorRect} align="left">
         {open && (
@@ -134,13 +138,14 @@ export default function PagesPopover({ pages, activePageId, onActivate, onAdd, o
                 onRename={onRename}
                 onMoveUp={onMoveUp}
                 onMoveDown={onMoveDown}
+                t={t}
               />
             ))}
             <button
               className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 py-1.5 text-xs font-medium text-gray-500 hover:border-amber-400 hover:text-amber-700"
               onClick={onAdd}
             >
-              <Plus size={13} /> Add page
+              <Plus size={13} /> {t.addPage}
             </button>
           </div>
         )}

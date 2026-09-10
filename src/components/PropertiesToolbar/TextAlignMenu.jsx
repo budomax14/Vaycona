@@ -3,6 +3,8 @@ import { AlignCenter, AlignJustify, AlignLeft, AlignRight } from "lucide-react";
 import { IconButton, IconToggleButton } from "./toolbarUi";
 import ToolbarPopover from "./ToolbarPopover";
 import { isRichText } from "../../richText";
+import { useLanguage } from "../../languageContext";
+import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 
 const ALIGN_ICONS = { left: AlignLeft, center: AlignCenter, right: AlignRight, justify: AlignJustify };
 
@@ -12,6 +14,8 @@ const ALIGN_ICONS = { left: AlignLeft, center: AlignCenter, right: AlignRight, j
 // The trigger shows whichever alignment is currently active so it's still
 // readable at a glance without opening the popover.
 export default function TextAlignMenu({ item, onChange }) {
+  const { language } = useLanguage();
+  const t = TEXT_PROPERTIES_STRINGS[language].textAlign;
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const current = item.align || "left";
@@ -25,19 +29,19 @@ export default function TextAlignMenu({ item, onChange }) {
   return (
     <div className="relative shrink-0" data-text-toolbar-safe>
       <div ref={anchorRef} className="inline-flex">
-        <IconButton icon={CurrentIcon} onClick={() => setOpen((v) => !v)} active={open} title="Text align" />
+        <IconButton icon={CurrentIcon} onClick={() => setOpen((v) => !v)} active={open} title={t.textAlign} />
       </div>
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="flex w-max items-center gap-1 rounded-xl border border-gray-200 bg-white p-2 shadow-lg" data-text-toolbar-safe>
-          <IconToggleButton icon={AlignLeft} active={current === "left"} onClick={() => onChange({ align: "left" })} title="Align left" />
-          <IconToggleButton icon={AlignCenter} active={current === "center"} onClick={() => onChange({ align: "center" })} title="Align center" />
-          <IconToggleButton icon={AlignRight} active={current === "right"} onClick={() => onChange({ align: "right" })} title="Align right" />
+          <IconToggleButton icon={AlignLeft} active={current === "left"} onClick={() => onChange({ align: "left" })} title={t.alignLeft} />
+          <IconToggleButton icon={AlignCenter} active={current === "center"} onClick={() => onChange({ align: "center" })} title={t.alignCenter} />
+          <IconToggleButton icon={AlignRight} active={current === "right"} onClick={() => onChange({ align: "right" })} title={t.alignRight} />
           <IconToggleButton
             icon={AlignJustify}
             active={current === "justify" && !justifyUnsupported}
             disabled={justifyUnsupported}
             onClick={() => onChange({ align: "justify" })}
-            title={justifyUnsupported ? "Justify isn't supported on rich-formatted text yet" : "Justify"}
+            title={justifyUnsupported ? t.justifyUnsupported : t.justify}
           />
         </div>
       </ToolbarPopover>

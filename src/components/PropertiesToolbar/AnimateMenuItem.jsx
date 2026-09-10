@@ -1,5 +1,7 @@
 import React from "react";
 import { Sparkles } from "lucide-react";
+import { useLanguage } from "../../languageContext";
+import { TOOLBAR_MENU_STRINGS } from "../../i18n/toolbarMenus";
 
 // Shared "Animate" row used inside every selection's single More menu
 // (ObjectMoreMenu, TextMoreMenu, SelectionMoreMenu) — kept as one component
@@ -7,6 +9,8 @@ import { Sparkles } from "lucide-react";
 // animationPanelOpen) looks and behaves identically no matter which menu
 // it's rendered from.
 export default function AnimateMenuItem({ animationPanelOpen, onToggleAnimationPanel, hasAnimations }) {
+  const { language } = useLanguage();
+  const t = TOOLBAR_MENU_STRINGS[language].animate;
   return (
     <button
       type="button"
@@ -21,7 +25,7 @@ export default function AnimateMenuItem({ animationPanelOpen, onToggleAnimationP
       aria-pressed={animationPanelOpen}
     >
       <Sparkles size={15} />
-      Animate
+      {t.animate}
     </button>
   );
 }

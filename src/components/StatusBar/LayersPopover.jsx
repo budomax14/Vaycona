@@ -1,10 +1,26 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronUp, Eye, EyeOff, Layers, Lock, Unlock } from "lucide-react";
+import { ChevronUp, Eye, EyeOff, GripVertical, Layers, Lock, Unlock } from "lucide-react";
 import PopoverPortal from "./PopoverPortal";
 import { isEffectivelyHidden, isEffectivelyLocked } from "../../hierarchy";
 import { layerLabel } from "../LeftSidebar/panels/LayerRow";
+import { useLanguage } from "../../languageContext";
+import { STATUS_BAR_STRINGS } from "../../i18n/statusBarAndMenus";
 
-function LayerRow({ item, isSelected, itemsById, onSelect, onToggleHidden, onToggleLocked, onRename }) {
+function LayerRow({
+  item,
+  isSelected,
+  itemsById,
+  onSelect,
+  onToggleHidden,
+  onToggleLocked,
+  onRename,
+  isDragOver,
+  dropEdge,
+  onDragHandleDown,
+  onRowDragOver,
+  onRowDrop,
+  t,
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(layerLabel(item));
   const effectivelyHidden = isEffectivelyHidden(item, itemsById);
@@ -12,10 +28,23 @@ function LayerRow({ item, isSelected, itemsById, onSelect, onToggleHidden, onTog
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${
+      className={`flex items-center gap-1 rounded-lg px-2 py-1.5 ${
         isSelected ? "bg-amber-50" : "hover:bg-gray-50"
+      } ${isDragOver && dropEdge === "top" ? "border-t-2 border-amber-400" : ""} ${
+        isDragOver && dropEdge === "bottom" ? "border-b-2 border-amber-400" : ""
       }`}
+      onDragOver={(event) => onRowDragOver(event, item.id)}
+      onDrop={(event) => onRowDrop(event, item.id)}
     >
+      <span
+        className="shrink-0 cursor-grab touch-none rounded p-0.5 text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+        draggable
+        onDragStart={(event) => onDragHandleDown(event, item.id)}
+        title={t.dragToReorder}
+        aria-label={t.dragToReorder}
+      >
+        <GripVertical size={13} />
+      </span>
       {editing ? (
         <input
           autoFocus
@@ -53,14 +82,14 @@ function LayerRow({ item, isSelected, itemsById, onSelect, onToggleHidden, onTog
       <button
         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
         onClick={() => onToggleHidden(item.id)}
-        title={item.hidden ? "Show layer" : effectivelyHidden ? "Hidden by parent group" : "Hide layer"}
+        title={item.hidden ? t.showLayer : effectivelyHidden ? t.hiddenByParentGroup : t.hideLayer}
       >
         {effectivelyHidden ? <EyeOff size={13} /> : <Eye size={13} />}
       </button>
       <button
         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
         onClick={() => onToggleLocked(item.id)}
-        title={item.locked ? "Unlock layer" : effectivelyLocked ? "Locked by parent group" : "Lock layer"}
+        title={item.locked ? t.unlockLayer : effectivelyLocked ? t.lockedByParentGroup : t.lockLayer}
       >
         {effectivelyLocked ? <Lock size={13} /> : <Unlock size={13} />}
       </button>
@@ -72,16 +101,48 @@ function LayerRow({ item, isSelected, itemsById, onSelect, onToggleHidden, onTog
 // panel — both call the exact same App.jsx selection/rename/toggle
 // functions (one state source), just two different UIs for two different
 // levels of detail.
-export default function LayersPopover({ items, selectedIds, onSelect, onToggleHidden, onToggleLocked, onRename }) {
+export default function LayersPopover({ items, selectedIds, onSelect, onToggleHidden, onToggleLocked, onRename, onReorder }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].layersPopover;
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
+  const [dragState, setDragState] = useState(null); // { draggedId, overId, position }
   const triggerRef = useRef(null);
   const contentRef = useRef(null);
   const itemsById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
 
+  function handleDragHandleDown(event, id) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
+    setDragState({ draggedId: id, overId: null, position: null });
+  }
+
+  function handleRowDragOver(event, id) {
+    event.preventDefault();
+    if (!dragState || dragState.draggedId === id) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dropEdge = event.clientY - rect.top < rect.height / 2 ? "top" : "bottom";
+    // This list renders reversed (frontmost item first — see the .reverse()
+    // below), so a row displayed ABOVE the target means "more toward the
+    // front", which is array-order "after" the target, and vice versa.
+    const position = dropEdge === "top" ? "after" : "before";
+    setDragState((prev) => ({ ...prev, overId: id, position, dropEdge }));
+  }
+
+  function handleRowDrop(event, id) {
+    event.preventDefault();
+    if (!dragState || dragState.draggedId === id) {
+      setDragState(null);
+      return;
+    }
+    onReorder(dragState.draggedId, id, dragState.position || "after");
+    setDragState(null);
+  }
+
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) {
       setAnchorRect(null);
+      setDragState(null);
       return;
     }
     setAnchorRect(triggerRef.current.getBoundingClientRect());
@@ -108,13 +169,13 @@ export default function LayersPopover({ items, selectedIds, onSelect, onToggleHi
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        <Layers size={13} /> Layers ({items.length}) <ChevronUp size={12} />
+        <Layers size={13} /> {t.layersCount(items.length)} <ChevronUp size={12} />
       </button>
       <PopoverPortal ref={contentRef} anchorRect={anchorRect} align="right">
         {open && (
           <div className="max-h-96 w-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
             {items.length === 0 ? (
-              <p className="px-2 py-3 text-xs text-gray-400">No layers yet.</p>
+              <p className="px-2 py-3 text-xs text-gray-400">{t.noLayersYet}</p>
             ) : (
               [...items]
                 .reverse()
@@ -128,6 +189,12 @@ export default function LayersPopover({ items, selectedIds, onSelect, onToggleHi
                     onToggleHidden={onToggleHidden}
                     onToggleLocked={onToggleLocked}
                     onRename={onRename}
+                    isDragOver={dragState?.overId === item.id}
+                    dropEdge={dragState?.dropEdge}
+                    onDragHandleDown={handleDragHandleDown}
+                    onRowDragOver={handleRowDragOver}
+                    onRowDrop={handleRowDrop}
+                    t={t}
                   />
                 ))
             )}

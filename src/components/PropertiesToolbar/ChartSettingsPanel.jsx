@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 import { ColorField, NumberField, SliderField } from "./toolbarUi";
 import FontFamilyPicker from "./FontFamilyPicker";
 import { CHART_KINDS, CHART_KIND_ORDER_AVAILABLE } from "../../chartKinds";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 const LEGEND_POSITIONS = ["top", "bottom", "left", "right"];
 
@@ -38,6 +40,8 @@ function ToggleRow({ label, active, onClick }) {
 }
 
 export default function ChartSettingsPanel({ isOpen, onClose, item, onChange }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].chartSettings;
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -91,18 +95,18 @@ export default function ChartSettingsPanel({ isOpen, onClose, item, onChange }) 
     <div
       ref={panelRef}
       role="dialog"
-      aria-label="Chart settings"
+      aria-label={t.title}
       className="fixed right-0 top-32 bottom-9 z-40 flex w-full max-w-[85vw] flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-2xl sm:w-80 sm:max-w-none"
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-900">Chart settings</h2>
-        <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close">
+        <h2 className="text-sm font-semibold text-gray-900">{t.title}</h2>
+        <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.close}>
           <X size={16} />
         </button>
       </div>
 
       <div className="flex-1 space-y-4 p-4">
-        <Section title="Chart type">
+        <Section title={t.sectionChartType}>
           <select
             className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
             value={item.chartKind}
@@ -116,73 +120,73 @@ export default function ChartSettingsPanel({ isOpen, onClose, item, onChange }) 
           </select>
         </Section>
 
-        <Section title="Title">
+        <Section title={t.sectionTitle}>
           <input
             type="text"
             className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
             value={item.title ?? ""}
-            placeholder="Chart title"
+            placeholder={t.titlePlaceholder}
             onChange={(event) => onChange({ title: event.target.value })}
           />
-          <ToggleRow label="Show title" active={!!settings.showTitle} onClick={() => patchSettings({ showTitle: !settings.showTitle })} />
+          <ToggleRow label={t.showTitle} active={!!settings.showTitle} onClick={() => patchSettings({ showTitle: !settings.showTitle })} />
           {settings.showTitle && (
             <>
               <FontFamilyPicker value={settings.titleFontFamily || "Arial"} onChange={(value) => patchSettings({ titleFontFamily: value })} />
               <div className="flex items-center gap-2">
-                <NumberField label="Size" value={settings.titleFontSize || 18} min={8} max={72} onChange={(value) => patchSettings({ titleFontSize: value })} />
-                <ColorField label="Color" value={settings.titleColor || "#111827"} onChange={(value) => patchSettings({ titleColor: value })} />
+                <NumberField label={t.size} value={settings.titleFontSize || 18} min={8} max={72} onChange={(value) => patchSettings({ titleFontSize: value })} />
+                <ColorField label={t.color} value={settings.titleColor || "#111827"} onChange={(value) => patchSettings({ titleColor: value })} />
               </div>
             </>
           )}
         </Section>
 
-        <Section title="Background">
+        <Section title={t.sectionBackground}>
           <ToggleRow
-            label="Solid background"
+            label={t.solidBackground}
             active={settings.background !== "transparent"}
             onClick={() => patchSettings({ background: settings.background !== "transparent" ? "transparent" : "#ffffff" })}
           />
           {settings.background !== "transparent" && (
-            <ColorField label="Color" value={settings.background || "#ffffff"} onChange={(value) => patchSettings({ background: value })} />
+            <ColorField label={t.color} value={settings.background || "#ffffff"} onChange={(value) => patchSettings({ background: value })} />
           )}
         </Section>
 
-        <Section title="Border">
-          <ToggleRow label="Show border" active={!!border.enabled} onClick={() => patchSettings({ border: { ...border, enabled: !border.enabled } })} />
+        <Section title={t.sectionBorder}>
+          <ToggleRow label={t.showBorder} active={!!border.enabled} onClick={() => patchSettings({ border: { ...border, enabled: !border.enabled } })} />
           {border.enabled && (
             <>
-              <ColorField label="Color" value={border.color || "#111827"} onChange={(value) => patchSettings({ border: { ...border, color: value } })} />
+              <ColorField label={t.color} value={border.color || "#111827"} onChange={(value) => patchSettings({ border: { ...border, color: value } })} />
               <div className="flex items-center gap-2">
-                <NumberField label="Width" value={border.width ?? 1} min={0} max={20} onChange={(value) => patchSettings({ border: { ...border, width: value } })} />
-                <NumberField label="Radius" value={border.radius ?? 0} min={0} max={40} onChange={(value) => patchSettings({ border: { ...border, radius: value } })} />
+                <NumberField label={t.width} value={border.width ?? 1} min={0} max={20} onChange={(value) => patchSettings({ border: { ...border, width: value } })} />
+                <NumberField label={t.radius} value={border.radius ?? 0} min={0} max={40} onChange={(value) => patchSettings({ border: { ...border, radius: value } })} />
               </div>
             </>
           )}
         </Section>
 
-        <Section title="Data labels">
-          <ToggleRow label="Show data labels" active={!!settings.showDataLabels} onClick={() => patchSettings({ showDataLabels: !settings.showDataLabels })} />
+        <Section title={t.sectionDataLabels}>
+          <ToggleRow label={t.showDataLabels} active={!!settings.showDataLabels} onClick={() => patchSettings({ showDataLabels: !settings.showDataLabels })} />
           {isPie && (
-            <ToggleRow label="Show percentage" active={!!settings.showPercentage} onClick={() => patchSettings({ showPercentage: !settings.showPercentage })} />
+            <ToggleRow label={t.showPercentage} active={!!settings.showPercentage} onClick={() => patchSettings({ showPercentage: !settings.showPercentage })} />
           )}
           {settings.showDataLabels && (
             <div className="flex items-center gap-2">
-              <NumberField label="Size" value={settings.dataLabelFontSize || 11} min={6} max={32} onChange={(value) => patchSettings({ dataLabelFontSize: value })} />
-              <ColorField label="Color" value={settings.dataLabelColor || "#111827"} onChange={(value) => patchSettings({ dataLabelColor: value })} />
+              <NumberField label={t.size} value={settings.dataLabelFontSize || 11} min={6} max={32} onChange={(value) => patchSettings({ dataLabelFontSize: value })} />
+              <ColorField label={t.color} value={settings.dataLabelColor || "#111827"} onChange={(value) => patchSettings({ dataLabelColor: value })} />
             </div>
           )}
         </Section>
 
         {!isPie && (
-          <Section title="Grid & axes">
-            <ToggleRow label="Grid lines" active={!!settings.showGrid} onClick={() => patchSettings({ showGrid: !settings.showGrid })} />
-            <ToggleRow label="X-axis" active={!!settings.showXAxis} onClick={() => patchSettings({ showXAxis: !settings.showXAxis })} />
-            <ToggleRow label="Y-axis" active={!!settings.showYAxis} onClick={() => patchSettings({ showYAxis: !settings.showYAxis })} />
+          <Section title={t.sectionGridAxes}>
+            <ToggleRow label={t.gridLines} active={!!settings.showGrid} onClick={() => patchSettings({ showGrid: !settings.showGrid })} />
+            <ToggleRow label={t.xAxis} active={!!settings.showXAxis} onClick={() => patchSettings({ showXAxis: !settings.showXAxis })} />
+            <ToggleRow label={t.yAxis} active={!!settings.showYAxis} onClick={() => patchSettings({ showYAxis: !settings.showYAxis })} />
           </Section>
         )}
 
-        <Section title="Legend">
-          <ToggleRow label="Show legend" active={!!settings.showLegend} onClick={() => patchSettings({ showLegend: !settings.showLegend })} />
+        <Section title={t.sectionLegend}>
+          <ToggleRow label={t.showLegend} active={!!settings.showLegend} onClick={() => patchSettings({ showLegend: !settings.showLegend })} />
           {settings.showLegend && (
             <select
               className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
@@ -191,7 +195,7 @@ export default function ChartSettingsPanel({ isOpen, onClose, item, onChange }) 
             >
               {LEGEND_POSITIONS.map((pos) => (
                 <option key={pos} value={pos}>
-                  {pos[0].toUpperCase() + pos.slice(1)}
+                  {t.legendPositionLabel(pos)}
                 </option>
               ))}
             </select>
@@ -199,35 +203,35 @@ export default function ChartSettingsPanel({ isOpen, onClose, item, onChange }) 
         </Section>
 
         {isBar && (
-          <Section title="Bar settings">
-            <NumberField label="Corner radius" value={settings.barCornerRadius ?? 4} min={0} max={40} onChange={(value) => patchSettings({ barCornerRadius: value })} />
-            <SliderField label="Bar spacing" value={settings.barGap ?? 0.2} min={0} max={0.8} step={0.05} onChange={(value) => patchSettings({ barGap: value })} />
+          <Section title={t.sectionBarSettings}>
+            <NumberField label={t.cornerRadius} value={settings.barCornerRadius ?? 4} min={0} max={40} onChange={(value) => patchSettings({ barCornerRadius: value })} />
+            <SliderField label={t.barSpacing} value={settings.barGap ?? 0.2} min={0} max={0.8} step={0.05} onChange={(value) => patchSettings({ barGap: value })} />
           </Section>
         )}
 
         {isLine && (
-          <Section title="Line settings">
-            <NumberField label="Thickness" value={settings.lineThickness ?? 2} min={1} max={20} onChange={(value) => patchSettings({ lineThickness: value })} />
+          <Section title={t.sectionLineSettings}>
+            <NumberField label={t.thickness} value={settings.lineThickness ?? 2} min={1} max={20} onChange={(value) => patchSettings({ lineThickness: value })} />
             <ToggleRow
-              label="Smooth curve"
+              label={t.smoothCurve}
               active={settings.lineCurve === "monotone"}
               onClick={() => patchSettings({ lineCurve: settings.lineCurve === "monotone" ? "linear" : "monotone" })}
             />
-            <ToggleRow label="Data points" active={!!settings.showDataPoints} onClick={() => patchSettings({ showDataPoints: !settings.showDataPoints })} />
+            <ToggleRow label={t.dataPoints} active={!!settings.showDataPoints} onClick={() => patchSettings({ showDataPoints: !settings.showDataPoints })} />
             {settings.showDataPoints && (
-              <NumberField label="Point size" value={settings.dataPointSize ?? 4} min={1} max={16} onChange={(value) => patchSettings({ dataPointSize: value })} />
+              <NumberField label={t.pointSize} value={settings.dataPointSize ?? 4} min={1} max={16} onChange={(value) => patchSettings({ dataPointSize: value })} />
             )}
-            <ToggleRow label="Area fill" active={!!settings.areaFill} onClick={() => patchSettings({ areaFill: !settings.areaFill })} />
+            <ToggleRow label={t.areaFill} active={!!settings.areaFill} onClick={() => patchSettings({ areaFill: !settings.areaFill })} />
           </Section>
         )}
 
         {isPie && (
-          <Section title="Pie & donut settings">
-            <NumberField label="Slice spacing" value={settings.sliceSpacing ?? 0} min={0} max={10} onChange={(value) => patchSettings({ sliceSpacing: value })} />
+          <Section title={t.sectionPieSettings}>
+            <NumberField label={t.sliceSpacing} value={settings.sliceSpacing ?? 0} min={0} max={10} onChange={(value) => patchSettings({ sliceSpacing: value })} />
             <div>
-              <span className="mb-1 block text-xs font-medium text-gray-500">Donut size: {settings.donutInnerRadius ?? 0}%</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.donutSizeWithValue(settings.donutInnerRadius ?? 0)}</span>
               <SliderField
-                label="Donut size"
+                label={t.donutSize}
                 value={settings.donutInnerRadius ?? 0}
                 min={0}
                 max={80}

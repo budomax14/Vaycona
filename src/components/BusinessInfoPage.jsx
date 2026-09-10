@@ -16,59 +16,23 @@ import {
   Check,
 } from "lucide-react";
 import { useSubscription, PRICE_IDS } from "../subscriptionContext";
+import { useLanguage } from "../languageContext";
+import { MISC_STRINGS } from "../i18n/misc";
 
-const FEATURES = [
-  {
-    icon: Users,
-    title: "Team Workspace",
-    description: "Invite your team and keep company designs organized in one shared workspace.",
-  },
-  {
-    icon: Palette,
-    title: "Company Brand Kit",
-    description: "Store your logos, brand colors, fonts, graphics, and other brand assets.",
-  },
-  {
-    icon: ImageIcon,
-    title: "Shared Asset Library",
-    description: "Give everyone access to approved company images, logos, product photos, videos, and graphics.",
-  },
-  {
-    icon: LayoutTemplate,
-    title: "Company Templates",
-    description: "Build reusable templates for social posts, presentations, flyers, marketing materials, and more.",
-  },
-  {
-    icon: Lock,
-    title: "Brand-Locked Designs",
-    description: "Protect logos, colors, and important elements while allowing employees to customize what they need.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Roles & Permissions",
-    description: "Control what Owners, Admins, Designers, Editors, and Viewers can access and change.",
-  },
-  {
-    icon: CheckCircle2,
-    title: "Design Approvals",
-    description: "Let employees submit designs for review before they're finalized.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Team Comments",
-    description: "Review designs together, leave feedback, reply to comments, and @mention teammates.",
-  },
-  {
-    icon: History,
-    title: "Version History",
-    description: "View previous versions and restore earlier designs when needed.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Business Dashboard",
-    description: "See recent designs, team activity, pending approvals, shared resources, and workspace usage.",
-  },
-];
+function buildFeatures(t) {
+  return [
+    { icon: Users, title: t.featureTeamWorkspaceTitle, description: t.featureTeamWorkspaceDesc },
+    { icon: Palette, title: t.featureBrandKitTitle, description: t.featureBrandKitDesc },
+    { icon: ImageIcon, title: t.featureAssetLibraryTitle, description: t.featureAssetLibraryDesc },
+    { icon: LayoutTemplate, title: t.featureTemplatesTitle, description: t.featureTemplatesDesc },
+    { icon: Lock, title: t.featureBrandLockedTitle, description: t.featureBrandLockedDesc },
+    { icon: ShieldCheck, title: t.featureRolesTitle, description: t.featureRolesDesc },
+    { icon: CheckCircle2, title: t.featureApprovalsTitle, description: t.featureApprovalsDesc },
+    { icon: MessageSquare, title: t.featureCommentsTitle, description: t.featureCommentsDesc },
+    { icon: History, title: t.featureVersionHistoryTitle, description: t.featureVersionHistoryDesc },
+    { icon: LayoutDashboard, title: t.featureDashboardTitle, description: t.featureDashboardDesc },
+  ];
+}
 
 function WorkspaceMockup() {
   return (
@@ -108,13 +72,13 @@ function BrandKitMockup() {
   );
 }
 
-function TeamMockup() {
+function TeamMockup({ t }) {
   return (
     <div className="space-y-1.5">
       {[
-        { role: "Owner", w: "w-16" },
-        { role: "Admin", w: "w-12" },
-        { role: "Designer", w: "w-14" },
+        { role: t.roleOwner, w: "w-16" },
+        { role: t.roleAdmin, w: "w-12" },
+        { role: t.roleDesigner, w: "w-14" },
       ].map((row, i) => (
         <div key={i} className="flex items-center gap-1.5">
           <div className="h-4 w-4 shrink-0 rounded-full bg-gray-200" />
@@ -128,8 +92,8 @@ function TeamMockup() {
   );
 }
 
-function ApprovalMockup() {
-  const steps = ["Draft", "In Review", "Approved"];
+function ApprovalMockup({ t }) {
+  const steps = [t.stepDraft, t.stepInReview, t.stepApproved];
   return (
     <div className="space-y-2.5">
       <div className="flex items-center gap-1">
@@ -154,14 +118,20 @@ function ApprovalMockup() {
   );
 }
 
-const WORKFLOW_STEPS = [
-  { label: "Workspace", Mockup: WorkspaceMockup },
-  { label: "Brand Kit", Mockup: BrandKitMockup },
-  { label: "Team", Mockup: TeamMockup },
-  { label: "Approval", Mockup: ApprovalMockup },
-];
+function buildWorkflowSteps(t) {
+  return [
+    { label: t.workflowWorkspace, Mockup: WorkspaceMockup },
+    { label: t.workflowBrandKit, Mockup: BrandKitMockup },
+    { label: t.workflowTeam, Mockup: (props) => <TeamMockup {...props} t={t} /> },
+    { label: t.workflowApproval, Mockup: (props) => <ApprovalMockup {...props} t={t} /> },
+  ];
+}
 
 export default function BusinessInfoPage({ isOpen, onClose }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].businessInfo;
+  const FEATURES = buildFeatures(t);
+  const WORKFLOW_STEPS = buildWorkflowSteps(t);
   const { tier: currentTier, openCheckout } = useSubscription();
   const [cycle, setCycle] = useState("monthly");
   const [loading, setLoading] = useState(false);
@@ -187,7 +157,7 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
     try {
       await openCheckout(PRICE_IDS.business[cycle]);
     } catch (err) {
-      setError(err.message || "Couldn't start checkout. Please try again.");
+      setError(err.message || t.checkoutError);
       setLoading(false);
     }
   }
@@ -195,11 +165,11 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-white" role="dialog" aria-modal="true">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/95 px-6 py-4 backdrop-blur">
-        <span className="text-sm font-semibold text-gray-900">Vaycona Business</span>
+        <span className="text-sm font-semibold text-gray-900">{t.badge}</span>
         <button
           className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t.close}
         >
           <X size={18} />
         </button>
@@ -208,14 +178,13 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
       <main className="mx-auto max-w-5xl px-6 pb-24">
         <section className="mx-auto max-w-2xl pt-16 text-center sm:pt-20">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-            Vaycona Business
+            {t.badge}
           </span>
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Your entire creative team. One workspace.
+            {t.heroTitle}
           </h1>
           <p className="mt-4 text-base leading-relaxed text-gray-500">
-            Give your team everything they need to create, collaborate, and keep every design
-            consistent with your brand.
+            {t.heroSubtitle}
           </p>
           <button
             className="mt-8 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:pointer-events-none disabled:opacity-60"
@@ -223,14 +192,14 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
             disabled={isCurrent || loading}
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-            {isCurrent ? "You're on Business" : "Start Vaycona Business"}
+            {isCurrent ? t.youreOnBusiness : t.startBusiness}
             {!isCurrent && !loading && <ArrowRight size={16} />}
           </button>
         </section>
 
         <section className="mt-20 sm:mt-24">
           <h2 className="text-center text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Inside Vaycona Business
+            {t.insideBusiness}
           </h2>
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {WORKFLOW_STEPS.map(({ label, Mockup }, i) => (
@@ -250,7 +219,7 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
         </section>
 
         <section className="mt-20 sm:mt-24">
-          <p className="text-center text-sm font-medium text-amber-700">Everything in Vaycona Pro, plus:</p>
+          <p className="text-center text-sm font-medium text-amber-700">{t.everythingInPro}</p>
           <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
             {FEATURES.map(({ icon: Icon, title, description }) => (
               <div key={title} className="flex gap-3.5">
@@ -268,17 +237,17 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
 
         <section className="mt-20 rounded-2xl border border-gray-200 bg-gray-50 px-6 py-12 text-center sm:mt-24 sm:px-12">
           <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
-            Bring your brand and your team together.
+            {t.ctaTitle}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-            Create faster. Stay consistent. Keep everyone on the same page.
+            {t.ctaSubtitle}
           </p>
 
           <div className="mt-6 flex justify-center">
             <div className="flex gap-1 rounded-lg border border-gray-200 bg-white p-1">
               {[
-                { key: "monthly", label: "Monthly" },
-                { key: "annual", label: "Annual — 2 months free" },
+                { key: "monthly", label: t.monthly },
+                { key: "annual", label: t.annual },
               ].map((option) => (
                 <button
                   key={option.key}
@@ -301,9 +270,9 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
 
           <div className="mt-5">
             <span className="text-2xl font-bold text-gray-900">${price.toFixed(2)}</span>
-            <span className="text-sm text-gray-400"> / month</span>
+            <span className="text-sm text-gray-400">{t.perMonth}</span>
             {cycle === "annual" && (
-              <div className="text-xs text-gray-400">billed $199.99/year</div>
+              <div className="text-xs text-gray-400">{t.billedAnnually("199.99")}</div>
             )}
           </div>
 
@@ -313,7 +282,7 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
             disabled={isCurrent || loading}
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : isCurrent ? <Check size={16} /> : null}
-            {isCurrent ? "You're on Business" : "Start Vaycona Business"}
+            {isCurrent ? t.youreOnBusiness : t.startBusiness}
           </button>
         </section>
       </main>

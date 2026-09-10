@@ -3,6 +3,8 @@ import { Blend, MousePointer2 } from "lucide-react";
 import { GroupedSliderField, IconButton, IconToggleButton, LabeledField } from "./toolbarUi";
 import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
 import { DEFAULT_OPACITY_MASK, LINEAR_DIRECTION_PRESETS, normalizeOpacityMask } from "../../opacityMask";
+import { useLanguage } from "../../languageContext";
+import { TOOLBAR_MENU_STRINGS } from "../../i18n/toolbarMenus";
 
 // Partial Opacity / Fade — a separate control from the existing whole-
 // element Opacity slider (see ImagePropertiesBar.jsx etc.), modeled on
@@ -17,6 +19,8 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const current = normalizeOpacityMask(opacityMask);
+  const { language } = useLanguage();
+  const t = TOOLBAR_MENU_STRINGS[language].fade;
 
   const activeDirectionKey = LINEAR_DIRECTION_PRESETS.find(
     (preset) => preset.start.x === current.start.x && preset.start.y === current.start.y && preset.end.x === current.end.x && preset.end.y === current.end.y
@@ -25,13 +29,13 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
   return (
     <div className="relative shrink-0" data-fade-toolbar-safe>
       <div ref={anchorRef} className="inline-flex">
-        <IconButton icon={Blend} label="Fade" onClick={() => setOpen((v) => !v)} active={open || current.enabled} />
+        <IconButton icon={Blend} label={t.fade} onClick={() => setOpen((v) => !v)} active={open || current.enabled} />
       </div>
       <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
         <div className="w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg" data-fade-toolbar-safe>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Fade</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.fade}</p>
 
-          <LabeledField label="Type" width="100%">
+          <LabeledField label={t.type} width="100%">
             <select
               className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
               value={current.enabled ? current.type : "none"}
@@ -44,9 +48,9 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
                 }
               }}
             >
-              <option value="none">None</option>
-              <option value="linear">Linear</option>
-              <option value="radial">Radial</option>
+              <option value="none">{t.none}</option>
+              <option value="linear">{t.linear}</option>
+              <option value="radial">{t.radial}</option>
             </select>
           </LabeledField>
 
@@ -57,13 +61,13 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
                   icon={MousePointer2}
                   active={!!isEditingOnCanvas}
                   onClick={onEnterEditMode}
-                  title="Edit on canvas"
+                  title={t.editOnCanvas}
                 />
-                <span className="ml-2 align-middle text-xs text-gray-500">Edit on canvas</span>
+                <span className="ml-2 align-middle text-xs text-gray-500">{t.editOnCanvas}</span>
               </div>
 
               {current.type === "linear" && (
-                <LabeledField label="Direction" width="100%">
+                <LabeledField label={t.direction} width="100%">
                   <select
                     className="mt-1 h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
                     value={activeDirectionKey || ""}
@@ -72,7 +76,7 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
                       if (preset) onChange({ ...current, start: preset.start, end: preset.end });
                     }}
                   >
-                    {!activeDirectionKey && <option value="">Custom</option>}
+                    {!activeDirectionKey && <option value="">{t.custom}</option>}
                     {LINEAR_DIRECTION_PRESETS.map((preset) => (
                       <option key={preset.key} value={preset.key}>
                         {preset.label}
@@ -84,7 +88,7 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
 
               <div className="mt-3 flex flex-col gap-2">
                 <GroupedSliderField
-                  label={current.type === "radial" ? "Inner" : "Start"}
+                  label={current.type === "radial" ? t.inner : t.start}
                   value={current.startOpacity}
                   min={0}
                   max={1}
@@ -94,7 +98,7 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
                   onCommit={onCommit}
                 />
                 <GroupedSliderField
-                  label={current.type === "radial" ? "Outer" : "End"}
+                  label={current.type === "radial" ? t.outer : t.end}
                   value={current.endOpacity}
                   min={0}
                   max={1}
@@ -105,7 +109,7 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
                 />
                 {current.type === "radial" && (
                   <GroupedSliderField
-                    label="Size"
+                    label={t.size}
                     value={current.radius}
                     min={0.05}
                     max={1.5}
@@ -124,14 +128,14 @@ export default function FadePopover({ opacityMask, onChange, onLiveChange, onCom
                   checked={current.reverse}
                   onChange={(event) => onChange({ ...current, reverse: event.target.checked })}
                 />
-                Reverse fade
+                {t.reverseFade}
               </label>
 
               <button
                 className="mt-3 w-full rounded-lg border border-gray-200 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50"
                 onClick={() => onChange({ ...DEFAULT_OPACITY_MASK })}
               >
-                Reset
+                {t.reset}
               </button>
             </>
           )}

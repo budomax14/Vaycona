@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SlidersHorizontal, Table } from "lucide-react";
 import { SliderField, ToolbarDivider } from "./toolbarUi";
 import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
@@ -6,6 +6,8 @@ import ChartSettingsPanel from "./ChartSettingsPanel";
 import ChartColorsPanel from "./ChartColorsPanel";
 import ObjectMoreMenu from "./ObjectMoreMenu";
 import { CHART_KINDS, getSliceColor } from "../../chartKinds";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 export default function ChartPropertiesBar({
   item,
@@ -19,12 +21,23 @@ export default function ChartPropertiesBar({
   onToggleHidden,
   onAlignToPage,
   onEditChartData,
+  chartStyleOpenRequest,
   animationPanelOpen,
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].chart;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isColorsOpen, setIsColorsOpen] = useState(false);
+
+  // Double-clicking the chart on canvas bumps chartStyleOpenRequest (set
+  // outside this component in App.jsx), so this just opens the panel
+  // whenever that counter changes — mirrors ShapePropertiesBar's
+  // shapeFillOpenRequest.
+  useEffect(() => {
+    if (chartStyleOpenRequest) setIsSettingsOpen(true);
+  }, [chartStyleOpenRequest]);
 
   const isPie = (CHART_KINDS[item.chartKind]?.family || "bar") === "pie";
   const swatchColor = isPie ? getSliceColor(item, 0) : item.series?.[0]?.color || "#8b5cf6";
@@ -40,10 +53,10 @@ export default function ChartPropertiesBar({
               onClick={onEditChartData}
             >
               <Table size={15} />
-              Edit Data
+              {t.editData}
             </button>
 
-            <span className="shrink-0 text-xs font-medium text-gray-400">{CHART_KINDS[item.chartKind]?.label || "Chart"}</span>
+            <span className="shrink-0 text-xs font-medium text-gray-400">{CHART_KINDS[item.chartKind]?.label || t.chartFallback}</span>
           </>
         </OverflowToolbar.Item>
 
@@ -54,8 +67,8 @@ export default function ChartPropertiesBar({
               type="button"
               className={`h-8 w-10 shrink-0 cursor-pointer rounded-lg border p-0.5 ${isColorsOpen ? "border-amber-400 ring-2 ring-amber-100" : "border-gray-200"}`}
               style={{ background: swatchColor }}
-              title="Chart colors"
-              aria-label="Chart colors"
+              title={t.chartColors}
+              aria-label={t.chartColors}
               onClick={() => setIsColorsOpen((v) => !v)}
             />
           </>
@@ -72,7 +85,7 @@ export default function ChartPropertiesBar({
               onClick={() => setIsSettingsOpen((v) => !v)}
             >
               <SlidersHorizontal size={15} />
-              Style
+              {t.style}
             </button>
           </>
         </OverflowToolbar.Item>
@@ -80,7 +93,7 @@ export default function ChartPropertiesBar({
         <OverflowToolbar.Item>
           <>
             <ToolbarDivider />
-            <SliderField label="Opacity" value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
+            <SliderField label={t.opacity} value={item.opacity ?? 1} min={0.1} max={1} onChange={(value) => onChange({ opacity: value })} />
           </>
         </OverflowToolbar.Item>
 

@@ -11,6 +11,8 @@ import { LINE_KIND_ORDER, LINE_KINDS } from "../../lineKinds";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
 import { normalizeImageFill } from "../../imageFill";
 import { useAsset } from "../../useAsset";
+import { useLanguage } from "../../languageContext";
+import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
 
 export default function ShapePropertiesBar({
   item,
@@ -35,6 +37,8 @@ export default function ShapePropertiesBar({
   onToggleAnimationPanel,
   hasAnimations,
 }) {
+  const { language } = useLanguage();
+  const t = OBJECT_PROPERTIES_STRINGS[language].shape;
   const [isColorPanelOpen, setIsColorPanelOpen] = useState(false);
 
   // SelectionToolbar's "Shape fill" button lives outside this component, so
@@ -43,7 +47,9 @@ export default function ShapePropertiesBar({
   useEffect(() => {
     if (shapeFillOpenRequest) setIsColorPanelOpen(true);
   }, [shapeFillOpenRequest]);
-  const isLine = item.type === "line";
+  // Brush strokes share this bar (color/thickness/opacity) and, like
+  // lines, have no fill/border-style/corner-radius concept of their own.
+  const isLine = item.type === "line" || item.type === "brush";
   const controls = getControls(item);
   const supportsFill = controls.includes("fill");
   const supportsCornerRadius = controls.includes("cornerRadius");
@@ -62,8 +68,8 @@ export default function ShapePropertiesBar({
                 type="button"
                 className={`h-8 w-10 shrink-0 cursor-pointer rounded-lg border p-0.5 ${isColorPanelOpen ? "border-amber-400 ring-2 ring-amber-100" : "border-gray-200"}`}
                 style={{ background: item.fillImage?.assetId || item.fillGradient ? undefined : item.fill || "#8b5cf6" }}
-                title="Shape fill"
-                aria-label="Shape fill"
+                title={t.shapeFill}
+                aria-label={t.shapeFill}
                 onClick={() => setIsColorPanelOpen((v) => !v)}
               >
                 {item.fillImage?.assetId ? (
@@ -86,7 +92,7 @@ export default function ShapePropertiesBar({
 
         <OverflowToolbar.Item keepOnMobile>
           <ColorField
-            label={isLine ? "Color" : "Border color"}
+            label={isLine ? t.color : t.borderColor}
             value={item.stroke && item.stroke !== "transparent" ? item.stroke : "#111827"}
             onChange={(value) => onChange({ stroke: value })}
             {...(brand ? brand.colorField("stroke") : {})}
@@ -97,7 +103,7 @@ export default function ShapePropertiesBar({
           <>
             {brand && <ObjectStylePicker compatibleWith={item.type} style={brand.objectStyle} />}
             <NumberField
-              label={isLine ? "Thickness" : "Border width"}
+              label={isLine ? t.thickness : t.borderWidth}
               value={item.strokeWidth || (isLine ? 4 : 0)}
               min={0}
               max={40}
@@ -111,7 +117,7 @@ export default function ShapePropertiesBar({
             <>
               <select
                 className="h-8 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
-                aria-label="Border style"
+                aria-label={t.borderStyle}
                 value={item.strokeStyle || "solid"}
                 onChange={(event) => onChange({ strokeStyle: event.target.value })}
               >
@@ -122,7 +128,7 @@ export default function ShapePropertiesBar({
                 ))}
               </select>
               <SliderField
-                label="Border opacity"
+                label={t.borderOpacity}
                 value={item.strokeOpacity ?? 1}
                 min={0}
                 max={1}
@@ -132,7 +138,7 @@ export default function ShapePropertiesBar({
                 icon={Ban}
                 onClick={() => onChange({ strokeWidth: 0 })}
                 disabled={!(item.strokeWidth > 0)}
-                title="Remove border"
+                title={t.removeBorder}
               />
             </>
           </OverflowToolbar.Item>
@@ -141,7 +147,7 @@ export default function ShapePropertiesBar({
         {supportsCornerRadius && (
           <OverflowToolbar.Item>
             <NumberField
-              label="Corner radius"
+              label={t.cornerRadius}
               value={item.cornerRadius || 0}
               min={0}
               max={100}
@@ -154,7 +160,7 @@ export default function ShapePropertiesBar({
           <OverflowToolbar.Item>
             <select
               className="h-8 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
-              aria-label="Line style"
+              aria-label={t.lineStyle}
               value={item.lineKind || "straight"}
               onChange={(event) => onChange({ lineKind: event.target.value })}
             >
@@ -171,7 +177,7 @@ export default function ShapePropertiesBar({
           <>
             <ToolbarDivider />
             <SliderField
-              label="Opacity"
+              label={t.opacity}
               value={item.opacity ?? 1}
               min={0.1}
               max={1}
@@ -201,11 +207,11 @@ export default function ShapePropertiesBar({
                 icon={Sparkles}
                 active={!!item.shadow}
                 onClick={() => onChange({ shadow: !item.shadow })}
-                title="Toggle shadow"
+                title={t.toggleShadow}
               />
               {item.shadow && (
                 <NumberField
-                  label="Shadow blur"
+                  label={t.shadowBlur}
                   value={item.shadowBlur ?? 12}
                   min={0}
                   max={60}
@@ -242,8 +248,8 @@ export default function ShapePropertiesBar({
         <TextColorPanel
           isOpen={isColorPanelOpen}
           onClose={() => setIsColorPanelOpen(false)}
-          title="Shape fill"
-          imageFillDescription="Fill this shape with an image, clipped to the shape's outline."
+          title={t.shapeFill}
+          imageFillDescription={t.imageFillDescription}
           solidValue={item.fill || "#8b5cf6"}
           gradientValue={item.fillGradient || null}
           imageValue={item.fillImage || null}

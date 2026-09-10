@@ -4,6 +4,8 @@ import ZoomControl from "./ZoomControl";
 import LayersPopover from "./LayersPopover";
 import PagesPopover from "./PagesPopover";
 import { UNITS, formatMeasurement } from "../../measurement";
+import { useLanguage } from "../../languageContext";
+import { STATUS_BAR_STRINGS } from "../../i18n/statusBarAndMenus";
 
 export default function StatusBar({
   pages,
@@ -31,6 +33,7 @@ export default function StatusBar({
   onToggleHidden,
   onToggleLocked,
   onRenameLayer,
+  onReorderLayer,
   unit,
   onUnitChange,
   // Phase 12
@@ -38,6 +41,8 @@ export default function StatusBar({
   onToggleTimeline,
   onOpenPresentation,
 }) {
+  const { language } = useLanguage();
+  const t = STATUS_BAR_STRINGS[language].statusBar;
   const activeIndex = pages.findIndex((page) => page.id === activePageId);
 
   return (
@@ -47,20 +52,20 @@ export default function StatusBar({
           className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
           onClick={onPrevPage}
           disabled={activeIndex <= 0}
-          title="Previous page"
-          aria-label="Previous page"
+          title={t.previousPage}
+          aria-label={t.previousPage}
         >
           <ChevronLeft size={13} />
         </button>
         <span className="font-medium text-gray-700">
-          Page {activeIndex + 1} of {pages.length}
+          {t.pageOf(activeIndex + 1, pages.length)}
         </span>
         <button
           className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
           onClick={onNextPage}
           disabled={activeIndex >= pages.length - 1}
-          title="Next page"
-          aria-label="Next page"
+          title={t.nextPage}
+          aria-label={t.nextPage}
         >
           <ChevronRight size={13} />
         </button>
@@ -86,15 +91,19 @@ export default function StatusBar({
       <span className="hidden h-3 w-px shrink-0 bg-gray-200 md:inline" />
 
       <span className="hidden shrink-0 sm:inline" aria-live="off">
-        {cursorPos ? `X: ${formatMeasurement(cursorPos.x, unit)}, Y: ${formatMeasurement(cursorPos.y, unit)}` : "X: —, Y: —"}
+        {cursorPos ? t.cursorPosition(formatMeasurement(cursorPos.x, unit), formatMeasurement(cursorPos.y, unit)) : t.cursorPositionEmpty}
       </span>
 
       {selectedBounds && (
         <>
           <span className="hidden h-3 w-px shrink-0 bg-gray-200 lg:inline" />
           <span className="hidden shrink-0 lg:inline">
-            Selection: {formatMeasurement(selectedBounds.left, unit)}, {formatMeasurement(selectedBounds.top, unit)} (
-            {formatMeasurement(selectedBounds.width, unit)} × {formatMeasurement(selectedBounds.height, unit)})
+            {t.selection(
+              formatMeasurement(selectedBounds.left, unit),
+              formatMeasurement(selectedBounds.top, unit),
+              formatMeasurement(selectedBounds.width, unit),
+              formatMeasurement(selectedBounds.height, unit)
+            )}
           </span>
         </>
       )}
@@ -104,7 +113,7 @@ export default function StatusBar({
         className="hidden shrink-0 rounded border border-gray-200 bg-white px-1 py-0.5 text-xs text-gray-500 md:inline"
         value={unit}
         onChange={(event) => onUnitChange(event.target.value)}
-        aria-label="Measurement unit"
+        aria-label={t.measurementUnit}
       >
         {UNITS.map((u) => (
           <option key={u.key} value={u.key}>{u.key}</option>
@@ -115,19 +124,19 @@ export default function StatusBar({
         <button
           className={`flex items-center gap-1 rounded-md px-1.5 py-1 ${timelineOpen ? "bg-amber-50 text-amber-700" : "text-gray-500 hover:bg-gray-100"}`}
           onClick={onToggleTimeline}
-          title="Timeline"
+          title={t.timeline}
           aria-pressed={timelineOpen}
         >
           <Clock size={13} />
-          <span className="hidden lg:inline">Timeline</span>
+          <span className="hidden lg:inline">{t.timeline}</span>
         </button>
         <button
           className="flex items-center gap-1 rounded-md px-1.5 py-1 text-gray-500 hover:bg-gray-100"
           onClick={onOpenPresentation}
-          title="Present"
+          title={t.present}
         >
           <Play size={13} />
-          <span className="hidden lg:inline">Present</span>
+          <span className="hidden lg:inline">{t.present}</span>
         </button>
         <span className="h-3 w-px bg-gray-200" />
         <LayersPopover
@@ -137,13 +146,14 @@ export default function StatusBar({
           onToggleHidden={onToggleHidden}
           onToggleLocked={onToggleLocked}
           onRename={onRenameLayer}
+          onReorder={onReorderLayer}
         />
         <span className="h-3 w-px bg-gray-200" />
         <button
           className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
           onClick={onFitToScreen}
-          title="Fit to screen"
-          aria-label="Fit to screen"
+          title={t.fitToScreen}
+          aria-label={t.fitToScreen}
         >
           <Maximize size={13} />
         </button>

@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { RectangleHorizontal, RectangleVertical, Repeat2, X } from "lucide-react";
 import { PAGE_SIZE_PRESETS, UNITS, findMatchingPreset, getUnit } from "../pageSizes";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeight, onApply, unit: sharedUnit, onUnitChange }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].resize;
   const [unit, setUnit] = useState(sharedUnit || "in");
   const [widthValue, setWidthValue] = useState(currentWidth);
   const [heightValue, setHeightValue] = useState(currentHeight);
@@ -89,11 +93,11 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
     >
       <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Resize page</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t.title}</h2>
           <button
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100"
             onClick={onClose}
-            aria-label="Close resize panel"
+            aria-label={t.closeAria}
           >
             <X size={18} />
           </button>
@@ -101,7 +105,7 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
 
         <div className="overflow-y-auto p-5">
           <div className="mb-6 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Unit</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t.unit}</h3>
             <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
               {UNITS.map((unitDef) => (
                 <button
@@ -120,7 +124,7 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
             </div>
           </div>
 
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Presets</h3>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.presets}</h3>
           <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {PAGE_SIZE_PRESETS.map((preset) => {
               const active = activePreset?.key === preset.key;
@@ -146,10 +150,10 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
             })}
           </div>
 
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Custom size</h3>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.customSize}</h3>
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-gray-500">Width</span>
+              <span className="text-xs font-medium text-gray-500">{t.width}</span>
               <input
                 type="number"
                 min="1"
@@ -162,14 +166,14 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
             <button
               className="mb-2 rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
               onClick={swapDimensions}
-              title="Swap width and height"
-              aria-label="Swap width and height"
+              title={t.swapAria}
+              aria-label={t.swapAria}
             >
               <Repeat2 size={16} />
             </button>
 
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-gray-500">Height</span>
+              <span className="text-xs font-medium text-gray-500">{t.height}</span>
               <input
                 type="number"
                 min="1"
@@ -186,7 +190,7 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
                 }`}
                 onClick={() => setOrientation("portrait")}
               >
-                <RectangleVertical size={14} /> Portrait
+                <RectangleVertical size={14} /> {t.portrait}
               </button>
               <button
                 className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium ${
@@ -194,7 +198,7 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
                 }`}
                 onClick={() => setOrientation("landscape")}
               >
-                <RectangleHorizontal size={14} /> Landscape
+                <RectangleHorizontal size={14} /> {t.landscape}
               </button>
             </div>
           </div>
@@ -205,13 +209,13 @@ export default function ResizeModal({ isOpen, onClose, currentWidth, currentHeig
             className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
             onClick={onClose}
           >
-            Cancel
+            {t.cancel}
           </button>
           <button
             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
             onClick={applyCustom}
           >
-            Apply
+            {t.apply}
           </button>
         </div>
       </div>

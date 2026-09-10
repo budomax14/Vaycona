@@ -3,6 +3,8 @@ import { AlertCircle, ImagePlus, Loader2 } from "lucide-react";
 import BrandModal from "./BrandKit/BrandModal";
 import { useAssetList } from "../useAsset";
 import { putAsset } from "../assetStore";
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 // "Open the existing media/image picker" for Image Fill — reuses the same
 // underlying asset list/upload plumbing UploadsPanel.jsx already uses
@@ -11,6 +13,8 @@ import { putAsset } from "../assetStore";
 // panel, since picking an image for a specific fill is a one-off action
 // rather than a persistent browsing surface.
 export default function ImageAssetPickerModal({ isOpen, onClose, onPick }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].imageAssetPicker;
   const fileInputRef = useRef(null);
   const assetIndex = useAssetList();
   const [isUploading, setIsUploading] = useState(false);
@@ -26,14 +30,14 @@ export default function ImageAssetPickerModal({ isOpen, onClose, onPick }) {
     const result = await putAsset(file);
     setIsUploading(false);
     if (!result.id) {
-      setUploadError(result.errorMessage || "Upload failed.");
+      setUploadError(result.errorMessage || t.uploadFailed);
       return;
     }
     onPick(result.id);
   }
 
   return (
-    <BrandModal isOpen={isOpen} onClose={onClose} title="Choose an image" subtitle="Upload a new image or pick one from your uploads" width="max-w-md">
+    <BrandModal isOpen={isOpen} onClose={onClose} title={t.title} subtitle={t.subtitle} width="max-w-md">
       <button
         type="button"
         className="mb-3 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 py-6 text-sm font-medium text-gray-600 transition-colors hover:border-amber-400 hover:text-amber-700 disabled:pointer-events-none disabled:opacity-60"
@@ -41,7 +45,7 @@ export default function ImageAssetPickerModal({ isOpen, onClose, onPick }) {
         disabled={isUploading}
       >
         {isUploading ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}
-        <span>{isUploading ? "Uploading…" : "Upload image"}</span>
+        <span>{isUploading ? t.uploading : t.uploadImage}</span>
       </button>
       <input
         ref={fileInputRef}
@@ -63,7 +67,7 @@ export default function ImageAssetPickerModal({ isOpen, onClose, onPick }) {
       )}
 
       {assets.length === 0 ? (
-        <p className="text-xs text-gray-400">Uploaded images will appear here for reuse.</p>
+        <p className="text-xs text-gray-400">{t.emptyState}</p>
       ) : (
         <div className="grid grid-cols-4 gap-2">
           {assets.map((asset) => (
@@ -73,8 +77,8 @@ export default function ImageAssetPickerModal({ isOpen, onClose, onPick }) {
               className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-50 hover:border-amber-400 disabled:pointer-events-none disabled:opacity-50"
               onClick={() => onPick(asset.id)}
               disabled={asset.status !== "ready"}
-              title={asset.name || "Uploaded image"}
-              aria-label={`Use ${asset.name || "uploaded image"}`}
+              title={asset.name || t.uploadedImageFallback}
+              aria-label={t.useAsset(asset.name || t.uploadedImageFallback)}
             >
               {asset.thumbDataUrl ? (
                 <img src={asset.thumbDataUrl} alt={asset.name || ""} className="h-full w-full object-cover" />

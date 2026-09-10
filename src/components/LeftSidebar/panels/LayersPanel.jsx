@@ -1,19 +1,24 @@
 import React, { useMemo, useRef, useState } from "react";
-import { ChevronsDown, ChevronsUp, Layers, Search } from "lucide-react";
+import { ArrowUpToLine, ChevronDown, ChevronsDown, ChevronsUp, ChevronUp, Layers, Search, SendToBack } from "lucide-react";
 import { buildLayerTree } from "../../../hierarchy";
 import LayerRow, { layerLabel } from "./LayerRow";
 import LayerContextMenu from "../../LayerContextMenu";
+import { useLanguage } from "../../../languageContext";
+import { PANEL_STRINGS } from "../../../i18n/panels";
 
+// `label` values here just carry the filter's identity key forward; the
+// visible <option> text is looked up in the component from
+// `t.filters[key]` so the select re-renders in the active language.
 const FILTERS = [
-  { key: "all", label: "All" },
-  { key: "text", label: "Text" },
-  { key: "shape", label: "Shapes" },
-  { key: "line", label: "Lines" },
-  { key: "icon", label: "Icons" },
-  { key: "frame", label: "Frames" },
-  { key: "group", label: "Groups" },
-  { key: "locked", label: "Locked" },
-  { key: "hidden", label: "Hidden" },
+  { key: "all" },
+  { key: "text" },
+  { key: "shape", filterKey: "shapes" },
+  { key: "line", filterKey: "lines" },
+  { key: "icon", filterKey: "icons" },
+  { key: "frame", filterKey: "frames" },
+  { key: "group", filterKey: "groups" },
+  { key: "locked" },
+  { key: "hidden" },
 ];
 
 function matchesFilter(item, filter) {
@@ -107,6 +112,8 @@ export default function LayersPanel({
   const [dragState, setDragState] = useState(null); // { draggedIds, overId, position }
   const lastClickedRef = useRef(null);
   const listRef = useRef(null);
+  const { language } = useLanguage();
+  const t = PANEL_STRINGS[language].layers;
 
   const itemsById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
   const tree = useMemo(() => buildLayerTree(items, activePageId), [items, activePageId]);
@@ -304,10 +311,10 @@ export default function LayersPanel({
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-          <Layers size={15} /> Layers
+          <Layers size={15} /> {t.title}
         </h3>
         <span className="text-[11px] font-medium text-gray-400">
-          {selectedIds.length > 0 ? `${selectedIds.length} selected` : `${rows.length} shown`}
+          {selectedIds.length > 0 ? t.selectedCount(selectedIds.length) : t.shownCount(rows.length)}
         </span>
       </div>
 
@@ -317,8 +324,8 @@ export default function LayersPanel({
           type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search layers"
-          aria-label="Search layers"
+          placeholder={t.searchPlaceholder}
+          aria-label={t.searchAria}
           className="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-7 pr-2 text-xs text-gray-700 outline-none focus:border-amber-400 focus:bg-white"
         />
       </div>
@@ -328,41 +335,41 @@ export default function LayersPanel({
           className="h-7 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-1.5 text-[11px] text-gray-700 outline-none focus:border-amber-400"
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          aria-label="Filter layers"
+          aria-label={t.filterAria}
         >
           {FILTERS.map((f) => (
             <option key={f.key} value={f.key}>
-              {f.label}
+              {t.filters[f.filterKey || f.key]}
             </option>
           ))}
         </select>
         <button
           className="ml-auto flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] text-gray-500 hover:bg-gray-100"
           onClick={expandAll}
-          title="Expand all groups"
+          title={t.expandAllGroups}
         >
-          <ChevronsDown size={13} /> Expand all
+          <ChevronsDown size={13} /> {t.expandAll}
         </button>
         <button
           className="flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] text-gray-500 hover:bg-gray-100"
           onClick={collapseAll}
-          title="Collapse all groups"
+          title={t.collapseAllGroups}
         >
-          <ChevronsUp size={13} /> Collapse all
+          <ChevronsUp size={13} /> {t.collapseAll}
         </button>
       </div>
 
       <div
         ref={listRef}
         role="tree"
-        aria-label="Layers"
+        aria-label={t.title}
         tabIndex={0}
         onKeyDown={handleListKeyDown}
         className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto outline-none"
       >
         {rows.length === 0 && (
           <p className="px-2 py-4 text-center text-xs text-gray-400">
-            {isFiltering ? "No layers match your search." : "No objects on this page yet."}
+            {isFiltering ? t.noLayersMatch : t.noObjectsYet}
           </p>
         )}
         {rows.map(({ node, depth, forced }) => (
@@ -394,6 +401,49 @@ export default function LayersPanel({
             onRowDragLeave={handleRowDragLeave}
           />
         ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-1 border-t border-gray-100 pt-2">
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
+          onClick={() => onReorderAction("back")}
+          disabled={selectedIds.length === 0}
+          title={t.sendToBack}
+          aria-label={t.sendToBack}
+        >
+          <SendToBack size={14} />
+        </button>
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
+          onClick={() => onReorderAction("backward")}
+          disabled={selectedIds.length === 0}
+          title={t.sendBackward}
+          aria-label={t.sendBackward}
+        >
+          <ChevronDown size={14} />
+        </button>
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
+          onClick={() => onReorderAction("forward")}
+          disabled={selectedIds.length === 0}
+          title={t.bringForward}
+          aria-label={t.bringForward}
+        >
+          <ChevronUp size={14} />
+        </button>
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30"
+          onClick={() => onReorderAction("front")}
+          disabled={selectedIds.length === 0}
+          title={t.bringToFront}
+          aria-label={t.bringToFront}
+        >
+          <ArrowUpToLine size={14} />
+        </button>
       </div>
 
       {contextMenuFor && (

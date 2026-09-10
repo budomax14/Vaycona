@@ -1,35 +1,38 @@
 import React, { useEffect, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
 import { useSubscription, PRICE_IDS } from "../subscriptionContext";
-
-const PLANS = [
-  {
-    key: "free",
-    name: "Free",
-    tagline: "Get started",
-    monthly: 0,
-    annual: 0,
-    features: ["Full editor access", "AI illustrations", "Charts & tables", "Watermarked exports", "Starter templates"],
-  },
-  {
-    key: "pro",
-    name: "Pro",
-    tagline: "For regular creators",
-    monthly: 9.99,
-    annual: 99.99,
-    features: ["Everything in Free", "Clean, watermark-free exports", "Full template gallery"],
-  },
-  {
-    key: "business",
-    name: "Business",
-    tagline: "For teams & brands",
-    monthly: 19.99,
-    annual: 199.99,
-    features: ["Everything in Pro", "Priority support"],
-  },
-];
+import { useLanguage } from "../languageContext";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
+  const { language } = useLanguage();
+  const t = DIALOG_STRINGS[language].pricing;
+  const PLANS = [
+    {
+      key: "free",
+      name: "Free",
+      tagline: t.planTaglineFree,
+      monthly: 0,
+      annual: 0,
+      features: [t.featureFullEditor, t.featureAiIllustrations, t.featureCharts, t.featureWatermarked, t.featureStarterTemplates],
+    },
+    {
+      key: "pro",
+      name: "Pro",
+      tagline: t.planTaglinePro,
+      monthly: 9.99,
+      annual: 99.99,
+      features: [t.featureEverythingFree, t.featureCleanExports, t.featureFullTemplateGallery],
+    },
+    {
+      key: "business",
+      name: "Business",
+      tagline: t.planTaglineBusiness,
+      monthly: 19.99,
+      annual: 199.99,
+      features: [t.featureEverythingPro, t.featurePrioritySupport],
+    },
+  ];
   const { tier: currentTier, openCheckout } = useSubscription();
   const [cycle, setCycle] = useState("monthly");
   const [loadingPlan, setLoadingPlan] = useState(null);
@@ -52,7 +55,7 @@ export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
     try {
       await openCheckout(PRICE_IDS[planKey][cycle]);
     } catch (err) {
-      setError(err.message || "Couldn't start checkout. Please try again.");
+      setError(err.message || t.checkoutError);
       setLoadingPlan(null);
     }
   }
@@ -68,8 +71,8 @@ export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
     >
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Upgrade your plan</h2>
-          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close pricing">
+          <h2 className="text-base font-semibold text-gray-900">{t.title}</h2>
+          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.closeAria}>
             <X size={18} />
           </button>
         </div>
@@ -78,8 +81,8 @@ export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
           <div className="mb-6 flex justify-center">
             <div className="flex gap-1 rounded-lg border border-gray-200 p-1">
               {[
-                { key: "monthly", label: "Monthly" },
-                { key: "annual", label: "Annual — 2 months free" },
+                { key: "monthly", label: t.monthly },
+                { key: "annual", label: t.annual },
               ].map((option) => (
                 <button
                   key={option.key}
@@ -111,9 +114,9 @@ export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
                   <span className="mb-3 text-xs text-gray-400">{plan.tagline}</span>
                   <div className="mb-4">
                     <span className="text-2xl font-bold text-gray-900">${price.toFixed(2)}</span>
-                    <span className="text-xs text-gray-400"> / month</span>
+                    <span className="text-xs text-gray-400">{t.perMonth}</span>
                     {cycle === "annual" && plan.monthly > 0 && (
-                      <div className="text-xs text-gray-400">billed ${plan.annual.toFixed(2)}/year</div>
+                      <div className="text-xs text-gray-400">{t.billedPerYear(`$${plan.annual.toFixed(2)}`)}</div>
                     )}
                   </div>
                   <ul className="mb-4 flex-1 space-y-1.5">
@@ -129,7 +132,7 @@ export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
                       className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-400"
                       disabled
                     >
-                      {isCurrent ? "Current plan" : "Free"}
+                      {isCurrent ? t.currentPlan : t.free}
                     </button>
                   ) : (
                     <button
@@ -138,7 +141,7 @@ export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
                       disabled={isCurrent || loadingPlan !== null}
                     >
                       {loadingPlan === plan.key && <Loader2 size={14} className="animate-spin" />}
-                      {isCurrent ? "Current plan" : `Choose ${plan.name}`}
+                      {isCurrent ? t.currentPlan : t.choosePlan(plan.name)}
                     </button>
                   )}
                   {plan.key === "business" && onLearnMoreBusiness && (
@@ -146,7 +149,7 @@ export default function PricingModal({ isOpen, onClose, onLearnMoreBusiness }) {
                       className="mt-2 text-xs font-medium text-amber-700 hover:underline"
                       onClick={onLearnMoreBusiness}
                     >
-                      Learn more about Business
+                      {t.learnMoreBusiness}
                     </button>
                   )}
                 </div>

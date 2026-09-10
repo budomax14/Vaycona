@@ -5,6 +5,8 @@ import { listAllCategories, addCustomCategory } from "../../adminTemplateCategor
 import { validateImageFile } from "../../assetStore";
 import { ASSET_THUMB_SIZE } from "../../constants";
 import { UNITS, PAGE_SIZE_PRESETS, getUnit } from "../../pageSizes";
+import { useLanguage } from "../../languageContext";
+import { MISC_STRINGS } from "../../i18n/misc";
 
 function readFileAsThumbnailDataUrl(file, maxSize = ASSET_THUMB_SIZE) {
   return new Promise((resolve, reject) => {
@@ -38,6 +40,8 @@ function readFileAsThumbnailDataUrl(file, maxSize = ASSET_THUMB_SIZE) {
 // Resize tool instead, so a live canvas and this dialog never disagree
 // about page size).
 export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, onClose, onSubmit, publishBlockedReason }) {
+  const { language } = useLanguage();
+  const t = MISC_STRINGS[language].adminTemplateFormDialog;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -109,7 +113,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
     try {
       setThumbnail(await readFileAsThumbnailDataUrl(file));
     } catch {
-      setThumbnailError("Could not read that image.");
+      setThumbnailError(t.couldNotReadImage);
     }
   }
 
@@ -154,16 +158,16 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
       <div role="dialog" aria-modal="true" aria-labelledby="admin-template-form-title" className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3.5">
           <h2 id="admin-template-form-title" className="text-sm font-semibold text-gray-900">
-            {mode === "create" ? "Create new template" : "Template settings"}
+            {mode === "create" ? t.createTitle : t.editTitle}
           </h2>
-          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="Close">
+          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.close}>
             <X size={16} />
           </button>
         </div>
 
         <div className="flex-1 space-y-3.5 overflow-y-auto px-5 py-4">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">Template name</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500">{t.templateName}</span>
             <input
               ref={nameRef}
               type="text"
@@ -175,7 +179,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">Description (optional)</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500">{t.descriptionOptional}</span>
             <textarea
               maxLength={MAX_TEMPLATE_DESCRIPTION_LENGTH}
               rows={2}
@@ -186,7 +190,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
           </label>
 
           <div className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">Category</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500">{t.category}</span>
             <div className="flex gap-2">
               <select
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
@@ -204,7 +208,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
                 className="flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-gray-300 px-2.5 text-xs font-medium text-gray-500 hover:border-amber-300 hover:text-amber-700"
                 onClick={() => setNewCategoryInput(newCategoryInput === null ? "" : null)}
               >
-                <Plus size={12} /> New
+                <Plus size={12} /> {t.newCategory}
               </button>
             </div>
             {newCategoryInput !== null && (
@@ -212,37 +216,37 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Category name"
+                  placeholder={t.categoryNamePlaceholder}
                   className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs outline-none focus:border-amber-400"
                   value={newCategoryInput}
                   onChange={(event) => setNewCategoryInput(event.target.value)}
                   onKeyDown={(event) => event.key === "Enter" && handleAddCategory()}
                 />
                 <button type="button" className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-amber-700" onClick={handleAddCategory}>
-                  Add
+                  {t.add}
                 </button>
               </div>
             )}
           </div>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">Plan required</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500">{t.planRequired}</span>
             <select
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
               value={tier}
               onChange={(event) => setTier(event.target.value)}
             >
-              <option value="free">Free — everyone</option>
-              <option value="pro">Pro</option>
-              <option value="business">Business</option>
+              <option value="free">{t.freeEveryone}</option>
+              <option value="pro">{t.pro}</option>
+              <option value="business">{t.business}</option>
             </select>
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">Tags (comma separated)</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500">{t.tagsLabel}</span>
             <input
               type="text"
-              placeholder="wedding, elegant"
+              placeholder={t.tagsPlaceholder}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               value={tagsInput}
               onChange={(event) => setTagsInput(event.target.value)}
@@ -251,12 +255,12 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
 
           {mode === "create" && (
             <div className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">Canvas size</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">{t.canvasSize}</span>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min="1"
-                  aria-label="Width"
+                  aria-label={t.width}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   value={width}
                   onChange={(event) => setWidth(Number(event.target.value))}
@@ -265,13 +269,13 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
                 <input
                   type="number"
                   min="1"
-                  aria-label="Height"
+                  aria-label={t.height}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   value={height}
                   onChange={(event) => setHeight(Number(event.target.value))}
                 />
                 <select
-                  aria-label="Unit"
+                  aria-label={t.unit}
                   className="shrink-0 rounded-lg border border-gray-200 px-2 py-2 text-xs"
                   value={unit}
                   onChange={(event) => changeUnit(event.target.value)}
@@ -303,7 +307,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
           )}
 
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">Background color</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500">{t.backgroundColor}</span>
             <div className="flex items-center gap-2">
               <input
                 type="color"
@@ -323,31 +327,31 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
           {mode === "edit" && (
             <>
               <div className="block">
-                <span className="mb-1 block text-xs font-medium text-gray-500">Thumbnail</span>
+                <span className="mb-1 block text-xs font-medium text-gray-500">{t.thumbnail}</span>
                 <div className="flex items-center gap-3">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                     {thumbnail && <img src={thumbnail} alt="" className="h-full w-full object-cover" />}
                   </div>
                   <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
-                    <Upload size={12} /> Upload cover image
+                    <Upload size={12} /> {t.uploadCoverImage}
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleThumbnailChange} />
                   </label>
                 </div>
                 {thumbnailError && <p className="mt-1 text-xs text-red-600">{thumbnailError}</p>}
                 <p className="mt-1 text-[11px] text-gray-400">
-                  Leave blank to auto-generate from the canvas when you save.
+                  {t.thumbnailNote}
                 </p>
               </div>
 
               <div className="block">
-                <span className="mb-1 block text-xs font-medium text-gray-500">Status</span>
+                <span className="mb-1 block text-xs font-medium text-gray-500">{t.status}</span>
                 <div className="flex gap-1.5">
                   <button
                     type="button"
                     className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium ${status === "draft" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}
                     onClick={() => setStatus("draft")}
                   >
-                    Draft
+                    {t.draft}
                   </button>
                   <button
                     type="button"
@@ -356,7 +360,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
                     className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${status === "published" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}
                     onClick={() => setStatus("published")}
                   >
-                    Published
+                    {t.published}
                   </button>
                 </div>
                 {status !== "published" && !canPublishNow && publishBlockedReason && (
@@ -369,14 +373,14 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
 
         <div className="flex justify-end gap-2 border-t border-gray-200 px-5 py-3.5">
           <button className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100" onClick={onClose}>
-            Cancel
+            {t.cancel}
           </button>
           <button
             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:pointer-events-none disabled:opacity-40"
             onClick={handleSubmit}
             disabled={!name.trim()}
           >
-            {mode === "create" ? "Create & open editor" : "Save settings"}
+            {mode === "create" ? t.createAndOpen : t.saveSettings}
           </button>
         </div>
       </div>
