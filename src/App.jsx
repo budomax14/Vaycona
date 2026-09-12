@@ -145,6 +145,8 @@ import {
 import RecoveryDialog from "./components/RecoveryDialog";
 import RecoveryCenter from "./components/RecoveryCenter";
 import ExportDialog from "./components/ExportDialog";
+import MockupPreviewDialog from "./components/MockupPreviewDialog";
+import { hasAnyMockupPage } from "./mockup/mockupRegistry";
 import { buildExportRequest } from "./export/exportRequest";
 import { runExport, downloadExportResult } from "./export/exportService";
 import {
@@ -195,6 +197,7 @@ import {
   isSavedProjectShapeValid,
 } from "./savedProjectsService";
 import ProjectsPanel from "./components/LeftSidebar/panels/ProjectsPanel";
+import DesignPanel from "./components/LeftSidebar/panels/DesignPanel";
 import { cloneWorkspaceDataWithNewIds, cloneItemsForInsertion, cloneGuidesForPage, recenterItems } from "./idRemap";
 import TemplateBrowser from "./components/TemplateBrowser";
 import HomePage from "./components/HomePage";
@@ -261,6 +264,10 @@ import { planThemeApplication, applyThemeToProject } from "./themeApply";
 import { applyColorReplacement } from "./colorReplace";
 import { applyFontReplacement, planFontReplacement } from "./fontReplace";
 import { validateSvgSafety, sanitizeSvg, extractSvgDimensions, rasterizeSvgToPngBlob } from "./svgSafety";
+import QRCode from "qrcode";
+import JsBarcode from "jsbarcode";
+import { DEFAULT_PAGE_NUMBERS, normalizePageNumbers } from "./pageNumbering";
+import PageNumberLabel from "./components/Workspace/PageNumberLabel";
 import BrandPanel from "./components/LeftSidebar/panels/BrandPanel";
 import BrandKitManagerDialog from "./components/BrandKit/BrandKitManagerDialog";
 import ThemeApplyDialog from "./components/BrandKit/ThemeApplyDialog";
@@ -609,6 +616,7 @@ function buildFallbackWorkspace() {
     items: fallbackItems,
     guides: [],
     snapToGuides: true,
+    pageNumbers: { ...DEFAULT_PAGE_NUMBERS },
     preferredUnit: undefined,
     presentationSettings: defaultPresentationSettings(),
     projectName: null,
@@ -641,6 +649,7 @@ function normalizeParsedWorkspace(parsed) {
     items,
     guides: migrateGuides(parsed.guides),
     snapToGuides: parsed.snapToGuides ?? true,
+    pageNumbers: normalizePageNumbers(parsed.pageNumbers),
     preferredUnit: isSupportedUnit(parsed.preferredUnit) ? parsed.preferredUnit : undefined,
     presentationSettings: clampPresentationSettings(parsed.presentationSettings),
     projectName: typeof parsed.projectName === "string" ? parsed.projectName : null,
@@ -827,6 +836,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // .canvasproject package export dialog state directly above.
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportDialogFormat, setExportDialogFormat] = useState(null);
+  const [isMockupPreviewOpen, setIsMockupPreviewOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importStage, setImportStage] = useState("idle");
   const [importPreview, setImportPreview] = useState(null);
@@ -970,6 +980,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   const [guides, setGuides] = useState(initialWorkspace.guides);
   const [snapToGuides, setSnapToGuides] = useState(initialWorkspace.snapToGuides);
+  const [pageNumbers, setPageNumbers] = useState(initialWorkspace.pageNumbers || DEFAULT_PAGE_NUMBERS);
   const [alignmentLines, setAlignmentLines] = useState({ vertical: [], horizontal: [] });
   const [equalSpacing, setEqualSpacing] = useState({ horizontal: null, vertical: null });
   const [distanceLabels, setDistanceLabels] = useState([]);
@@ -1122,6 +1133,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const activePageIdRef = useRef(activePageId);
   const guidesRef = useRef(guides);
   const snapToGuidesRef = useRef(snapToGuides);
+  const pageNumbersRef = useRef(pageNumbers);
   const preferredUnitRef = useRef(preferredUnit);
   const precisionPrefsRef = useRef(precisionPrefs);
   const selectedIdsRef = useRef(selectedIds);
@@ -1154,6 +1166,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   savedProjectIdRef.current = savedProjectId;
   guidesRef.current = guides;
   snapToGuidesRef.current = snapToGuides;
+  pageNumbersRef.current = pageNumbers;
   preferredUnitRef.current = preferredUnit;
   precisionPrefsRef.current = precisionPrefs;
   selectedIdsRef.current = selectedIds;
@@ -1302,7 +1315,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // preferredUnit aren't part of undo history but are still persisted
     // project/view state.
     autosaveRef.current.scheduleSave();
-  }, [historyState, guides, snapToGuides, scale, activePageId, preferredUnit, presentationSettings]);
+  }, [historyState, guides, snapToGuides, pageNumbers, scale, activePageId, preferredUnit, presentationSettings]);
 
   // Best-effort — most browsers don't await async work in `beforeunload`,
   // but a pending localStorage write is synchronous, so flushing here
@@ -1361,6 +1374,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       items: itemsRef.current,
       guides: guidesRef.current,
       snapToGuides: snapToGuidesRef.current,
+      pageNumbers: pageNumbersRef.current,
       preferredUnit: preferredUnitRef.current,
       presentationSettings: presentationSettingsRef.current,
       projectName: projectNameRef.current,
@@ -1737,6 +1751,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       items: [],
       guides: [],
       snapToGuides: true,
+      pageNumbers: { ...DEFAULT_PAGE_NUMBERS },
       preferredUnit,
     };
     const result = await replaceWorkspaceWith(data, { projectName: label || "Untitled Design" });
@@ -1744,6 +1759,80 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setShowHomePage(false);
     setStatus(result.status === SAVE_STATUS.SAVED ? "Blank design created." : "Created, but saving failed.");
     window.setTimeout(() => setStatus(""), 2500);
+  }
+
+  // "Standard Document" (Start a new design box, HomePage.jsx only) — a
+  // Word-like page: US Letter size with 1" margins, pre-populated with one
+  // full-page-width text box that's immediately put into edit mode, so
+  // typing can start right away with no text tool/box selection step. This
+  // is the one design type that behaves this way — every other blank
+  // design/template still starts with an empty canvas as before.
+  async function createStandardDocument() {
+    const pageId = crypto.randomUUID();
+    const textId = crypto.randomUUID();
+    const width = 816; // US Letter @ 96dpi (8.5in), matches Word's default page size
+    const height = 1056; // 11in
+    const margin = 96; // 1in, matches Word's default margins
+    const now = Date.now();
+    const data = {
+      pages: [{ id: pageId, name: "Page 1", width, height, background: "#ffffff", ...defaultPagePrecision() }],
+      activePageId: pageId,
+      scale: 1,
+      items: [
+        {
+          id: textId,
+          pageId,
+          type: "text",
+          ...getDefaultProps("text"),
+          documentBody: true,
+          x: margin,
+          y: margin,
+          width: width - margin * 2,
+          height: height - margin * 2,
+          text: "",
+          fontFamily: "Arial",
+          fontSize: 18,
+          fontWeight: "normal",
+          align: "left",
+          // "top" keeps typed content anchored at the top margin from the
+          // first keystroke — the default "middle" made TextEditOverlay's
+          // flexbox centering (justifyContent) visually re-center the whole
+          // block after every line while typing into an almost-empty page,
+          // since its box is a full page tall.
+          verticalAlign: "top",
+          lineHeight: 1.4,
+          // "fixed" keeps the box pinned to the margin width at all times —
+          // the flexible auto-height/auto-width modes re-measure width to
+          // fit content as you type (measureFlexibleTextBox), which made
+          // the box visibly grow/shrink horizontally and ignored the right
+          // margin entirely. "show" (not the "fixed" default of "clip")
+          // means content typed past the initial height still renders
+          // instead of being cut off — see the matching `documentBody`
+          // guard in SimpleTextNode.jsx/RichTextNode.jsx that also hides
+          // the normal "overflowing" corner badge for this one item, so
+          // typing past a page of text doesn't show that either.
+          autoSize: "fixed",
+          overflow: "show",
+          fill: "#111827",
+          rotation: 0,
+          opacity: 1,
+          locked: false,
+          hidden: false,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      guides: [],
+      snapToGuides: true,
+      pageNumbers: { ...DEFAULT_PAGE_NUMBERS },
+      preferredUnit,
+    };
+    const result = await replaceWorkspaceWith(data, { projectName: "Untitled Document" });
+    setIsTemplateBrowserOpen(false);
+    setShowHomePage(false);
+    setStatus(result.status === SAVE_STATUS.SAVED ? "Document created." : "Created, but saving failed.");
+    window.setTimeout(() => setStatus(""), 2500);
+    enterTextEdit(textId);
   }
 
   // A template published from a DIFFERENT browser (any admin-edited
@@ -2244,6 +2333,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
     guidesRef.current = normalized.guides;
     setSnapToGuides(normalized.snapToGuides);
     snapToGuidesRef.current = normalized.snapToGuides;
+    setPageNumbers(normalized.pageNumbers || DEFAULT_PAGE_NUMBERS);
+    pageNumbersRef.current = normalized.pageNumbers || DEFAULT_PAGE_NUMBERS;
     if (isSupportedUnit(normalized.preferredUnit)) {
       setPreferredUnit(normalized.preferredUnit);
       preferredUnitRef.current = normalized.preferredUnit;
@@ -3189,6 +3280,98 @@ export default function App({ editorMode = "workspace", templateSession = null }
     };
     commit((prev) => [...prev, newItem], { type: "add-object", label: "Add image", itemIds: [newItem.id], pageIds: [activePageId] });
     setSelectedIds([newItem.id]);
+  }
+
+  function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Unable to read image."));
+      };
+      img.src = url;
+    });
+  }
+
+  // Generates a QR code PNG for the given text/URL, registers it as a
+  // library asset (so it behaves exactly like any other uploaded image —
+  // draggable, resizable, cacheable, syncs to the cloud), then places it
+  // on the page via addImageItem. When a logoFile is given, it's composited
+  // over the center on a white pad — error correction bumps up to "H" so
+  // the code stays scannable despite the covered modules.
+  async function addQrCode(text, logoFile) {
+    const value = (text || "").trim();
+    if (!value) return;
+    const size = 512;
+    const canvas = document.createElement("canvas");
+    try {
+      await QRCode.toCanvas(canvas, value, {
+        width: size,
+        margin: 1,
+        errorCorrectionLevel: logoFile ? "H" : "M",
+      });
+    } catch {
+      setStatus("Couldn't generate QR code.");
+      return;
+    }
+    if (logoFile) {
+      try {
+        const logo = await loadImageFromFile(logoFile);
+        const ctx = canvas.getContext("2d");
+        const logoSize = size * 0.2;
+        const pad = logoSize * 0.18;
+        const boxSize = logoSize + pad * 2;
+        const boxX = (size - boxSize) / 2;
+        const boxY = (size - boxSize) / 2;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(boxX, boxY, boxSize, boxSize);
+        ctx.drawImage(logo, (size - logoSize) / 2, (size - logoSize) / 2, logoSize, logoSize);
+      } catch {
+        // Keep the plain QR code rather than failing the whole action.
+      }
+    }
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) {
+      setStatus("Couldn't generate QR code.");
+      return;
+    }
+    const file = new File([blob], "QR code.png", { type: "image/png" });
+    const result = await uploadFileToLibrary(file, { name: `QR code: ${value}`, sourceType: "qrcode" });
+    if (result.id) addImageItem(result.id);
+  }
+
+  // Generates a barcode PNG for the given text, registers it as a library
+  // asset (same treatment as the QR code path above), then places it on
+  // the page via addImageItem.
+  async function addBarcode(text) {
+    const value = (text || "").trim();
+    if (!value) return;
+    const canvas = document.createElement("canvas");
+    try {
+      JsBarcode(canvas, value, {
+        format: "CODE128",
+        width: 2,
+        height: 100,
+        margin: 10,
+        displayValue: true,
+      });
+    } catch {
+      setStatus("Couldn't generate barcode.");
+      return;
+    }
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) {
+      setStatus("Couldn't generate barcode.");
+      return;
+    }
+    const file = new File([blob], "Barcode.png", { type: "image/png" });
+    const result = await uploadFileToLibrary(file, { name: `Barcode: ${value}`, sourceType: "barcode" });
+    if (result.id) addImageItem(result.id);
   }
 
   // Sets (or replaces) a frame's content in one call — used by dragging an
@@ -5031,7 +5214,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // (spec §56) take effect immediately.
   function nudgeSelection(dirX, dirY, size = "standard") {
     if (selectedIds.length === 0) return;
-    const movable = selectedItems.filter((item) => !isEffectivelyLocked(item, itemsById));
+    // documentBody (Standard Document's auto-created body text) stays
+    // selected after exiting edit mode (e.g. clicking File/Edit/View/Help),
+    // and focus then sits on a plain <button> — not a form field or
+    // contentEditable, so useKeyboardShortcuts' isTypingTarget guard
+    // doesn't block arrow keys. Without this, using arrow keys for
+    // anything at all (even just navigating an open menu) would nudge the
+    // still-selected text by a pixel each press — exactly the "shifting"
+    // this item must never do.
+    const movable = selectedItems.filter((item) => !isEffectivelyLocked(item, itemsById) && !item.documentBody);
     if (movable.length === 0) return;
     const prefs = precisionPrefsRef.current;
     const increment = size === "large" ? prefs.nudgeLarge : size === "fine" ? prefs.nudgeFine : prefs.nudgeStandard;
@@ -5133,7 +5324,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   function alignSelectionToPage(mode) {
     if (selectedIds.length === 0) return;
     const selectedSet = new Set(selectedIds);
-    const toAlign = items.filter((item) => selectedSet.has(item.id) && !isEffectivelyLocked(item, itemsById));
+    // documentBody (Standard Document's body text) is never repositionable
+    // by anything — same rule already applied to dragging/nudging.
+    const toAlign = items.filter((item) => selectedSet.has(item.id) && !isEffectivelyLocked(item, itemsById) && !item.documentBody);
     if (toAlign.length === 0) return;
     const aligned = alignToPage(toAlign, activePage, mode);
     const deltaById = new Map(
@@ -7151,6 +7344,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     listening={false}
                   />
                 )}
+                {pageNumbers.enabled && (
+                  <PageNumberLabel
+                    page={page}
+                    pageNumber={pages.findIndex((p) => p.id === page.id) + 1}
+                    position={pageNumbers.position}
+                  />
+                )}
                 {/* Phase 12 spec §46: preview/playback excludes selection
                     outlines and resize handles entirely. */}
                 {!isPreviewPlaying && <Transformer
@@ -7513,6 +7713,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           templates={templateSummaries}
           onSelectTemplate={handleSelectTemplate}
           onCreateBlank={createBlankDesign}
+          onCreateStandardDocument={createStandardDocument}
           onContinue={() => setShowHomePage(false)}
           hasExistingDesign={items.length > 0 || pages.length > 1 || !!saveStatus.lastSavedAt}
           projectName={projectName}
@@ -7606,6 +7807,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onExportProject={exportProject}
         onImportProject={openImportDialog}
         onOpenExport={() => openExportDialog(null)}
+        showMockupPreview={hasAnyMockupPage(pages)}
+        onOpenMockupPreview={() => setIsMockupPreviewOpen(true)}
         onShareDesign={shareDesign}
         onOpenHome={() => setShowHomePage(true)}
         onPrint={handlePrint}
@@ -7803,6 +8006,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onAddFrame={addAndCloseIfCompact(addFrame)}
               onAddChart={addAndCloseIfCompact(addChart)}
               onAddTable={addAndCloseIfCompact(addTable)}
+              onAddQrCode={addAndCloseIfCompact(addQrCode)}
+              onAddBarcode={addAndCloseIfCompact(addBarcode)}
             />
           )}
           {activeSidebarSection === "icons" && <IconsPanel onAddIcon={addAndCloseIfCompact(addIcon)} />}
@@ -7909,6 +8114,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onSetTransition={setPageTransition}
               onApplyDurationToAll={applyDurationToAllPages}
               onApplyTransitionToAll={applyTransitionToAllPages}
+              pageNumbers={pageNumbers}
+              onChangePageNumbers={setPageNumbers}
             />
           )}
           {activeSidebarSection === "projects" && editorMode === "workspace" && (
@@ -7922,8 +8129,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onDelete={handleDeleteSavedProjectAction}
             />
           )}
+          {activeSidebarSection === "design" && <DesignPanel templates={templateSummaries} onSelectTemplate={handleSelectTemplate} />}
           {activeSidebarSection &&
-            !["uploads", "text", "brush", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand"].includes(
+            !["uploads", "text", "brush", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand", "design"].includes(
               activeSidebarSection
             ) &&
             !(activeSidebarSection === "projects" && editorMode === "workspace") && (
@@ -7952,6 +8160,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
               isSpaceDown={isSpaceDown}
               renderActivePage={renderActivePage}
               onAddPageAfter={addPage}
+              pageNumbers={pageNumbers}
               // Rulers are editor chrome, not part of the page/canvas-frame —
               // Workspace positions them around the workspace viewport itself.
               // Phase 12 spec §46: an actively-playing preview excludes
@@ -8202,6 +8411,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
           autosaveRef.current.flush();
         }}
         onCreateVersionBeforeExport={() => createAutoMilestone("before-export")}
+      />
+
+      <MockupPreviewDialog
+        isOpen={isMockupPreviewOpen}
+        onClose={() => setIsMockupPreviewOpen(false)}
+        pages={pages}
+        items={items}
       />
 
       <ImportProjectDialog

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Copy, Edit3, Eye, GripVertical, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { Copy, Edit3, Eye, GripVertical, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, UploadCloud, X } from "lucide-react";
 import {
   ensureBuiltInTemplatesSeeded,
   listTemplateSummaries,
@@ -16,6 +16,7 @@ import { exportProjectPackage, downloadBlob } from "../../projectPackage";
 import TemplateMiniPreview from "../TemplateMiniPreview";
 import TemplatePreviewDialog from "../TemplatePreviewDialog";
 import ConfirmDeleteTemplateDialog from "./ConfirmDeleteTemplateDialog";
+import AdminUploadDesignDialog from "./AdminUploadDesignDialog";
 import { orientationOf } from "../../pageSizes";
 import { useLanguage } from "../../languageContext";
 import { MISC_STRINGS } from "../../i18n/misc";
@@ -55,6 +56,7 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   const [sort, setSort] = useState("custom");
   const [previewTemplate, setPreviewTemplate] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isUploadDesignOpen, setIsUploadDesignOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -223,6 +225,12 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
           >
             <Plus size={16} /> {t.createNewTemplate}
           </button>
+          <button
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+            onClick={() => setIsUploadDesignOpen(true)}
+          >
+            <UploadCloud size={16} /> {t.uploadDesign}
+          </button>
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -346,6 +354,15 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
         isBuiltIn={deleteTarget?.builtIn}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <AdminUploadDesignDialog
+        isOpen={isUploadDesignOpen}
+        onClose={() => setIsUploadDesignOpen(false)}
+        onUploaded={() => {
+          showToast(t.designUploaded);
+          refresh();
+        }}
       />
 
       {toast && (

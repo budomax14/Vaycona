@@ -240,7 +240,12 @@ export default function SimpleTextNode({ item, commonProps }) {
           {...getTextEffectProps(item)}
         />
       </Group>
-      {isOverflowing && (item.overflow || "clip") !== "shrink" && (
+      {/* Standard Document's auto-created body text (documentBody, see
+          objectRegistry.js/App.jsx's createStandardDocument) is expected to
+          run past its initial height as the user types a normal amount of
+          text — that's not an error state there, so it skips this badge
+          unlike every other fixed-size text box. */}
+      {isOverflowing && (item.overflow || "clip") !== "shrink" && !item.documentBody && (
         <Rect x={width - 14} y={height - 14} width={10} height={10} fill="#f59e0b" cornerRadius={2} listening={false} />
       )}
     </Group>

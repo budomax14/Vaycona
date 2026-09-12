@@ -541,21 +541,25 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           in DOM order (and so stacking) behind the contentEditable below,
           so any press over the actual text/box reaches that instead —
           only the margin ring, where nothing else exists to catch the
-          event, reaches this. */}
-      <div
-        data-text-toolbar-safe
-        onPointerDown={handleFrameMouseDown}
-        style={{
-          position: "absolute",
-          left: overlayLeft - DRAG_MARGIN,
-          top: overlayTop - DRAG_MARGIN,
-          width: overlayWidth + DRAG_MARGIN * 2,
-          height: overlayHeight + DRAG_MARGIN * 2,
-          cursor: "move",
-          zIndex: 24,
-          touchAction: "none",
-        }}
-      />
+          event, reaches this. Skipped entirely for documentBody (Standard
+          Document's auto-created body text) — that item must never move,
+          not even via this edge ring, while typing. */}
+      {!item.documentBody && (
+        <div
+          data-text-toolbar-safe
+          onPointerDown={handleFrameMouseDown}
+          style={{
+            position: "absolute",
+            left: overlayLeft - DRAG_MARGIN,
+            top: overlayTop - DRAG_MARGIN,
+            width: overlayWidth + DRAG_MARGIN * 2,
+            height: overlayHeight + DRAG_MARGIN * 2,
+            cursor: "move",
+            zIndex: 24,
+            touchAction: "none",
+          }}
+        />
+      )}
       <div
         ref={rootRef}
         contentEditable
@@ -585,7 +589,11 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           // while editing (DesignNode.jsx returns null), so without this the
           // text's boundary was invisible the entire time you were typing.
           boxSizing: "border-box",
-          border: "1px solid #0ea5e9",
+          // `documentBody` items (Standard Document's auto-created body
+          // text — see objectRegistry.js) skip this box entirely, so the
+          // page reads as a plain Word-like document with no visible text
+          // frame — every other text item keeps the usual edit-mode border.
+          border: item.documentBody ? "none" : "1px solid #0ea5e9",
           fontFamily: item.fontFamily || "Arial",
           fontSize: (item.fontSize || 24) * viewport.scale,
           lineHeight: item.lineHeight || 1,

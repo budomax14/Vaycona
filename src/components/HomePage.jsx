@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { LogOut, Plus, Search, Settings, User, X } from "lucide-react";
+import { FileText, LogOut, Plus, Search, Settings, User, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
 import { useLanguage } from "../languageContext";
@@ -22,7 +22,7 @@ function toUnit(px, unitKey) {
 // Dark mode itself needs no per-element styling here: index.css remaps
 // Tailwind's gray/white CSS variables under `.dark` on <html>, so the plain
 // bg-gray-*/text-gray-*/bg-white classes below already re-theme globally.
-export default function HomePage({ templates, onSelectTemplate, onCreateBlank, onContinue, hasExistingDesign, projectName, lastSavedAt }) {
+export default function HomePage({ templates, onSelectTemplate, onCreateBlank, onCreateStandardDocument, onContinue, hasExistingDesign, projectName, lastSavedAt }) {
   const [query, setQuery] = useState("");
   // Defaults stay the same physical size as before (1080x1080px), just
   // expressed in inches to match the default unit below.
@@ -168,6 +168,14 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
             >
               <Plus size={14} /> {t.blankDesign}
             </button>
+            {onCreateStandardDocument && (
+              <button
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-semibold text-gray-700 hover:border-amber-300 hover:text-amber-700"
+                onClick={onCreateStandardDocument}
+              >
+                <FileText size={14} /> {t.standardDocument}
+              </button>
+            )}
             <span className="text-xs text-gray-400">{t.orCustomSize}</span>
             <input
               type="number"

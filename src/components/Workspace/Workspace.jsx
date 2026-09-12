@@ -30,6 +30,7 @@ const Workspace = forwardRef(function Workspace(
     isSpaceDown,
     renderActivePage,
     onAddPageAfter,
+    pageNumbers,
     showRulers = false,
     unit = "px",
     cursorContentPos = null,
@@ -403,6 +404,7 @@ const Workspace = forwardRef(function Workspace(
                     isActive={isActive}
                     scale={scale}
                     items={items}
+                    pageNumbers={pageNumbers}
                     onActivate={() => onActivatePage(page.id)}
                     onAddPage={onAddPageAfter ? () => onAddPageAfter(page.id) : undefined}
                   >

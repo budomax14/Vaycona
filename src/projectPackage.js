@@ -152,6 +152,7 @@ export async function exportProjectPackage({
     items: validatedData.items,
     guides: validatedData.guides,
     snapToGuides: validatedData.snapToGuides,
+    pageNumbers: validatedData.pageNumbers,
   });
   zip.file("project.json", projectJson);
 

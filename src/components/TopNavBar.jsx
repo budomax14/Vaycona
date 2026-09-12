@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Crown, Download, Home, LogOut, Loader2, Redo2, Save, Scaling, Settings, Share2, ShieldCheck, Undo2, User } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Crown, Download, Home, Image, LogOut, Loader2, Redo2, Save, Scaling, Settings, Share2, ShieldCheck, Undo2, User } from "lucide-react";
 import { useAuth } from "../authContext";
 import { useSubscription } from "../subscriptionContext";
 import { useLanguage } from "../languageContext";
@@ -205,6 +205,8 @@ export default function TopNavBar({
   onExportProject,
   onImportProject,
   onOpenExport,
+  onOpenMockupPreview,
+  showMockupPreview,
   onShareDesign,
   onOpenHome,
   onPrint,
@@ -454,6 +456,18 @@ export default function TopNavBar({
             <span className="hidden lg:inline">{saveStatus === "error" ? t.retrySave : saveLabel}</span>
           </button>
         </OverflowToolbar.Item>
+        {showMockupPreview && (
+          <OverflowToolbar.Item>
+            <button
+              className="toolbar-hit-target flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 md:px-3"
+              onClick={onOpenMockupPreview}
+              title={t.mockupPreviewTitle}
+              aria-label={t.mockupPreviewAriaLabel}
+            >
+              <Image size={16} /> <span className="hidden lg:inline">{t.mockupPreviewButton}</span>
+            </button>
+          </OverflowToolbar.Item>
+        )}
         <OverflowToolbar.Item keepOnMobile>
           <button
             className="toolbar-hit-target flex items-center gap-1.5 rounded-lg bg-amber-600 px-2.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 md:px-3.5"

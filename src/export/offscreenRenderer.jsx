@@ -144,22 +144,28 @@ export async function renderPageToCanvas({ page, items, pixelScale, backgroundFi
   let stageInstance = null;
   try {
     root = createRoot(container);
-    await new Promise((resolve) => {
-      root.render(
-        <ExportPageStage
-          page={page}
-          items={items}
-          pixelScale={pixelScale}
-          backgroundFill={backgroundFill}
-          stageRef={(node) => {
-            stageInstance = node;
-          }}
-        />
-      );
-      // Mount is synchronous inside render() for a fresh root, but give it
-      // one microtask/frame turn before reading stageInstance defensively.
-      requestAnimationFrame(resolve);
-    });
+    root.render(
+      <ExportPageStage
+        page={page}
+        items={items}
+        pixelScale={pixelScale}
+        backgroundFill={backgroundFill}
+        stageRef={(node) => {
+          stageInstance = node;
+        }}
+      />
+    );
+    // createRoot's commit is concurrent, not synchronous — it can land
+    // after more than one rAF (confirmed by instrumenting this exact
+    // mount: the Stage ref fired on the *second* animation frame, never
+    // the first), so this polls with a generous bound instead of assuming
+    // one frame is always enough.
+    const mountStart = performance.now();
+    while (!stageInstance && performance.now() - mountStart < 2000) {
+      throwIfCancelled(signal);
+      // eslint-disable-next-line no-await-in-loop
+      await nextFrame();
+    }
     throwIfCancelled(signal);
     if (!stageInstance) throw new Error("Export render stage failed to mount.");
 

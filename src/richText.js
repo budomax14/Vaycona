@@ -203,6 +203,32 @@ export function domToRichText(root, fontSizeScale = 1) {
   });
   if (hasContent || paragraphs.length === 0) flush();
 
+  // Chrome (and other browsers) sometimes leave a genuinely empty trailing
+  // block — an empty <div><span></span></div> with no text, no <br> — as a
+  // cursor-continuation artifact after a plain, unstyled run of typed text
+  // (reproduced consistently typing into a tall, empty, flex-column
+  // contenteditable box — see TextEditOverlay.jsx). That phantom paragraph
+  // has no bearing on what the user actually wrote, but bumps `rt.length`
+  // to 2+, which isRichText() below treats as "real" multi-paragraph
+  // content regardless of whether styling actually varies — silently
+  // routing plain text onto RichTextNode's layoutRichText measurement path
+  // instead of SimpleTextNode's native Konva wrap. A run built with no
+  // inline styling at all (the common case for unformatted text — see
+  // walkInline's bare-text-node branch) carries no `fontSize`, which
+  // produces an invalid `ctx.font` string that the canvas 2D context
+  // silently ignores, measuring every character against whatever font was
+  // last set on the shared measurement context instead — wildly
+  // mismeasuring the real wrap width. Stripping only genuinely-empty
+  // TRAILING paragraphs (keeping at least one) fixes the misclassification
+  // at its source without touching real multi-paragraph content anywhere
+  // else in the document.
+  while (paragraphs.length > 1) {
+    const last = paragraphs[paragraphs.length - 1];
+    const hasRealContent = last.listType || last.runs.some((r) => r.break || (r.text && r.text.length > 0));
+    if (hasRealContent) break;
+    paragraphs.pop();
+  }
+
   // Undo the screen-px convention (§ overlay coordinate formula) so stored
   // fontSize is always in page-logical-px, matching every other field.
   if (fontSizeScale !== 1) {
@@ -290,8 +316,18 @@ function getMeasureContext() {
   return measureCanvas.getContext("2d");
 }
 
+// A run built from a plain, unstyled DOM text node (walkInline's bare-text
+// branch) carries no fontSize/fontFamily at all — without a fallback here,
+// the resulting string (e.g. "400 undefinedpx undefined") is invalid CSS,
+// which the canvas 2D context silently ignores on assignment, leaving
+// `ctx.font` at whatever a PRIOR measurement left it — wildly mismeasuring
+// this run's width. Defaults match baseRunFromItem's own item-level
+// fallbacks so an unstyled run measures the same size/font the object
+// itself would render at.
 function fontString(run) {
-  return `${run.italic ? "italic " : ""}${run.bold ? "700 " : "400 "}${run.fontSize}px ${run.fontFamily}`;
+  const fontSize = run.fontSize || 24;
+  const fontFamily = run.fontFamily || "Arial";
+  return `${run.italic ? "italic " : ""}${run.bold ? "700 " : "400 "}${fontSize}px ${fontFamily}`;
 }
 
 function measureRunText(ctx, run, text, letterSpacing) {

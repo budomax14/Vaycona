@@ -5,8 +5,16 @@ import ThumbnailStage from "./ThumbnailStage";
 import { usePageThumbnails } from "./usePageThumbnails";
 import { DEFAULT_PAGE_DURATION_MS } from "../../../animation/animationSchema";
 import { TRANSITION_TYPE_LIST, getTransitionPresetLabel } from "../../../animation/transitionService";
+import { PAGE_NUMBER_POSITIONS } from "../../../pageNumbering";
 import { useLanguage } from "../../../languageContext";
 import { PANEL_STRINGS } from "../../../i18n/panels";
+
+function pageNumberDotClass(position) {
+  const [vSide, hSide] = position.split("-");
+  const vClass = vSide === "top" ? "top-1" : "bottom-1";
+  const hClass = hSide === "left" ? "left-1" : hSide === "right" ? "right-1" : "left-1/2 -translate-x-1/2";
+  return `${vClass} ${hClass}`;
+}
 
 const THUMB_WIDTH = 120;
 const THUMB_HEIGHT = 82;
@@ -232,6 +240,8 @@ export default function PagesPanel({
   onSetTransition,
   onApplyDurationToAll,
   onApplyTransitionToAll,
+  pageNumbers,
+  onChangePageNumbers,
 }) {
   const { language } = useLanguage();
   const t = PANEL_STRINGS[language].pages;
@@ -266,6 +276,43 @@ export default function PagesPanel({
         <h3 className="text-sm font-semibold text-gray-800">{t.title}</h3>
         <span className="text-[11px] font-medium text-gray-400">{t.pagesCount(pages.length)}</span>
       </div>
+
+      {onChangePageNumbers && (
+        <div className="flex shrink-0 flex-col gap-2 rounded-xl border border-gray-200 p-2.5">
+          <label className="flex items-center justify-between gap-2 text-xs font-medium text-gray-700">
+            {t.pageNumbers}
+            <input
+              type="checkbox"
+              checked={!!pageNumbers?.enabled}
+              onChange={(event) => onChangePageNumbers({ ...pageNumbers, enabled: event.target.checked })}
+              className="h-3.5 w-3.5 rounded border-gray-300"
+              aria-label={t.pageNumbers}
+            />
+          </label>
+          {pageNumbers?.enabled && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {PAGE_NUMBER_POSITIONS.map((position) => (
+                <button
+                  key={position}
+                  type="button"
+                  className={`relative h-8 rounded-lg border ${
+                    pageNumbers.position === position ? "border-amber-400 bg-amber-50" : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => onChangePageNumbers({ ...pageNumbers, position })}
+                  title={t.pageNumberPositions[position]}
+                  aria-label={t.pageNumberPositions[position]}
+                >
+                  <span
+                    className={`absolute h-1.5 w-1.5 rounded-full ${
+                      pageNumbers.position === position ? "bg-amber-600" : "bg-gray-400"
+                    } ${pageNumberDotClass(position)}`}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto pb-2">
         {pages.map((page, index) => (

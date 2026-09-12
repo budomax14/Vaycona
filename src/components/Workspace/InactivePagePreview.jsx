@@ -3,6 +3,7 @@ import { Layer, Rect, Stage } from "react-konva";
 import DesignNode from "../../DesignNode";
 import { isEffectivelyHidden } from "../../hierarchy";
 import { borderDashProps } from "../../borderStyles";
+import PageNumberLabel from "./PageNumberLabel";
 
 const noop = () => {};
 
@@ -11,7 +12,7 @@ const noop = () => {};
 // a blank rectangle (only the active page mounts a full editable Stage via
 // renderActivePage). Mirrors LeftSidebar/panels/ThumbnailStage's approach of
 // reusing DesignNode directly, minus the toDataURL capture step.
-export default function InactivePagePreview({ page, items, width, height }) {
+export default function InactivePagePreview({ page, items, width, height, pageNumber, numberPosition }) {
   const itemsById = new Map(items.map((it) => [it.id, it]));
   const scale = width / page.width;
 
@@ -50,6 +51,7 @@ export default function InactivePagePreview({ page, items, width, height }) {
             listening={false}
           />
         )}
+        {numberPosition && <PageNumberLabel page={page} pageNumber={pageNumber} position={numberPosition} />}
       </Layer>
     </Stage>
   );

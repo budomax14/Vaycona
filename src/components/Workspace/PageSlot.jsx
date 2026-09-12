@@ -4,7 +4,7 @@ import InactivePagePreview from "./InactivePagePreview";
 import { useLanguage } from "../../languageContext";
 import { PANEL_STRINGS } from "../../i18n/panels";
 
-export default function PageSlot({ page, pageIndex, isActive, scale, items, onActivate, onAddPage, children }) {
+export default function PageSlot({ page, pageIndex, isActive, scale, items, pageNumbers, onActivate, onAddPage, children }) {
   const { language } = useLanguage();
   const t = PANEL_STRINGS[language].pages;
   const pageName = page.name || t.pageDefaultName(pageIndex + 1);
@@ -28,6 +28,8 @@ export default function PageSlot({ page, pageIndex, isActive, scale, items, onAc
               items={items}
               width={page.width * scale}
               height={page.height * scale}
+              pageNumber={pageIndex + 1}
+              numberPosition={pageNumbers?.enabled ? pageNumbers.position : null}
             />
           )}
         </button>

@@ -70,7 +70,12 @@ export const REGISTRY = {
       "textAlign", "verticalAlign", "lineHeight", "letterSpacing", "paragraphSpacing",
       "textTransform", "list", "autoSize", "overflow", "background", "border", "effects", "text3D", "opacity",
     ],
-    transforms: { resizable: true, rotatable: true, usesTransformer: true },
+    // `documentBody` (Standard Document, HomePage.jsx "Start a new design"
+    // box only) marks the one auto-created text item that's meant to look
+    // like a Word page's body text, never a placeable/resizable object —
+    // no Transformer handles/selection outline for it. Every other text
+    // item (undefined flag) keeps the normal resizable/rotatable behavior.
+    transforms: (item) => ({ resizable: true, rotatable: true, usesTransformer: !item.documentBody }),
   },
 
   shape: {

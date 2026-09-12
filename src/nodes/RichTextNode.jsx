@@ -229,7 +229,10 @@ export default function RichTextNode({ item, commonProps }) {
           }}
         />
       </Group>
-      {isOverflowing && overflow !== "shrink" && (
+      {/* See the matching comment in SimpleTextNode.jsx — Standard
+          Document's auto-created body text expects to run past its
+          initial height, so it skips this badge. */}
+      {isOverflowing && overflow !== "shrink" && !item.documentBody && (
         <Rect x={width - 14} y={height - 14} width={10} height={10} fill="#f59e0b" cornerRadius={2} listening={false} />
       )}
     </Group>

@@ -57,7 +57,12 @@ function DesignNode({
     // no-op the rest of the time.
     scaleX: item.scaleX ?? 1,
     scaleY: item.scaleY ?? 1,
-    draggable: !isSpaceDown && !isLocked,
+    // documentBody (Standard Document's auto-created body text — see
+    // objectRegistry.js) is meant to behave like a Word page, never a
+    // movable object: without this, an ordinary click with a stray pixel
+    // or two of mouse movement (near-universal in real use) reads as a
+    // drag and visibly nudges the text — exactly what it must never do.
+    draggable: !isSpaceDown && !isLocked && !item.documentBody,
     dragBoundFunc,
     onClick: (event) =>
       onSelect(item.id, {
