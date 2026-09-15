@@ -162,10 +162,17 @@ export const assetEvents = {
 
 // --- validation ---
 
+// Browsers frequently report an empty file.type (or omit it) for HEIC/HEIF
+// files since they aren't universally registered as a MIME type, so those
+// two extensions get a filename-based fallback alongside the normal check.
+const HEIC_EXTENSION_PATTERN = /\.hei[cf]$/i;
+
 export function validateImageFile(file) {
   if (!file || file.size === 0) return { ok: false, error: "The file is empty." };
-  if (!ACCEPTED_IMAGE_MIME_TYPES.includes(file.type)) {
-    return { ok: false, error: "Unsupported format. Please choose a JPEG, PNG, WebP, or GIF image." };
+  const isAcceptedType = ACCEPTED_IMAGE_MIME_TYPES.includes(file.type);
+  const isHeicByName = !file.type && HEIC_EXTENSION_PATTERN.test(file.name || "");
+  if (!isAcceptedType && !isHeicByName) {
+    return { ok: false, error: "Unsupported format. Please choose a JPEG, PNG, WebP, GIF, or HEIC image." };
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     return { ok: false, error: `File too large. Maximum size is ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.` };

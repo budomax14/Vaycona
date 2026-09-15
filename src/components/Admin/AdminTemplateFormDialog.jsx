@@ -334,7 +334,7 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
                   </div>
                   <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                     <Upload size={12} /> {t.uploadCoverImage}
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleThumbnailChange} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif" className="hidden" onChange={handleThumbnailChange} />
                   </label>
                 </div>
                 {thumbnailError && <p className="mt-1 text-xs text-red-600">{thumbnailError}</p>}

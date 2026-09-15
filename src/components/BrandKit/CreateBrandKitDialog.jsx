@@ -158,7 +158,7 @@ export default function CreateBrandKitDialog({ isOpen, onClose, onCreate }) {
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif,image/svg+xml"
             className="block w-full text-xs text-gray-600"
             onChange={(event) => setLogoFile(event.target.files?.[0] || null)}
           />

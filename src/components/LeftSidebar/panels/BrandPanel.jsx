@@ -202,7 +202,7 @@ export default function BrandPanel({
       <Section title={t.logos} defaultOpen={false} action={
         <label className="cursor-pointer text-[11px] font-medium text-amber-600 hover:underline">
           {t.upload}
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml" hidden onChange={(event) => event.target.files?.[0] && onUploadLogo(event.target.files[0])} />
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif,image/svg+xml" hidden onChange={(event) => event.target.files?.[0] && onUploadLogo(event.target.files[0])} />
         </label>
       }>
         {activeBrandKit.logos.length === 0 && <p className="text-xs text-gray-400">{t.noLogosYet}</p>}

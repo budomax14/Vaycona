@@ -78,7 +78,7 @@ export const ASSET_INDEX_STORAGE_KEY = "personal-canva-asset-index-v1";
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25MB
 export const MAX_IMAGE_DIMENSION = 8000; // px, per side — guards against pathological canvas sizes
 export const ASSET_THUMB_SIZE = 240; // px, longest side of a generated thumbnail
-export const ACCEPTED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+export const ACCEPTED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
 
 // Phase 7D — editable project file (import/export). Separate from
 // PROJECT_SCHEMA_VERSION: this tracks the ARCHIVE structure (manifest.json
