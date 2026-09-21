@@ -987,9 +987,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [guides, setGuides] = useState(initialWorkspace.guides);
   const [snapToGuides, setSnapToGuides] = useState(initialWorkspace.snapToGuides);
   const [pageNumbers, setPageNumbers] = useState(initialWorkspace.pageNumbers || DEFAULT_PAGE_NUMBERS);
-  const [alignmentLines, setAlignmentLines] = useState({ vertical: [], horizontal: [] });
-  const [equalSpacing, setEqualSpacing] = useState({ horizontal: null, vertical: null });
-  const [distanceLabels, setDistanceLabels] = useState([]);
+  const [alignmentLines, setAlignmentLinesRaw] = useState({ vertical: [], horizontal: [] });
+  const [equalSpacing, setEqualSpacingRaw] = useState({ horizontal: null, vertical: null });
+  const [distanceLabels, setDistanceLabelsRaw] = useState([]);
+  // dragBoundFunc reports these on every pointer move. A fresh-but-equal
+  // value is a new object, so React re-rendered this whole component (and
+  // reconciled every canvas node) each frame even when nothing changed —
+  // heavy enough on an iPhone to contribute to Safari killing the tab
+  // mid-drag. Keep the previous state when the content is identical.
+  const setAlignmentLines = useCallback((next) => setAlignmentLinesRaw((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next)), []);
+  const setEqualSpacing = useCallback((next) => setEqualSpacingRaw((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next)), []);
+  const setDistanceLabels = useCallback((next) => setDistanceLabelsRaw((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next)), []);
 
   // Phase 10 — precision layout tools. `preferredUnit` is durable PROJECT
   // state (spec §6/§69), persisted like scale/guides; `precisionPrefs` is

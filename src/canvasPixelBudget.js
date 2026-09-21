@@ -18,7 +18,12 @@
 // per-node filter caches. Near the ceiling an *edit* (which redraws and
 // re-caches) pushes the tab over iOS's memory limit and the page reloads
 // ("a problem repeatedly occurred"). Stay well under it.
-export const IOS_MAX_CANVAS_PIXELS = 8_000_000;
+export const IOS_MAX_CANVAS_PIXELS = 4_000_000;
+
+// The hit canvas only needs to be finger-accurate: at phone zoom one Stage
+// pixel is well under a CSS pixel, so half resolution is still far finer
+// than a touch. It is redrawn alongside the scene on every drag frame.
+const IOS_HIT_PIXEL_RATIO = 0.5;
 
 // Node.cache() canvases (image filters, fade, 3D text) and decoded photos
 // get their own, smaller budgets — several can be alive at once.
@@ -68,7 +73,7 @@ export function applyCanvasPixelBudget(stage) {
         scene.setPixelRatio(ratio);
         changed = true;
       }
-      const hitRatio = Math.min(1, ratio);
+      const hitRatio = Math.min(IOS_HIT_PIXEL_RATIO, ratio);
       if (hit.getPixelRatio() !== hitRatio) {
         hit.setPixelRatio(hitRatio);
         changed = true;
