@@ -10,6 +10,21 @@ export const PAGE_NUMBER_POSITIONS = ["top-left", "top-center", "top-right", "bo
 
 export const DEFAULT_PAGE_NUMBERS = { enabled: false, position: "bottom-right" };
 
+// Pages keep an auto-generated "Page N" name until the user renames them.
+// Those names must follow the page's position — insert a page in the middle
+// (or delete/reorder) and every auto-named page after it is renumbered so the
+// list always reads Page 1, Page 2, Page 3… in order. Custom names are
+// left untouched; unchanged pages keep their object identity.
+const AUTO_PAGE_NAME = /^Page \d+$/;
+
+export function renumberAutoPageNames(pages) {
+  return pages.map((page, index) => {
+    if (!AUTO_PAGE_NAME.test(page.name || "")) return page;
+    const name = `Page ${index + 1}`;
+    return page.name === name ? page : { ...page, name };
+  });
+}
+
 export function normalizePageNumbers(value) {
   if (!value || typeof value !== "object") return { ...DEFAULT_PAGE_NUMBERS };
   const position = PAGE_NUMBER_POSITIONS.includes(value.position) ? value.position : DEFAULT_PAGE_NUMBERS.position;

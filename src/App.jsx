@@ -271,7 +271,7 @@ import { applyFontReplacement, planFontReplacement } from "./fontReplace";
 import { validateSvgSafety, sanitizeSvg, extractSvgDimensions, rasterizeSvgToPngBlob } from "./svgSafety";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
-import { DEFAULT_PAGE_NUMBERS, normalizePageNumbers } from "./pageNumbering";
+import { DEFAULT_PAGE_NUMBERS, normalizePageNumbers, renumberAutoPageNames } from "./pageNumbering";
 import PageNumberLabel from "./components/Workspace/PageNumberLabel";
 import BrandPanel from "./components/LeftSidebar/panels/BrandPanel";
 import BrandKitManagerDialog from "./components/BrandKit/BrandKitManagerDialog";
@@ -6978,7 +6978,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     };
     const index = pages.findIndex((page) => page.id === pageId);
     const insertAt = direction === "before" ? index : index + 1;
-    commitPages((prev) => [...prev.slice(0, insertAt), newPage, ...prev.slice(insertAt)], {
+    commitPages((prev) => renumberAutoPageNames([...prev.slice(0, insertAt), newPage, ...prev.slice(insertAt)]), {
       type: "add-page",
       label: "Add page",
       pageIds: [newPage.id],
@@ -6995,7 +6995,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const newPageId = crypto.randomUUID();
     const newPage = { ...source, id: newPageId, name: `${source.name || "Page"} copy` };
     const index = pages.findIndex((page) => page.id === id);
-    const nextPages = [...pages.slice(0, index + 1), newPage, ...pages.slice(index + 1)];
+    const nextPages = renumberAutoPageNames([...pages.slice(0, index + 1), newPage, ...pages.slice(index + 1)]);
 
     const sourceItems = items.filter((it) => it.pageId === id);
     const idMap = new Map();
@@ -7022,7 +7022,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   function deletePage(id) {
     if (pages.length <= 1) return;
     const index = pages.findIndex((page) => page.id === id);
-    const nextPages = pages.filter((page) => page.id !== id);
+    const nextPages = renumberAutoPageNames(pages.filter((page) => page.id !== id));
     // Deleting a page also removes its own objects (including any of its
     // groups) — one combined undo step, no orphaned hierarchy references
     // left behind since every item on that page is gone together.
@@ -7054,7 +7054,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (index <= 0) return prev;
       const next = [...prev];
       [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      return next;
+      return renumberAutoPageNames(next);
     }, reorderPageMeta(id));
   }
 
@@ -7064,7 +7064,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (index === -1 || index >= prev.length - 1) return prev;
       const next = [...prev];
       [next[index], next[index + 1]] = [next[index + 1], next[index]];
-      return next;
+      return renumberAutoPageNames(next);
     }, reorderPageMeta(id));
   }
 
@@ -7072,7 +7072,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     commitPages((prev) => {
       const page = prev.find((p) => p.id === id);
       if (!page) return prev;
-      return [page, ...prev.filter((p) => p.id !== id)];
+      return renumberAutoPageNames([page, ...prev.filter((p) => p.id !== id)]);
     }, reorderPageMeta(id));
   }
 
@@ -7080,7 +7080,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     commitPages((prev) => {
       const page = prev.find((p) => p.id === id);
       if (!page) return prev;
-      return [...prev.filter((p) => p.id !== id), page];
+      return renumberAutoPageNames([...prev.filter((p) => p.id !== id), page]);
     }, reorderPageMeta(id));
   }
 
