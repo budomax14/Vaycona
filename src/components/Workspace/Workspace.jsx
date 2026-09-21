@@ -2,6 +2,7 @@ import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayo
 import PageSlot from "./PageSlot";
 import Ruler from "../../Ruler";
 import { useResizeObserver } from "../../useResizeObserver";
+import { useBreakpoint } from "../../useBreakpoint";
 import { clamp } from "../../viewport";
 import {
   BUTTON_ZOOM_STEP,
@@ -60,6 +61,9 @@ const Workspace = forwardRef(function Workspace(
   const [pageOrigin, setPageOrigin] = useState({ x: 0, y: 0 });
 
   const containerSize = useResizeObserver(containerRef);
+  const { isMobile } = useBreakpoint();
+  // Last page id a phone-size fit was applied for — see the effect below.
+  const phoneFitPageIdRef = useRef(null);
   const activePage = pages.find((page) => page.id === activePageId) || pages[0];
 
   const measurePageOrigin = useCallback(() => {
@@ -128,8 +132,15 @@ const Workspace = forwardRef(function Workspace(
     ({ force = false } = {}) => {
       const container = containerRef.current;
       if (!container || !activePage) return;
+      // The container can report 0 (or barely more than its padding) before
+      // layout has settled — first paint on mobile, an orientation flip
+      // mid-transition. Fitting against that yields a nonsense scale (clamped
+      // to MIN_SCALE), and since that tiny page then "already fits" it would
+      // never be corrected. Defer: the effects below re-run this once the
+      // ResizeObserver reports real dimensions.
       const availableWidth = container.clientWidth - WORKSPACE_FIT_PADDING * 2;
       const availableHeight = container.clientHeight - WORKSPACE_FIT_PADDING * 2;
+      if (container.clientWidth <= 0 || container.clientHeight <= 0 || availableWidth <= 0 || availableHeight <= 0) return;
       // If the page already fits fully within the available space at the
       // current zoom, leave scale and scroll position alone. Without this,
       // any incidental container-size change (opening/closing a left
@@ -156,6 +167,22 @@ const Workspace = forwardRef(function Workspace(
     fitToScreen();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoFit, containerSize.width, containerSize.height, activePageId, activePage?.width, activePage?.height]);
+
+  // Phones: the saved project carries the `scale` it was last viewed at (a
+  // desktop session's zoom, typically ~1.0), and loading marks it as a manual
+  // zoom, so autoFit never runs — a 1000px page then sits at 1:1 inside a
+  // ~390px viewport. `scale` is view state, not document state, so on phones
+  // re-derive it once per page from the real container size
+  // (displayScale = available viewport / document). Waits for a valid
+  // container; desktop/tablet keep their saved zoom exactly as before.
+  useEffect(() => {
+    if (!isMobile || !activePage) return;
+    if (containerSize.width <= 0 || containerSize.height <= 0) return;
+    if (phoneFitPageIdRef.current === activePage.id) return;
+    phoneFitPageIdRef.current = activePage.id;
+    fitToScreen({ force: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, containerSize.width, containerSize.height, activePage?.id]);
 
   useImperativeHandle(
     ref,

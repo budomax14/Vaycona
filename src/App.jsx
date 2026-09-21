@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Group, Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import DesignNode from "./DesignNode";
 import CanvasOverlays from "./CanvasOverlays";
@@ -97,6 +97,8 @@ import { getPresetByKey } from "./textStyles";
 import { borderDashProps } from "./borderStyles";
 import { getItemBounds, rectsIntersect, unionBounds } from "./bounds";
 import { screenToContent, contentToScreen } from "./viewport";
+import { applyCanvasPixelBudget } from "./canvasPixelBudget";
+import { logCanvasDebug, isCanvasDebugEnabled } from "./canvasDebug";
 import { collectSnapCandidates, computeSnap, snapResizeEdge, thresholdForScale } from "./snapping";
 import { alignItems, alignToPage, distributeItems, distributeItemsWithGap, computeCurrentGap, inferDistributeAxis } from "./alignment";
 import {
@@ -7197,6 +7199,56 @@ export default function App({ editorMode = "workspace", templateSession = null }
     });
     setSelectedIds((prev) => prev.filter((id) => !idsToMove.has(id)));
   }
+
+  // iOS Safari draws nothing into canvases over ~16.7M px, and Konva's
+  // default backing-store ratio (devicePixelRatio, 3 on iPhone) puts this
+  // Stage far over that — see canvasPixelBudget.js. A no-op everywhere the
+  // default ratio already fits (all desktop browsers), and it never touches
+  // Stage scale/x/y or any item's stored coordinates.
+  const pasteboardPxW = (activePage?.width ?? 0) * RENDER_SCALE_CAP + PASTEBOARD_MARGIN_PX * RENDER_SCALE_CAP * 2;
+  const pasteboardPxH = (activePage?.height ?? 0) * RENDER_SCALE_CAP + PASTEBOARD_MARGIN_PX * RENDER_SCALE_CAP * 2;
+  const [appliedPixelRatio, setAppliedPixelRatio] = useState(null);
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    setAppliedPixelRatio(applyCanvasPixelBudget(stage));
+  }, [activePageId, pasteboardPxW, pasteboardPxH]);
+
+  // TEMPORARY (?canvasDebug=1): dump viewport/stage/element numbers so the
+  // phone can be compared against desktop with the same saved project.
+  useEffect(() => {
+    if (!isCanvasDebugEnabled()) return undefined;
+    let frame = 0;
+    function dump(reason) {
+      cancelAnimationFrame(frame);
+      // After layout, so container sizes are the settled ones.
+      frame = requestAnimationFrame(() => {
+        const stage = stageRef.current;
+        const frameEl = canvasFrameRef.current;
+        logCanvasDebug({
+          reason,
+          page: activePage,
+          container: frameEl?.closest(".canvas-area"),
+          displayScale: scale / RENDER_SCALE_CAP,
+          stage,
+          frame: frameEl,
+          pixelRatio: appliedPixelRatio ?? stage?.getLayers()[0]?.getCanvas().getPixelRatio(),
+          elements: pageItems,
+          nodes: nodesMapRef.current,
+        });
+      });
+    }
+    dump("state-change");
+    const onResize = () => dump("resize");
+    const onOrientation = () => dump("orientationchange");
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onOrientation);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onOrientation);
+    };
+  }, [activePage, scale, pageItems, appliedPixelRatio, isPhone]);
 
   function handleFitToScreen() {
     setHasManualZoomOrPan(false);
