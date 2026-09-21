@@ -93,6 +93,7 @@ export const STRINGS = {
       precisionSettings: "Precision settings…",
       resetPrecisionView: "Reset precision view",
 
+      previewMenu: "Preview",
       helpMenu: "Help",
       keyboardShortcuts: "Keyboard shortcuts",
       shortcutUndoRedo: "Undo / Redo",
@@ -317,6 +318,7 @@ export const STRINGS = {
       precisionSettings: "Paramètres de précision…",
       resetPrecisionView: "Réinitialiser la vue de précision",
 
+      previewMenu: "Aperçu",
       helpMenu: "Aide",
       keyboardShortcuts: "Raccourcis clavier",
       shortcutUndoRedo: "Annuler / Rétablir",

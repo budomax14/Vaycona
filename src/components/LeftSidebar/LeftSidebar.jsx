@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../../languageContext";
 import { PANEL_STRINGS } from "../../i18n/panels";
+import { MOBILE_STRINGS } from "../../i18n/mobile";
+import MobileSheet from "../Mobile/MobileSheet";
 
 // `label` here stays the fixed English identifier used by other modules
 // (e.g. App.jsx passes SECTIONS.find(...).label straight into
@@ -45,6 +47,13 @@ export const SECTIONS = [
   { key: "apps", label: "Apps", icon: AppWindow },
 ];
 
+// Phone layout: the rail is replaced by an "Add" launcher (a grid of these
+// sections) opened from the bottom bar. Layers and Pages have their own
+// bottom-bar buttons, so they aren't repeated in the launcher.
+export const MOBILE_ADD_KEY = "mobile-add";
+const MOBILE_OWN_BUTTON_KEYS = ["layers", "pages"];
+export const MOBILE_ADD_SECTIONS = SECTIONS.filter((section) => !MOBILE_OWN_BUTTON_KEYS.includes(section.key));
+
 // tier "tablet": the content panel becomes a floating overlay (anchored
 // past the icon rail) with a click-to-dismiss backdrop instead of a normal
 // flex sibling, so opening it never squeezes the canvas workspace.
@@ -59,6 +68,44 @@ export default function LeftSidebar({ activeSection, onSectionChange, tier = "de
   const isCompact = tier !== "desktop";
   const isMobile = tier === "mobile";
   const railHiddenForPanel = isMobile && Boolean(activeSection);
+
+  // Phones get no permanent rail and no side overlay: every section opens as
+  // a bottom sheet (see MobileSheet), reached from the bottom bar's buttons.
+  if (isMobile) {
+    const isLauncher = activeSection === MOBILE_ADD_KEY;
+    const cameFromLauncher = Boolean(activeSection) && !isLauncher && !MOBILE_OWN_BUTTON_KEYS.includes(activeSection);
+    return (
+      <MobileSheet
+        isOpen={Boolean(activeSection)}
+        onClose={() => onSectionChange(null)}
+        title={isLauncher ? MOBILE_STRINGS[language].addSheetTitle : activeLabel}
+        onBack={cameFromLauncher ? () => onSectionChange(MOBILE_ADD_KEY) : undefined}
+        aboveBar
+        modal={false}
+      >
+        {isLauncher ? (
+          <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
+            {MOBILE_ADD_SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const label = t.sections[section.key];
+              return (
+                <button
+                  key={section.key}
+                  className="flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-1 py-2 text-[11px] font-medium text-gray-600 active:bg-amber-50 active:text-amber-700"
+                  onClick={() => onSectionChange(section.key)}
+                >
+                  <Icon size={22} />
+                  <span className="max-w-full truncate leading-none">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          children
+        )}
+      </MobileSheet>
+    );
+  }
 
   return (
     <div className="relative flex h-full shrink-0">

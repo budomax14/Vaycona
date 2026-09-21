@@ -36,6 +36,8 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
   const measureRefs = useRef([]);
   const moreButtonRef = useRef(null);
   const menuPanelRef = useRef(null);
+  const innerRef = useRef(null);
+  const [gap, setGap] = useState(0);
   const [widths, setWidths] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuRect, setMenuRect] = useState(null);
@@ -52,14 +54,24 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
     setWidths((prev) => (prev.length === next.length && prev.every((w, i) => w === next[i]) ? prev : next));
   }, [items.length, containerWidth, children]);
 
+  // The real row puts a flex gap between every visible item, which the
+  // per-item widths above don't include — without counting it, the last
+  // item that "fits" is really a few pixels too wide and ends up half-clipped
+  // instead of moving into the More menu.
+  useLayoutEffect(() => {
+    if (!innerRef.current) return;
+    const next = parseFloat(getComputedStyle(innerRef.current).columnGap) || 0;
+    setGap((prev) => (prev === next ? prev : next));
+  }, [containerWidth]);
+
   const keepOnMobile = items.map((item) => isValidElement(item) && item.type?.isOverflowItem && item.props.keepOnMobile);
-  const reservedWidth = widths.reduce((sum, w, i) => sum + (keepOnMobile[i] ? w : 0), 0);
-  const budget = Math.max(0, containerWidth - MORE_BUTTON_WIDTH - reservedWidth);
+  const reservedWidth = widths.reduce((sum, w, i) => sum + (keepOnMobile[i] ? w + gap : 0), 0);
+  const budget = Math.max(0, containerWidth - MORE_BUTTON_WIDTH - gap - reservedWidth);
 
   let runningWidth = 0;
   const included = items.map((item, i) => {
     if (keepOnMobile[i]) return true;
-    const w = widths[i] || 0;
+    const w = (widths[i] || 0) + gap;
     if (runningWidth + w <= budget) {
       runningWidth += w;
       return true;
@@ -117,7 +129,7 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
     // shrinks the box, which shrinks the measured budget, which excludes
     // even more items on the next pass.
     <div ref={containerRef} className={`relative flex min-w-0 flex-1 ${className}`}>
-      <div className={`flex min-w-0 flex-1 items-center overflow-hidden ${innerClassName}`}>
+      <div ref={innerRef} className={`flex min-w-0 flex-1 items-center overflow-hidden ${innerClassName}`}>
         {visibleItems}
         {overflowItems.length > 0 && (
           <div className="relative shrink-0">

@@ -8,8 +8,14 @@ import { useMediaQuery } from "./useMediaQuery";
 // much of the full desktop layout as possible; iPad portrait (768) is the
 // tablet/desktop boundary and lands in "tablet".
 export function useBreakpoint() {
-  const isMobile = useMediaQuery("(max-width: 767px)");
-  const isTablet = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
+  // A phone held sideways is wider than 767px but only ~360-430px tall, so
+  // width alone would hand it the tablet layout with no room for it. Short
+  // AND not-desktop-wide screens count as phones too.
+  const isNarrow = useMediaQuery("(max-width: 767px)");
+  const isShortLandscape = useMediaQuery("(max-height: 500px) and (max-width: 1023px)");
+  const isMobile = isNarrow || isShortLandscape;
+  const isTabletWidth = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
+  const isTablet = !isMobile && isTabletWidth;
   const isShort = useMediaQuery("(max-height: 500px)");
   const isDesktop = !isMobile && !isTablet;
   const tier = isMobile ? "mobile" : isTablet ? "tablet" : "desktop";

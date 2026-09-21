@@ -7,7 +7,9 @@ import SelectionToolbar from "./components/SelectionToolbar";
 import RotationIndicator from "./components/RotationIndicator";
 import TopNavBar from "./components/TopNavBar";
 import PropertiesToolbar from "./components/PropertiesToolbar/PropertiesToolbar";
-import LeftSidebar, { SECTIONS } from "./components/LeftSidebar/LeftSidebar";
+import LeftSidebar, { SECTIONS, MOBILE_ADD_KEY } from "./components/LeftSidebar/LeftSidebar";
+import MobileBottomBar from "./components/Mobile/MobileBottomBar";
+import MobileViewSheet from "./components/Mobile/MobileViewSheet";
 import { useLanguage } from "./languageContext";
 import { PANEL_STRINGS } from "./i18n/panels";
 import UploadsPanel from "./components/LeftSidebar/panels/UploadsPanel";
@@ -146,6 +148,7 @@ import RecoveryDialog from "./components/RecoveryDialog";
 import RecoveryCenter from "./components/RecoveryCenter";
 import ExportDialog from "./components/ExportDialog";
 import MockupPreviewDialog from "./components/MockupPreviewDialog";
+import PreviewDialog from "./components/PreviewDialog";
 import { hasAnyMockupPage } from "./mockup/mockupRegistry";
 import { buildExportRequest } from "./export/exportRequest";
 import { runExport, downloadExportResult } from "./export/exportService";
@@ -837,6 +840,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportDialogFormat, setExportDialogFormat] = useState(null);
   const [isMockupPreviewOpen, setIsMockupPreviewOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importStage, setImportStage] = useState("idle");
   const [importPreview, setImportPreview] = useState(null);
@@ -1051,6 +1055,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   const breakpoint = useBreakpoint();
   const { isCompact } = breakpoint;
+  const isPhone = breakpoint.isMobile;
+  const hasSelection = selectedIds.length > 0;
+  // Selecting something opens the Edit row for it; deselecting closes it.
+  useEffect(() => {
+    if (isPhone) setMobileEditOpen(hasSelection);
+  }, [isPhone, hasSelection]);
   const { hasCoarsePointer } = usePointerCapability();
   useEffect(() => {
     document.documentElement.classList.toggle("touch-input", hasCoarsePointer);
@@ -1102,6 +1112,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // restore on exit. Detection itself (regions, cache, settings, hover
   // state) lives in useGrabIt below, not here.
   const [grabItEditItemId, setGrabItEditItemId] = useState(null);
+  // Phone layout (see useBreakpoint's `isMobile`): the properties row and the
+  // View panel only show when asked for, instead of always sitting on screen.
+  const [mobileEditOpen, setMobileEditOpen] = useState(false);
+  const [mobileViewOpen, setMobileViewOpen] = useState(false);
   const [grabItExtracting, setGrabItExtracting] = useState(false);
 
   // One-way "please open" signal for the Shape fill panel (ShapePropertiesBar
@@ -7746,130 +7760,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     };
   }
 
-  return (
-    <RecentColorsProvider>
-    <DocumentColorsProvider items={items}>
-    <div
-      className="flex h-screen flex-col overflow-hidden bg-gray-100 text-gray-900"
-      style={{
-        paddingTop: "var(--safe-top)",
-        paddingBottom: "var(--safe-bottom)",
-        paddingLeft: "var(--safe-left)",
-        paddingRight: "var(--safe-right)",
-      }}
-    >
-      {editorMode === "template" && templateSession ? (
-        <AdminTemplateEditorToolbar
-          templateName={templateSession.templateName}
-          onNameChange={templateSession.onNameChange}
-          saveStatus={saveStatus.status}
-          canUndo={historyCanUndo(historyState)}
-          onUndo={undo}
-          undoLabel={undoLabel(historyState)}
-          canRedo={historyCanRedo(historyState)}
-          onRedo={redo}
-          redoLabel={redoLabel(historyState)}
-          onPreview={handleTemplatePreview}
-          onSaveDraft={handleTemplateSaveDraft}
-          onSaveAndPublish={handleTemplateSaveAndPublish}
-          onCancel={handleTemplateCancel}
-          onOpenSettings={templateSession.onOpenSettings}
-          publishing={isPublishing}
-        />
-      ) : (
-      <TopNavBar
-        projectName={projectName}
-        onProjectNameChange={setProjectName}
-        canUndo={historyCanUndo(historyState)}
-        onUndo={undo}
-        undoLabel={undoLabel(historyState)}
-        canRedo={historyCanRedo(historyState)}
-        onRedo={redo}
-        redoLabel={redoLabel(historyState)}
-        onSave={saveNow}
-        saveStatus={saveStatus.status}
-        lastSavedAt={saveStatus.lastSavedAt}
-        saveError={saveStatus.lastError}
-        storageWarning={storageWarning}
-        onRetrySave={retrySave}
-        onOpenRecoveryCenter={openRecoveryCenter}
-        onOpenVersionHistory={openVersionHistory}
-        onOpenTemplateBrowser={openTemplateBrowser}
-        onOpenSaveAsTemplate={openSaveAsTemplateDialog}
-        onSaveProject={handleSaveProject}
-        onSaveProjectAsNew={handleSaveProjectAsNew}
-        hasSavedProject={Boolean(savedProjectId)}
-        onOpenBrandManager={() => setIsBrandManagerOpen(true)}
-        onSaveSelectionAsSection={saveSelectionAsReusableSection}
-        onSaveActivePageAsReusable={() => savePageAsReusable(activePageId)}
-        hasSelection={selectedIds.length > 0}
-        onOpenProjectSafety={openProjectSafety}
-        onExportProject={exportProject}
-        onImportProject={openImportDialog}
-        onOpenExport={() => openExportDialog(null)}
-        showMockupPreview={hasAnyMockupPage(pages)}
-        onOpenMockupPreview={() => setIsMockupPreviewOpen(true)}
-        onShareDesign={shareDesign}
-        onOpenHome={() => setShowHomePage(true)}
-        onPrint={handlePrint}
-        onExportPng={() => openExportDialog("png")}
-        onExportJpeg={() => openExportDialog("jpeg")}
-        onExportPdf={() => openExportDialog("pdf")}
-        onExportSvg={() => openExportDialog("svg")}
-        onOpenExportAnimation={() => setIsExportAnimationOpen(true)}
-        onCopy={copySelection}
-        onPaste={pasteClipboard}
-        onDuplicate={duplicateSelection}
-        onDelete={removeSelection}
-        onSelectAll={selectAll}
-        showGrid={activePage.grid.visible}
-        onToggleGrid={() => toggleActivePagePrecisionVisible("grid")}
-        showMargins={activePage.margins.visible}
-        onToggleMargins={() => toggleActivePagePrecisionVisible("margins")}
-        showBleed={activePage.bleed.visible}
-        onToggleBleed={() => toggleActivePagePrecisionVisible("bleed")}
-        snapToGuides={snapToGuides}
-        onToggleSnapToGuides={() => setSnapToGuides((v) => !v)}
-        onClearGuides={clearGuides}
-        showRulers={precisionPrefs.showRulers}
-        onToggleRulers={() => setPrecisionPrefs((prev) => ({ ...prev, showRulers: !prev.showRulers }))}
-        showGuides={precisionPrefs.showGuides}
-        onToggleGuidesVisible={() => setPrecisionPrefs((prev) => ({ ...prev, showGuides: !prev.showGuides }))}
-        guidesLocked={guides.length > 0 && guides.every((g) => g.locked)}
-        onToggleLockAllGuides={toggleAllGuidesLockedOnPage}
-        snapEnabled={precisionPrefs.snapToObjects || precisionPrefs.snapToGuides || precisionPrefs.snapToGrid || precisionPrefs.snapToPage}
-        onToggleSnap={() =>
-          setPrecisionPrefs((prev) => {
-            const next = !(prev.snapToObjects || prev.snapToGuides || prev.snapToGrid || prev.snapToPage);
-            return { ...prev, snapToObjects: next, snapToPage: next, snapToMargins: next, snapToLayoutGrid: next, snapToEqualSpacing: next };
-          })
-        }
-        showSmartGuides={precisionPrefs.showSmartGuides}
-        onToggleSmartGuides={() => setPrecisionPrefs((prev) => ({ ...prev, showSmartGuides: !prev.showSmartGuides }))}
-        showSafeArea={activePage.safeArea.visible}
-        onToggleSafeArea={() => toggleActivePagePrecisionVisible("safeArea")}
-        showLayoutGrid={activePage.layoutGrid.visible}
-        onToggleLayoutGrid={() => toggleActivePagePrecisionVisible("layoutGrid")}
-        onOpenGuideManager={() => setIsGuideManagerOpen(true)}
-        onOpenPrecisionSettings={() => setIsPrecisionSettingsOpen(true)}
-        onResetPrecisionView={resetPrecisionView}
-        onZoomIn={() => workspaceRef.current?.zoomIn()}
-        onZoomOut={() => workspaceRef.current?.zoomOut()}
-        onResetZoom={handleFitToScreen}
-        onOpenResize={() => setIsResizeOpen(true)}
-        onOpenPricing={() => setIsPricingOpen(true)}
-      />
-      )}
-
-      {!templateSession && (
-        <PlanStatusBanner
-          canEdit={canEdit}
-          isTrialing={isTrialing}
-          currentPeriodEnd={currentPeriodEnd}
-          onOpenPricing={() => setIsPricingOpen(true)}
-        />
-      )}
-
+  const propertiesToolbarElement = (
       <PropertiesToolbar
         selectedItems={selectedItems}
         background={background}
@@ -7969,6 +7860,134 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onToggleAnimationPanel={() => setAnimationPanelOpen((v) => !v)}
         hasAnimations={selectedItems.some((it) => it.animations?.length || it.motionPath)}
       />
+  );
+
+  return (
+    <RecentColorsProvider>
+    <DocumentColorsProvider items={items}>
+    <div
+      className="flex h-screen flex-col overflow-hidden bg-gray-100 text-gray-900"
+      style={{
+        paddingTop: "var(--safe-top)",
+        paddingBottom: "var(--safe-bottom)",
+        paddingLeft: "var(--safe-left)",
+        paddingRight: "var(--safe-right)",
+      }}
+    >
+      {editorMode === "template" && templateSession ? (
+        <AdminTemplateEditorToolbar
+          templateName={templateSession.templateName}
+          onNameChange={templateSession.onNameChange}
+          saveStatus={saveStatus.status}
+          canUndo={historyCanUndo(historyState)}
+          onUndo={undo}
+          undoLabel={undoLabel(historyState)}
+          canRedo={historyCanRedo(historyState)}
+          onRedo={redo}
+          redoLabel={redoLabel(historyState)}
+          onPreview={handleTemplatePreview}
+          onSaveDraft={handleTemplateSaveDraft}
+          onSaveAndPublish={handleTemplateSaveAndPublish}
+          onCancel={handleTemplateCancel}
+          onOpenSettings={templateSession.onOpenSettings}
+          publishing={isPublishing}
+        />
+      ) : (
+      <TopNavBar
+        projectName={projectName}
+        onProjectNameChange={setProjectName}
+        canUndo={historyCanUndo(historyState)}
+        onUndo={undo}
+        undoLabel={undoLabel(historyState)}
+        canRedo={historyCanRedo(historyState)}
+        onRedo={redo}
+        redoLabel={redoLabel(historyState)}
+        onSave={saveNow}
+        saveStatus={saveStatus.status}
+        lastSavedAt={saveStatus.lastSavedAt}
+        saveError={saveStatus.lastError}
+        storageWarning={storageWarning}
+        onRetrySave={retrySave}
+        onOpenRecoveryCenter={openRecoveryCenter}
+        onOpenVersionHistory={openVersionHistory}
+        onOpenTemplateBrowser={openTemplateBrowser}
+        onOpenSaveAsTemplate={openSaveAsTemplateDialog}
+        onSaveProject={handleSaveProject}
+        onSaveProjectAsNew={handleSaveProjectAsNew}
+        hasSavedProject={Boolean(savedProjectId)}
+        onOpenBrandManager={() => setIsBrandManagerOpen(true)}
+        onSaveSelectionAsSection={saveSelectionAsReusableSection}
+        onSaveActivePageAsReusable={() => savePageAsReusable(activePageId)}
+        hasSelection={selectedIds.length > 0}
+        onOpenProjectSafety={openProjectSafety}
+        onExportProject={exportProject}
+        onImportProject={openImportDialog}
+        onOpenExport={() => openExportDialog(null)}
+        showMockupPreview={hasAnyMockupPage(pages)}
+        onOpenMockupPreview={() => setIsMockupPreviewOpen(true)}
+        onOpenPreview={() => setIsPreviewOpen(true)}
+        onShareDesign={shareDesign}
+        onOpenHome={() => setShowHomePage(true)}
+        onPrint={handlePrint}
+        onExportPng={() => openExportDialog("png")}
+        onExportJpeg={() => openExportDialog("jpeg")}
+        onExportPdf={() => openExportDialog("pdf")}
+        onExportSvg={() => openExportDialog("svg")}
+        onOpenExportAnimation={() => setIsExportAnimationOpen(true)}
+        onCopy={copySelection}
+        onPaste={pasteClipboard}
+        onDuplicate={duplicateSelection}
+        onDelete={removeSelection}
+        onSelectAll={selectAll}
+        showGrid={activePage.grid.visible}
+        onToggleGrid={() => toggleActivePagePrecisionVisible("grid")}
+        showMargins={activePage.margins.visible}
+        onToggleMargins={() => toggleActivePagePrecisionVisible("margins")}
+        showBleed={activePage.bleed.visible}
+        onToggleBleed={() => toggleActivePagePrecisionVisible("bleed")}
+        snapToGuides={snapToGuides}
+        onToggleSnapToGuides={() => setSnapToGuides((v) => !v)}
+        onClearGuides={clearGuides}
+        showRulers={precisionPrefs.showRulers}
+        onToggleRulers={() => setPrecisionPrefs((prev) => ({ ...prev, showRulers: !prev.showRulers }))}
+        showGuides={precisionPrefs.showGuides}
+        onToggleGuidesVisible={() => setPrecisionPrefs((prev) => ({ ...prev, showGuides: !prev.showGuides }))}
+        guidesLocked={guides.length > 0 && guides.every((g) => g.locked)}
+        onToggleLockAllGuides={toggleAllGuidesLockedOnPage}
+        snapEnabled={precisionPrefs.snapToObjects || precisionPrefs.snapToGuides || precisionPrefs.snapToGrid || precisionPrefs.snapToPage}
+        onToggleSnap={() =>
+          setPrecisionPrefs((prev) => {
+            const next = !(prev.snapToObjects || prev.snapToGuides || prev.snapToGrid || prev.snapToPage);
+            return { ...prev, snapToObjects: next, snapToPage: next, snapToMargins: next, snapToLayoutGrid: next, snapToEqualSpacing: next };
+          })
+        }
+        showSmartGuides={precisionPrefs.showSmartGuides}
+        onToggleSmartGuides={() => setPrecisionPrefs((prev) => ({ ...prev, showSmartGuides: !prev.showSmartGuides }))}
+        showSafeArea={activePage.safeArea.visible}
+        onToggleSafeArea={() => toggleActivePagePrecisionVisible("safeArea")}
+        showLayoutGrid={activePage.layoutGrid.visible}
+        onToggleLayoutGrid={() => toggleActivePagePrecisionVisible("layoutGrid")}
+        onOpenGuideManager={() => setIsGuideManagerOpen(true)}
+        onOpenPrecisionSettings={() => setIsPrecisionSettingsOpen(true)}
+        onResetPrecisionView={resetPrecisionView}
+        onZoomIn={() => workspaceRef.current?.zoomIn()}
+        onZoomOut={() => workspaceRef.current?.zoomOut()}
+        onResetZoom={handleFitToScreen}
+        onOpenResize={() => setIsResizeOpen(true)}
+        onOpenPricing={() => setIsPricingOpen(true)}
+      />
+      )}
+
+      {!templateSession && (
+        <PlanStatusBanner
+          canEdit={canEdit}
+          isTrialing={isTrialing}
+          currentPeriodEnd={currentPeriodEnd}
+          onOpenPricing={() => setIsPricingOpen(true)}
+        />
+      )}
+
+      {!isPhone && propertiesToolbarElement}
 
       <main className="flex flex-1 overflow-hidden">
         <LeftSidebar
@@ -8131,7 +8150,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           )}
           {activeSidebarSection === "design" && <DesignPanel templates={templateSummaries} onSelectTemplate={handleSelectTemplate} />}
           {activeSidebarSection &&
-            !["uploads", "text", "brush", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand", "design"].includes(
+            !["uploads", "text", "brush", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand", "design", MOBILE_ADD_KEY].includes(
               activeSidebarSection
             ) &&
             !(activeSidebarSection === "projects" && editorMode === "workspace") && (
@@ -8246,45 +8265,88 @@ export default function App({ editorMode = "workspace", templateSession = null }
         </div>
       </main>
 
-      <StatusBar
-        pages={pages}
-        activePageId={activePageId}
-        activePage={activePage}
-        onActivatePage={activatePage}
-        onPrevPage={goToPrevPage}
-        onNextPage={goToNextPage}
-        onAddPage={addPage}
-        onDuplicatePage={duplicatePage}
-        onDeletePage={deletePage}
-        onRenamePage={renamePage}
-        onMovePageUp={movePageUp}
-        onMovePageDown={movePageDown}
-        cursorPos={cursorPos}
-        selectedBounds={selectedBoundsContent}
-        viewportScale={scale}
-        onZoomTo={(value) => workspaceRef.current?.zoomTo(value)}
-        onZoomIn={() => workspaceRef.current?.zoomIn()}
-        onZoomOut={() => workspaceRef.current?.zoomOut()}
-        onFitToScreen={handleFitToScreen}
-        items={pageItems}
-        selectedIds={selectedIds}
-        onSelectLayer={handleSelect}
-        onToggleHidden={toggleItemHidden}
-        onToggleLocked={toggleItemLocked}
-        onRenameLayer={renameItem}
-        onReorderLayer={(draggedId, targetId, position) =>
-          commit((prev) => reorderLayerItems(prev, [draggedId], targetId, position), {
-            type: "reorder-layer",
-            label: "Reorder layer",
-            itemIds: [draggedId],
-          })
-        }
-        unit={activeUnit}
-        onUnitChange={(nextUnit) => setPreferredUnit(nextUnit)}
-        timelineOpen={timelineOpen}
-        onToggleTimeline={() => setTimelineOpen((v) => !v)}
-        onOpenPresentation={() => setIsPresenting(true)}
-      />
+      {isPhone && (mobileEditOpen || croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId) && propertiesToolbarElement}
+
+      {isPhone && (
+        <>
+          <MobileBottomBar
+            activeSection={activeSidebarSection}
+            onSectionChange={(key) => {
+              setMobileViewOpen(false);
+              setActiveSidebarSection(key);
+            }}
+            editOpen={mobileEditOpen}
+            onToggleEdit={() => {
+              setActiveSidebarSection(null);
+              setMobileViewOpen(false);
+              setMobileEditOpen((v) => !v);
+            }}
+            hasSelection={hasSelection}
+            viewOpen={mobileViewOpen}
+            onToggleView={() => {
+              setActiveSidebarSection(null);
+              setMobileViewOpen((v) => !v);
+            }}
+          />
+          <MobileViewSheet
+            isOpen={mobileViewOpen}
+            onClose={() => setMobileViewOpen(false)}
+            activePage={activePage}
+            unit={activeUnit}
+            onUnitChange={(nextUnit) => setPreferredUnit(nextUnit)}
+            viewportScale={scale}
+            onZoomTo={(value) => workspaceRef.current?.zoomTo(value)}
+            onZoomIn={() => workspaceRef.current?.zoomIn()}
+            onZoomOut={() => workspaceRef.current?.zoomOut()}
+            onFitToScreen={handleFitToScreen}
+            timelineOpen={timelineOpen}
+            onToggleTimeline={() => setTimelineOpen((v) => !v)}
+            onOpenPresentation={() => setIsPresenting(true)}
+          />
+        </>
+      )}
+
+      {!isPhone && (
+        <StatusBar
+          pages={pages}
+          activePageId={activePageId}
+          activePage={activePage}
+          onActivatePage={activatePage}
+          onPrevPage={goToPrevPage}
+          onNextPage={goToNextPage}
+          onAddPage={addPage}
+          onDuplicatePage={duplicatePage}
+          onDeletePage={deletePage}
+          onRenamePage={renamePage}
+          onMovePageUp={movePageUp}
+          onMovePageDown={movePageDown}
+          cursorPos={cursorPos}
+          selectedBounds={selectedBoundsContent}
+          viewportScale={scale}
+          onZoomTo={(value) => workspaceRef.current?.zoomTo(value)}
+          onZoomIn={() => workspaceRef.current?.zoomIn()}
+          onZoomOut={() => workspaceRef.current?.zoomOut()}
+          onFitToScreen={handleFitToScreen}
+          items={pageItems}
+          selectedIds={selectedIds}
+          onSelectLayer={handleSelect}
+          onToggleHidden={toggleItemHidden}
+          onToggleLocked={toggleItemLocked}
+          onRenameLayer={renameItem}
+          onReorderLayer={(draggedId, targetId, position) =>
+            commit((prev) => reorderLayerItems(prev, [draggedId], targetId, position), {
+              type: "reorder-layer",
+              label: "Reorder layer",
+              itemIds: [draggedId],
+            })
+          }
+          unit={activeUnit}
+          onUnitChange={(nextUnit) => setPreferredUnit(nextUnit)}
+          timelineOpen={timelineOpen}
+          onToggleTimeline={() => setTimelineOpen((v) => !v)}
+          onOpenPresentation={() => setIsPresenting(true)}
+        />
+      )}
 
       {isPresenting && (
         <PresentationMode
@@ -8418,6 +8480,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onClose={() => setIsMockupPreviewOpen(false)}
         pages={pages}
         items={items}
+      />
+
+      <PreviewDialog
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        pages={pages}
+        items={items}
+        activePageId={activePageId}
+        onSaveToUploads={uploadFileToLibrary}
       />
 
       <ImportProjectDialog

@@ -21,6 +21,8 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
   const t = TEXT_PROPERTIES_STRINGS[language].toolbarPopover;
   const [rect, setRect] = useState(null);
   const [shift, setShift] = useState(0);
+  const [shiftY, setShiftY] = useState(0);
+  const [maxHeight, setMaxHeight] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const popoverRef = useRef(null);
   const dragStateRef = useRef(null);
@@ -76,9 +78,29 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
   // there's no visible jump.
   useLayoutEffect(() => {
     setShift(0);
+    setShiftY(0);
+    setMaxHeight(null);
     if (!rect || !popoverRef.current) return;
     const panelRect = popoverRef.current.getBoundingClientRect();
     setShift(clampHorizontalShift(panelRect, VIEWPORT_MARGIN));
+
+    // Vertical: opens below its trigger by default, but a trigger near the
+    // bottom of the screen (the phone layout keeps the properties row just
+    // above the bottom bar) would push the panel off-screen. Flip it above
+    // the trigger when it fits there, otherwise slide it up just enough to
+    // stay on-screen.
+    const { height: viewHeight, offsetTop } = getViewportSize();
+    const bottomLimit = offsetTop + viewHeight - VIEWPORT_MARGIN;
+    // Taller than the whole screen (a phone held sideways): cap it and let it
+    // scroll rather than run off both edges.
+    if (panelRect.height > viewHeight - VIEWPORT_MARGIN * 2) {
+      setMaxHeight(viewHeight - VIEWPORT_MARGIN * 2);
+      setShiftY(offsetTop + VIEWPORT_MARGIN - panelRect.top);
+    } else if (panelRect.bottom > bottomLimit) {
+      const aboveTop = rect.top - 8 - panelRect.height;
+      if (aboveTop >= offsetTop + VIEWPORT_MARGIN) setShiftY(aboveTop - panelRect.top);
+      else setShiftY(Math.max(bottomLimit - panelRect.bottom, offsetTop + VIEWPORT_MARGIN - panelRect.top));
+    }
   }, [rect, align]);
 
   useEffect(() => {
@@ -131,11 +153,12 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
   if (!isOpen || !rect) return null;
 
   const translateX = shift + dragOffset.x;
-  const translateY = dragOffset.y;
+  const translateY = shiftY + dragOffset.y;
   const style = {
     position: "fixed",
     top: rect.bottom + 8,
     zIndex: 60,
+    ...(maxHeight ? { maxHeight, overflowY: "auto" } : null),
     transform: translateX || translateY ? `translate(${translateX}px, ${translateY}px)` : undefined,
   };
   if (align === "right") style.right = getViewportSize().width - rect.right;

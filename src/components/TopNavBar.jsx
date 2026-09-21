@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Crown, Download, Home, Image, LogOut, Loader2, Redo2, Save, Scaling, Settings, Share2, ShieldCheck, Undo2, User } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Crown, Download, Home, Image, LogOut, Loader2, Menu, Redo2, Save, Scaling, Settings, Share2, ShieldCheck, Undo2, User } from "lucide-react";
 import { useAuth } from "../authContext";
 import { useSubscription } from "../subscriptionContext";
 import { useLanguage } from "../languageContext";
 import { STRINGS } from "../i18n";
+import { MOBILE_STRINGS } from "../i18n/mobile";
+import { useBreakpoint } from "../useBreakpoint";
+import MobileSheet from "./Mobile/MobileSheet";
 import { navigateTo } from "../adminRoute";
 import ToolbarPopover from "./PropertiesToolbar/ToolbarPopover";
 import ThemeToggle from "./ThemeToggle";
@@ -55,7 +58,7 @@ function MenuDropdown({ label, children }) {
     <div className="relative shrink-0">
       <div ref={anchorRef} className="inline-flex">
         <button
-          className={`flex items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 sm:px-2.5 ${
+          className={`flex items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 lg:px-2.5 ${
             open ? "bg-gray-100 text-gray-900" : ""
           }`}
           onClick={() => setOpen((v) => !v)}
@@ -175,6 +178,29 @@ function MenuDivider() {
   return <div className="my-1 h-px bg-gray-100" />;
 }
 
+// One collapsible section of the phone Menu sheet (File / Edit / View / Help).
+function MobileMenuGroup({ label, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        className="flex min-h-11 w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-amber-50"
+        // Opening/closing a group must not bubble into the sheet's own
+        // "close after picking an item" handler.
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        aria-expanded={open}
+      >
+        <span>{label}</span>
+        <ChevronDown size={16} className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="mb-1 ml-2 border-l border-gray-100 pl-1">{children}</div>}
+    </div>
+  );
+}
+
 export default function TopNavBar({
   projectName,
   onProjectNameChange,
@@ -206,6 +232,7 @@ export default function TopNavBar({
   onImportProject,
   onOpenExport,
   onOpenMockupPreview,
+  onOpenPreview,
   showMockupPreview,
   onShareDesign,
   onOpenHome,
@@ -254,8 +281,12 @@ export default function TopNavBar({
 }) {
   const { language } = useLanguage();
   const { isAdmin } = useAuth();
-  const { tier } = useSubscription();
+  const { tier, openBillingPortal } = useSubscription();
+  const { user, signOut } = useAuth();
+  const { isMobile } = useBreakpoint();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const t = STRINGS[language].topNav;
+  const m = MOBILE_STRINGS[language];
 
   // Re-renders periodically just so "Saved Xs/m ago" keeps advancing
   // without needing the parent to re-render on a timer of its own.
@@ -273,19 +304,8 @@ export default function TopNavBar({
         ? t.storageWarning(saveLabel)
         : t.saveNowTitle(saveLabel);
 
-  return (
-    <header className="flex h-16 items-center gap-2 overflow-x-auto border-b border-gray-200 bg-white px-3 shadow-sm md:gap-3 md:px-4">
-      <button
-        className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-        onClick={onOpenHome}
-        title={t.backToHome}
-        aria-label={t.backToHome}
-      >
-        <Home size={18} />
-      </button>
-
-      <nav className="flex shrink-0 items-center gap-0.5 border-l border-gray-200 pl-2 md:pl-3">
-        <MenuDropdown label={t.fileMenu}>
+  const fileMenuItems = (
+    <>
           <MenuItem label={t.newDesign} onClick={onOpenTemplateBrowser} />
           <MenuItem label={hasSavedProject ? t.saveProject : t.saveProjectFirst} onClick={onSaveProject} />
           {hasSavedProject && <MenuItem label={t.saveProjectAsNew} onClick={onSaveProjectAsNew} />}
@@ -317,9 +337,11 @@ export default function TopNavBar({
           <MenuDivider />
           <MenuItem label={t.downloadExport} shortcut="Ctrl/Cmd+Shift+E" onClick={onOpenExport} />
 
-        </MenuDropdown>
+    </>
+  );
 
-        <MenuDropdown label={t.editMenu}>
+  const editMenuItems = (
+    <>
           <MenuItem label={undoLabel ? t.undoWithLabel(undoLabel) : t.undo} shortcut="Ctrl/Cmd+Z" onClick={onUndo} disabled={!canUndo} />
           <MenuItem label={redoLabel ? t.redoWithLabel(redoLabel) : t.redo} shortcut="Ctrl/Cmd+Shift+Z" onClick={onRedo} disabled={!canRedo} />
           <MenuDivider />
@@ -331,9 +353,11 @@ export default function TopNavBar({
           <MenuItem label={t.selectAll} shortcut="Ctrl/Cmd+A" onClick={onSelectAll} />
           <MenuDivider />
           <MenuItem label={t.customSize} onClick={onOpenResize} />
-        </MenuDropdown>
+    </>
+  );
 
-        <MenuDropdown label={t.viewMenu}>
+  const viewMenuItems = (
+    <>
           <MenuItem label={t.zoomIn} onClick={onZoomIn} />
           <MenuItem label={t.zoomOut} onClick={onZoomOut} />
           <MenuItem label={t.resetZoom} onClick={onResetZoom} />
@@ -355,9 +379,11 @@ export default function TopNavBar({
           <MenuItem label={t.guideManager} onClick={onOpenGuideManager} />
           <MenuItem label={t.precisionSettings} onClick={onOpenPrecisionSettings} />
           <MenuItem label={t.resetPrecisionView} onClick={onResetPrecisionView} />
-        </MenuDropdown>
+    </>
+  );
 
-        <MenuDropdown label={t.helpMenu}>
+  const helpMenuItems = (
+    <>
           <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
             {t.keyboardShortcuts}
           </div>
@@ -393,11 +419,117 @@ export default function TopNavBar({
           </div>
           <MenuDivider />
           <MenuItem label={t.aboutVaycona} onClick={() => {}} />
+    </>
+  );
+
+  // Phone header: only what is needed at a glance (home, name, undo/redo,
+  // export). Everything else — the File/Edit/View/Preview/Help menus and the
+  // account/settings items — sits behind the Menu button as a bottom sheet.
+  if (isMobile) {
+    const iconButton = "toolbar-hit-target flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30";
+    return (
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-gray-200 bg-white px-2 shadow-sm">
+        <button className={iconButton} onClick={onOpenHome} title={t.backToHome} aria-label={t.backToHome}>
+          <Home size={18} />
+        </button>
+        <input
+          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100"
+          value={projectName}
+          onChange={(event) => onProjectNameChange(event.target.value)}
+          aria-label={t.projectNameLabel}
+        />
+        <button className={iconButton} onClick={onUndo} disabled={!canUndo} title={t.undo} aria-label={t.undo}>
+          <Undo2 size={18} />
+        </button>
+        <button className={iconButton} onClick={onRedo} disabled={!canRedo} title={t.redo} aria-label={t.redo}>
+          <Redo2 size={18} />
+        </button>
+        <button
+          className="toolbar-hit-target flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-white shadow-sm hover:bg-amber-700"
+          onClick={onOpenExport}
+          title={t.exportTitle}
+          aria-label={t.exportAriaLabel}
+        >
+          <Download size={18} />
+        </button>
+        <button className={iconButton} onClick={() => setMobileMenuOpen(true)} title={m.menu.button} aria-label={m.menu.button}>
+          <Menu size={20} />
+        </button>
+
+        <MobileSheet isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} title={m.menu.title}>
+          <div onClick={() => setMobileMenuOpen(false)}>
+            <MobileMenuGroup label={t.fileMenu}>{fileMenuItems}</MobileMenuGroup>
+            <MobileMenuGroup label={t.editMenu}>{editMenuItems}</MobileMenuGroup>
+            <MobileMenuGroup label={t.viewMenu}>{viewMenuItems}</MobileMenuGroup>
+            <MenuItem label={t.previewMenu} onClick={onOpenPreview} />
+            <MobileMenuGroup label={t.helpMenu}>{helpMenuItems}</MobileMenuGroup>
+            <MenuDivider />
+            <MenuItem label={t.shareDesign} onClick={onShareDesign} />
+            {showMockupPreview && <MenuItem label={t.mockupPreviewButton} onClick={onOpenMockupPreview} />}
+            {tier === "free" && <MenuItem label={t.upgrade} onClick={onOpenPricing} />}
+            {isAdmin && <MenuItem label={t.adminPanel} onClick={() => navigateTo("#/admin")} />}
+            <MenuDivider />
+            <div className="px-3 py-2" onClick={(event) => event.stopPropagation()}>
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-500">{STRINGS[language].common.language}</span>
+                <LanguageToggle />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-500">{STRINGS[language].common.theme}</span>
+                <ThemeToggle />
+              </div>
+            </div>
+            <MenuDivider />
+            <div className="px-3 py-2">
+              <div className="truncate text-xs text-gray-500">{user?.email}</div>
+              <div className="mt-0.5 text-xs font-medium text-amber-700">{PLAN_LABEL[tier]}</div>
+            </div>
+            {tier !== "free" && <MenuItem label="Manage billing" onClick={() => openBillingPortal().catch(() => {})} />}
+            <MenuItem label={t.logOut} onClick={signOut} />
+          </div>
+        </MobileSheet>
+      </header>
+    );
+  }
+
+  return (
+    <header className="flex h-16 items-center gap-2 overflow-x-auto border-b border-gray-200 bg-white px-3 shadow-sm md:gap-3 md:px-4">
+      <button
+        className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+        onClick={onOpenHome}
+        title={t.backToHome}
+        aria-label={t.backToHome}
+      >
+        <Home size={18} />
+      </button>
+
+      <nav className="flex shrink-0 items-center gap-0.5 border-l border-gray-200 pl-2 md:pl-3">
+        <MenuDropdown label={t.fileMenu}>
+          {fileMenuItems}
+        </MenuDropdown>
+
+        <MenuDropdown label={t.editMenu}>
+          {editMenuItems}
+        </MenuDropdown>
+
+        <MenuDropdown label={t.viewMenu}>
+          {viewMenuItems}
+        </MenuDropdown>
+
+        <button
+          className="shrink-0 rounded-lg px-1.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 lg:px-2.5"
+          onClick={onOpenPreview}
+        >
+          {t.previewMenu}
+        </button>
+
+        <MenuDropdown label={t.helpMenu}>
+          {helpMenuItems}
         </MenuDropdown>
       </nav>
 
       <input
-        className="ml-1 w-full max-w-20 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 sm:max-w-30 md:ml-2 lg:max-w-xs"
+        className="ml-1 w-full max-w-20 shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 sm:max-w-30 md:ml-2 md:max-w-20 lg:max-w-56 xl:max-w-xs"
         value={projectName}
         onChange={(event) => onProjectNameChange(event.target.value)}
         aria-label={t.projectNameLabel}
@@ -453,7 +585,7 @@ export default function TopNavBar({
             ) : (
               <Save size={16} />
             )}
-            <span className="hidden lg:inline">{saveStatus === "error" ? t.retrySave : saveLabel}</span>
+            <span className="hidden whitespace-nowrap lg:inline">{saveStatus === "error" ? t.retrySave : saveLabel}</span>
           </button>
         </OverflowToolbar.Item>
         {showMockupPreview && (
