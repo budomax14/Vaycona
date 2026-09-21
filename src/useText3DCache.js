@@ -1,4 +1,5 @@
 import { useLayoutEffect } from "react";
+import { getSafeCachePixelRatio } from "./canvasPixelBudget";
 import { getText3DBoundsPadding } from "./text3D";
 
 // The 3D-text sibling to useImageFilters.js's node.cache() pattern: once
@@ -21,11 +22,14 @@ export function useText3DCache(nodeRef, text3D, width, height, cacheKey) {
       return undefined;
     }
     const pad = getText3DBoundsPadding(text3D);
+    const cacheWidth = Math.max(1, width + pad.left + pad.right);
+    const cacheHeight = Math.max(1, height + pad.top + pad.bottom);
     node.cache({
       x: -pad.left,
       y: -pad.top,
-      width: Math.max(1, width + pad.left + pad.right),
-      height: Math.max(1, height + pad.top + pad.bottom),
+      width: cacheWidth,
+      height: cacheHeight,
+      pixelRatio: getSafeCachePixelRatio(cacheWidth, cacheHeight),
     });
     node.getLayer()?.batchDraw();
     return () => {

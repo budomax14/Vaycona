@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { getSafeCachePixelRatio } from "./canvasPixelBudget";
 import { buildFilterPipeline, hasAnyAdjustment } from "./imageEffects";
 import { buildOpacityMaskFilter, hasActiveOpacityMask, IDENTITY_MASK_GEOMETRY } from "./opacityMask";
 
@@ -48,7 +49,9 @@ export function useImageFilters(nodeRef, image, adjustments, opacityMask, geomet
     if (maskActive) filters.push(buildOpacityMaskFilter(opacityMask, geometry || IDENTITY_MASK_GEOMETRY));
     node.setAttrs(props);
     try {
-      node.cache(cacheBounds || undefined);
+      const size = cacheBounds || node.getClientRect({ skipTransform: true });
+      const pixelRatio = getSafeCachePixelRatio(size.width, size.height);
+      node.cache(pixelRatio ? { ...cacheBounds, pixelRatio } : cacheBounds || undefined);
     } catch (err) {
       console.error("[IMG-DIAG] useImageFilters: node.cache() threw", {
         error: err,

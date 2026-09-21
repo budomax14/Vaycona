@@ -12,8 +12,19 @@
 // Stage is still laid out in the same CSS pixels, just sampled with fewer
 // device pixels per CSS pixel where the platform could not draw it anyway.
 
-// Apple's documented canvas ceiling is 16,777,216 px; stay just under it.
-export const IOS_MAX_CANVAS_PIXELS = 16_000_000;
+// Apple's documented per-canvas ceiling is 16,777,216 px, but that is not a
+// safe working size: every 16M px canvas is 64MB of RAM, and Safari also
+// keeps a hit canvas, a compositor copy for the CSS zoom transform, and
+// per-node filter caches. Near the ceiling an *edit* (which redraws and
+// re-caches) pushes the tab over iOS's memory limit and the page reloads
+// ("a problem repeatedly occurred"). Stay well under it.
+export const IOS_MAX_CANVAS_PIXELS = 8_000_000;
+
+// Node.cache() canvases (image filters, fade, 3D text) and decoded photos
+// get their own, smaller budgets — several can be alive at once.
+export const IOS_MAX_CACHE_PIXELS = 4_000_000;
+export const IOS_MAX_IMAGE_PIXELS = 6_000_000;
+export const IOS_MAX_IMAGE_SIDE = 2560;
 
 // Below this the scene turns visibly soft; a page that still doesn't fit
 // keeps drawing (blurry beats blank).
@@ -66,4 +77,35 @@ export function applyCanvasPixelBudget(stage) {
     if (changed) layer.batchDraw();
   });
   return ratio;
+}
+
+// pixelRatio to pass to node.cache() for a cache of the given local size, or
+// undefined (Konva's default) off iOS. Konva's default is devicePixelRatio
+// (3 on iPhone), which makes a full-page image's filter cache ~9x its area.
+export function getSafeCachePixelRatio(width, height) {
+  if (!isIOSWebKit() || !(width > 0) || !(height > 0)) return undefined;
+  const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+  const fitting = Math.sqrt(IOS_MAX_CACHE_PIXELS / (width * height));
+  return Math.max(MIN_PIXEL_RATIO, Math.min(dpr, fitting));
+}
+
+// Photos straight off an iPhone are 12-48MP; decoded that is 48-192MB each,
+// and flipping one copies it again. On iOS, redraw an oversized image into a
+// smaller canvas (aspect preserved) and let the original decode be freed.
+// Returns the original image when it is already small enough or off iOS.
+// Only the editor's working copy shrinks; the stored asset is untouched.
+export function downscaleForIOS(img) {
+  if (!isIOSWebKit()) return img;
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) return img;
+  const scale = Math.min(1, IOS_MAX_IMAGE_SIDE / Math.max(w, h), Math.sqrt(IOS_MAX_IMAGE_PIXELS / (w * h)));
+  if (scale >= 1) return img;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(w * scale));
+  canvas.height = Math.max(1, Math.round(h * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return img;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
