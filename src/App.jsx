@@ -7208,11 +7208,55 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const pasteboardPxW = (activePage?.width ?? 0) * RENDER_SCALE_CAP + PASTEBOARD_MARGIN_PX * RENDER_SCALE_CAP * 2;
   const pasteboardPxH = (activePage?.height ?? 0) * RENDER_SCALE_CAP + PASTEBOARD_MARGIN_PX * RENDER_SCALE_CAP * 2;
   const [appliedPixelRatio, setAppliedPixelRatio] = useState(null);
+  //
+  // Runs after every render rather than on [page, size] changes: the Stage
+  // isn't mounted at all while the home screen is showing (see the
+  // `showHomePage` gate), so a deps-keyed effect ran once with no Stage and
+  // — when "Continue" resumed the same page id/size — never ran again,
+  // leaving the canvas at the unbudgeted ~55M px (blank on iPhone until a
+  // second page changed activePageId). Applying is idempotent and only
+  // touches a layer whose ratio differs, and setState bails on equal values.
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
     setAppliedPixelRatio(applyCanvasPixelBudget(stage));
-  }, [activePageId, pasteboardPxW, pasteboardPxH]);
+  });
+
+  // Phone/tablet touch: the workspace scroller allows native one-finger
+  // panning (touch-pan-x/y), and the browser commits to a scroll the moment a
+  // finger starts moving — it then fires pointercancel at Konva, so dragging
+  // an element (or a selection handle) just scrolled the page sideways and
+  // the element never moved. touch-action can't be set per Konva node, so
+  // instead cancel the native gesture at touchstart (non-passive listener)
+  // when — and only when — the finger lands on something draggable, or while
+  // the brush/eraser is drawing. A finger on empty canvas is left alone, so
+  // scrolling and the two-finger pinch/pan keep working exactly as before.
+  const isBrushSectionActive = activeSidebarSection === "brush";
+  useEffect(() => {
+    const stage = stageRef.current;
+    const container = stage?.container();
+    if (!stage || !container) return undefined;
+    function handleTouchStart(event) {
+      if (event.touches.length !== 1) return; // second finger = pinch/pan
+      if (!event.cancelable) return;
+      let block = isBrushSectionActive;
+      if (!block) {
+        stage.setPointersPositions(event);
+        const pos = stage.getPointerPosition();
+        let node = pos ? stage.getIntersection(pos) : null;
+        while (node && node !== stage) {
+          if (node.draggable()) {
+            block = true;
+            break;
+          }
+          node = node.getParent();
+        }
+      }
+      if (block) event.preventDefault();
+    }
+    container.addEventListener("touchstart", handleTouchStart, { passive: false });
+    return () => container.removeEventListener("touchstart", handleTouchStart);
+  }, [showHomePage, activePageId, isBrushSectionActive]);
 
   // TEMPORARY (?canvasDebug=1): dump viewport/stage/element numbers so the
   // phone can be compared against desktop with the same saved project.
@@ -7479,9 +7523,36 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     if (hasCoarsePointer) {
                       const visualSize = anchor.width();
                       const touchPad = TOUCH_ANCHOR_HIT_PAD / scale;
+                      // The padded hit box sits centered on the anchor, so
+                      // half of it reaches INTO the object. On a phone the
+                      // page is zoomed out, so a selected text line is only
+                      // ~15-20 screen px tall and the padded boxes of its
+                      // top/bottom (and left/right) anchors meet in the
+                      // middle — a finger on the object then grabs a resize
+                      // handle instead and the object can't be dragged at
+                      // all. Cap how far each hit box reaches inward to a
+                      // quarter of the object's size (never below the visible
+                      // handle itself), so the centre always stays the
+                      // object's own drag surface. Anchors and the
+                      // transformer box share one coordinate space. Sized
+                      // inside hitFunc (run when the hit canvas is drawn)
+                      // because the transformer's box isn't updated yet at
+                      // the moment anchorStyleFunc runs.
                       anchor.hitFunc((context) => {
+                        const box = anchor.getParent();
+                        const half = visualSize / 2;
+                        const anchorName = anchor.name();
+                        const reach = (size) => (size > 0 ? Math.max(half, Math.min(touchPad + half, size / 4)) : touchPad + half);
+                        let left = -touchPad;
+                        let top = -touchPad;
+                        let right = visualSize + touchPad;
+                        let bottom = visualSize + touchPad;
+                        if (anchorName.includes("top")) bottom = Math.min(bottom, half + reach(box?.height?.() || 0));
+                        if (anchorName.includes("bottom")) top = Math.max(top, half - reach(box?.height?.() || 0));
+                        if (anchorName.includes("left")) right = Math.min(right, half + reach(box?.width?.() || 0));
+                        if (anchorName.includes("right")) left = Math.max(left, half - reach(box?.width?.() || 0));
                         context.beginPath();
-                        context.rect(-touchPad, -touchPad, visualSize + touchPad * 2, visualSize + touchPad * 2);
+                        context.rect(left, top, right - left, bottom - top);
                         context.closePath();
                         context.fillStrokeShape(anchor);
                       });
