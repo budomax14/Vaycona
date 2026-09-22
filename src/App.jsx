@@ -97,7 +97,7 @@ import { getPresetByKey } from "./textStyles";
 import { borderDashProps } from "./borderStyles";
 import { getItemBounds, rectsIntersect, unionBounds } from "./bounds";
 import { screenToContent, contentToScreen } from "./viewport";
-import { applyCanvasPixelBudget } from "./canvasPixelBudget";
+import { applyCanvasPixelBudget, isIOSWebKit } from "./canvasPixelBudget";
 import { logCanvasDebug, isCanvasDebugEnabled } from "./canvasDebug";
 import { collectSnapCandidates, computeSnap, snapResizeEdge, thresholdForScale } from "./snapping";
 import { alignItems, alignToPage, distributeItems, distributeItemsWithGap, computeCurrentGap, inferDistributeAxis } from "./alignment";
@@ -773,6 +773,21 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const nodesMapRef = useRef(new Map());
   const clipboardRef = useRef([]);
   const dragOriginsRef = useRef(null);
+  // iOS-only: dragBoundFunc fires on every native touchmove — up to ~120/sec
+  // on a ProMotion iPhone — and each call was pushing new alignment-line/
+  // distance-label state straight to React. Even with the no-op guard above
+  // (setAlignmentLines etc.), showMeasurementLabels defaults on, so the
+  // labels' rounded distance changes on nearly every frame, forcing a full
+  // app re-render (Layers panel, sidebars, toolbar, the lot) up to 120x/sec
+  // while dragging — heavy enough that Safari's WebContent process gets
+  // killed mid-drag ("A problem repeatedly occurred"). Desktop/Android never
+  // see pointermove at that rate, so they were fine. Coalesce the overlay's
+  // *visual* state to a lower, fixed cadence on iOS only; the dragged node
+  // itself still tracks the finger every frame via the imperative
+  // node.position() calls in onItemDragMove, so the drag stays 1:1 with the
+  // touch — only the guide-line/label overlay updates less often.
+  const iosOverlayThrottleRef = useRef({ timer: null, pending: null, lastCommit: 0 });
+  const IOS_OVERLAY_THROTTLE_MS = 50; // ~20/sec, well below the render cost that was crashing the tab
   // Phase 10 — coalesces a burst of held-down-arrow-key nudges into ONE
   // history entry (spec §55/§76/§123): each keypress live-updates items
   // immediately (so it still feels instant) and (re)starts a short idle
@@ -6374,6 +6389,50 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setContextMenu(result);
   }, []);
 
+  const cancelIosOverlayThrottle = useCallback(() => {
+    const state = iosOverlayThrottleRef.current;
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = null;
+    state.pending = null;
+  }, []);
+
+  const flushIosOverlay = useCallback(() => {
+    const state = iosOverlayThrottleRef.current;
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = null;
+    const next = state.pending;
+    state.pending = null;
+    state.lastCommit = performance.now();
+    if (!next) return;
+    setAlignmentLines(next.lines);
+    setEqualSpacing(next.equalSpacing);
+    setDistanceLabels(next.distanceLabels);
+  }, []);
+
+  // Applies the overlay state immediately off iOS (unchanged behavior); on
+  // iOS, coalesces rapid calls down to IOS_OVERLAY_THROTTLE_MS, always
+  // flushing the latest values so the guides settle correctly once the
+  // finger stops moving or the drag ends.
+  const commitDragOverlay = useCallback(
+    (next) => {
+      if (!isIOSWebKit()) {
+        setAlignmentLines(next.lines);
+        setEqualSpacing(next.equalSpacing);
+        setDistanceLabels(next.distanceLabels);
+        return;
+      }
+      const state = iosOverlayThrottleRef.current;
+      state.pending = next;
+      const elapsed = performance.now() - state.lastCommit;
+      if (elapsed >= IOS_OVERLAY_THROTTLE_MS) {
+        flushIosOverlay();
+      } else if (!state.timer) {
+        state.timer = setTimeout(flushIosOverlay, IOS_OVERLAY_THROTTLE_MS - elapsed);
+      }
+    },
+    [flushIosOverlay]
+  );
+
   const onItemDragStart = useCallback((id, node) => {
     const items = itemsRef.current;
     // Once an object belongs to a group, it can never be dragged
@@ -6466,12 +6525,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
         itemIds: movedIds,
       });
       dragOriginsRef.current = null;
+      cancelIosOverlayThrottle();
       setAlignmentLines({ vertical: [], horizontal: [] });
       setEqualSpacing({ horizontal: null, vertical: null });
       setDistanceLabels([]);
       setInteractionMode("idle");
     },
-    [commit]
+    [commit, cancelIosOverlayThrottle]
   );
 
   const dragBoundFunc = useCallback(function dragBoundFunc(pos) {
@@ -6504,6 +6564,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
     // Alt/Option temporarily disables snapping for this drag (spec §43).
     if (isAltDownRef.current) {
+      cancelIosOverlayThrottle();
       setAlignmentLines({ vertical: [], horizontal: [] });
       setEqualSpacing({ horizontal: null, vertical: null });
       setDistanceLabels([]);
@@ -6527,8 +6588,6 @@ export default function App({ editorMode = "workspace", templateSession = null }
       ? pageItemsForSnap.filter((it) => !excludeIds.has(it.id)).map((it) => ({ ...getItemBounds(it), id: it.id }))
       : [];
     const { dx, dy, lines, equalSpacing: equalSpacingResult } = computeSnap(groupBounds, candidates, thresholdContentPx, siblingBounds);
-    setAlignmentLines(lines);
-    setEqualSpacing(equalSpacingResult);
 
     if (prefs.showMeasurementLabels && !equalSpacingResult.horizontal && !equalSpacingResult.vertical) {
       const snappedBounds = { left: groupBounds.left + dx, right: groupBounds.right + dx, top: groupBounds.top + dy, bottom: groupBounds.bottom + dy };
@@ -6553,13 +6612,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
         const y = nearestY === "bottom" ? (snappedBounds.bottom + page.height) / 2 : snappedBounds.top / 2;
         labels.push({ x: (snappedBounds.left + snappedBounds.right) / 2, y, text: String(distY) });
       }
-      setDistanceLabels(labels);
+      commitDragOverlay({ lines, equalSpacing: equalSpacingResult, distanceLabels: labels });
     } else {
-      setDistanceLabels([]);
+      commitDragOverlay({ lines, equalSpacing: equalSpacingResult, distanceLabels: [] });
     }
 
     return contentToScreen({ x: leaderContentPos.x + dx, y: leaderContentPos.y + dy }, STAGE_ABSOLUTE_VIEWPORT);
-  }, []);
+  }, [commitDragOverlay, cancelIosOverlayThrottle]);
 
   function handleCanvasContextMenu(event) {
     event.evt.preventDefault();
