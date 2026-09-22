@@ -7369,6 +7369,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           pixelRatio: appliedPixelRatio ?? stage?.getLayers()[0]?.getCanvas().getPixelRatio(),
           elements: pageItems,
           nodes: nodesMapRef.current,
+          assetIndex: listAssetIndex(),
         });
       });
     }

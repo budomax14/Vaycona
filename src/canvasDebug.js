@@ -38,7 +38,7 @@ function showPanel(text) {
 
 // `elements` are the stored document items; their numbers are read as-is so
 // the dump proves they were never rewritten into screen space.
-export function logCanvasDebug({ reason, page, container, displayScale, stage, frame, pixelRatio, elements, nodes }) {
+export function logCanvasDebug({ reason, page, container, displayScale, stage, frame, pixelRatio, elements, nodes, assetIndex }) {
   if (!isCanvasDebugEnabled()) return;
   const rect = container?.getBoundingClientRect?.();
   const summary = {
@@ -63,7 +63,7 @@ export function logCanvasDebug({ reason, page, container, displayScale, stage, f
   };
   const rows = (elements || []).map((item) => {
     const node = nodes?.get?.(item.id);
-    return {
+    const row = {
       id: item.id,
       type: item.type,
       x: round(item.x),
@@ -75,6 +75,19 @@ export function logCanvasDebug({ reason, page, container, displayScale, stage, f
       visible: item.hidden ? false : node ? node.isVisible() : true,
       opacity: round(item.opacity ?? node?.opacity?.() ?? 1),
     };
+    // For images/frames: whether this browser's local asset index (the
+    // synchronous localStorage mirror of IndexedDB — see assetStore.js)
+    // actually has a record for item.assetId, and what its last known
+    // status was. A missing-image icon with `asset: "NOT IN LOCAL INDEX"`
+    // here means resolution never even got a local/cloud record to work
+    // with; `asset: "status=..."` with an errorMessage points at exactly
+    // where putAsset/attachCloudSync failed for it.
+    const assetId = item.assetId || item.contentAssetId;
+    if (assetId) {
+      const entry = assetIndex?.[assetId];
+      row.asset = entry ? `status=${entry.status}${entry.errorMessage ? ` (${entry.errorMessage})` : ""}${entry.cloudUrl ? " cloudUrl✓" : " cloudUrl✗"}` : "NOT IN LOCAL INDEX";
+    }
+    return row;
   });
   console.log("[canvasDebug]", summary);
   console.table(rows);
