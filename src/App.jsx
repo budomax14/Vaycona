@@ -3493,13 +3493,25 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // to the clicked leaf; once there's no more group between the current
   // entry level and the leaf, falls back to type-specific behavior
   // (starting inline text edit — the only Phase 4 double-click meaning).
-  function handleItemDblClick(itemId, clientX, clientY) {
-    const chain = getAncestorChain(items, itemId); // [itemId, parent, ..., topmost]
-    const enteredIdx = enteredGroupId ? chain.indexOf(enteredGroupId) : -1;
+  // useCallback with an empty dep array (reading live state off itemsRef/
+  // enteredGroupIdRef, matching handleSelect/handleItemContextMenu right
+  // above) rather than a plain function declaration — this prop is handed
+  // to every single DesignNode on the page (onItemDblClick), and a plain
+  // function is a brand-new reference on every App render, which defeats
+  // DesignNode's React.memo for every item, every render. That's cheap
+  // desktop-side, but on iPhone it meant every rendered item was fully
+  // re-reconciled on every one of the (throttled, but still frequent)
+  // drag-overlay state commits — sustained over a multi-second drag, heavy
+  // enough to crash Safari's tab process.
+  const handleItemDblClick = useCallback((itemId, clientX, clientY) => {
+    const liveItems = itemsRef.current;
+    const chain = getAncestorChain(liveItems, itemId); // [itemId, parent, ..., topmost]
+    const enteredGroupIdNow = enteredGroupIdRef.current;
+    const enteredIdx = enteredGroupIdNow ? chain.indexOf(enteredGroupIdNow) : -1;
 
     if (enteredIdx > 0) {
       const nextLevelId = chain[enteredIdx - 1];
-      const nextItem = items.find((it) => it.id === nextLevelId);
+      const nextItem = liveItems.find((it) => it.id === nextLevelId);
       if (nextItem?.type === "group") {
         setEnteredGroupId(nextLevelId);
         setSelectedIds([itemId]);
@@ -3507,7 +3519,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }
     } else if (enteredIdx === -1 && chain.length > 1) {
       const topGroupId = chain[chain.length - 1];
-      const topItem = items.find((it) => it.id === topGroupId);
+      const topItem = liveItems.find((it) => it.id === topGroupId);
       if (topItem?.type === "group") {
         setEnteredGroupId(topGroupId);
         setSelectedIds([itemId]);
@@ -3515,14 +3527,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }
     }
 
-    const item = items.find((it) => it.id === itemId);
-    if (item?.type === "text" && !isEffectivelyLocked(item, itemsById)) enterTextEdit(itemId, clientX, clientY);
-    else if (item?.type === "image" && !isEffectivelyLocked(item, itemsById)) enterCropMode(itemId);
-    else if (item?.type === "frame" && item.contentAssetId && !isEffectivelyLocked(item, itemsById)) enterCropMode(itemId);
-    else if (item?.type === "shape" && item.fillImage?.assetId && !isEffectivelyLocked(item, itemsById)) enterImageFillEditMode(itemId);
-    else if (item?.type === "table" && !isEffectivelyLocked(item, itemsById)) enterTableEditMode(itemId);
-    else if (item?.type === "chart" && !isEffectivelyLocked(item, itemsById)) enterChartStyleMode(itemId);
-  }
+    const item = liveItems.find((it) => it.id === itemId);
+    const liveItemsById = new Map(liveItems.map((it) => [it.id, it]));
+    if (item?.type === "text" && !isEffectivelyLocked(item, liveItemsById)) enterTextEdit(itemId, clientX, clientY);
+    else if (item?.type === "image" && !isEffectivelyLocked(item, liveItemsById)) enterCropMode(itemId);
+    else if (item?.type === "frame" && item.contentAssetId && !isEffectivelyLocked(item, liveItemsById)) enterCropMode(itemId);
+    else if (item?.type === "shape" && item.fillImage?.assetId && !isEffectivelyLocked(item, liveItemsById)) enterImageFillEditMode(itemId);
+    else if (item?.type === "table" && !isEffectivelyLocked(item, liveItemsById)) enterTableEditMode(itemId);
+    else if (item?.type === "chart" && !isEffectivelyLocked(item, liveItemsById)) enterChartStyleMode(itemId);
+  }, []);
 
   function enterChartStyleMode(itemId) {
     setSelectedIds([itemId]);
@@ -3616,7 +3629,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function enterTableEditMode(itemId) {
     const item = itemsRef.current.find((it) => it.id === itemId);
-    if (!item || isEffectivelyLocked(item, itemsById)) return;
+    // Fresh from itemsRef, not the render-scoped itemsById memo — this is
+    // called from handleItemDblClick, a useCallback captured once with an
+    // empty dep array (see its comment), which would otherwise freeze this
+    // lock-check against whatever itemsById was at mount.
+    if (!item || isEffectivelyLocked(item, new Map(itemsRef.current.map((it) => [it.id, it])))) return;
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
     setSelectedIds([itemId]);
@@ -3827,7 +3844,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function enterCropMode(itemId) {
     const item = itemsRef.current.find((it) => it.id === itemId);
-    if (!item || isEffectivelyLocked(item, itemsById)) return;
+    // See enterTableEditMode's comment just above — fresh Map, not the
+    // render-scoped itemsById memo, so this stays correct when called from
+    // handleItemDblClick's empty-deps useCallback closure.
+    if (!item || isEffectivelyLocked(item, new Map(itemsRef.current.map((it) => [it.id, it])))) return;
     const hasContent = item.type === "frame" ? !!item.contentAssetId : !!item.assetId;
     if (!hasContent) return;
     if (editingTextIdRef.current) exitTextEdit();
@@ -3986,7 +4006,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
   function enterImageFillEditMode(itemId) {
     const item = itemsRef.current.find((it) => it.id === itemId);
-    if (!item || (item.type !== "text" && item.type !== "shape") || !item.fillImage?.assetId || isEffectivelyLocked(item, itemsById)) return;
+    // See enterTableEditMode's comment above — fresh Map, not the render-
+    // scoped itemsById memo, so this stays correct when called from
+    // handleItemDblClick's empty-deps useCallback closure.
+    if (!item || (item.type !== "text" && item.type !== "shape") || !item.fillImage?.assetId || isEffectivelyLocked(item, new Map(itemsRef.current.map((it) => [it.id, it])))) return;
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
     if (croppingItemIdRef.current) cancelCropMode();
