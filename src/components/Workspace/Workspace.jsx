@@ -1,9 +1,12 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import PageSlot from "./PageSlot";
 import Ruler from "../../Ruler";
 import { useResizeObserver } from "../../useResizeObserver";
 import { useBreakpoint } from "../../useBreakpoint";
 import { clamp } from "../../viewport";
+import { isIOSWebKit } from "../../canvasPixelBudget";
+import { usePageThumbnails } from "../LeftSidebar/panels/usePageThumbnails";
+import ThumbnailStage from "../LeftSidebar/panels/ThumbnailStage";
 import {
   BUTTON_ZOOM_STEP,
   MAX_SCALE,
@@ -13,6 +16,31 @@ import {
   WORKSPACE_PAGE_GAP,
   ZOOM_STEP,
 } from "../../constants";
+
+// iOS Safari promotes every <canvas> to its own GPU-backed hardware layer
+// (independent of the canvas's own pixel budget — see canvasPixelBudget.js),
+// and the whole tab is killed once total graphics memory crosses roughly
+// ~300MB. Every page in the project was mounting its own live, full
+// Konva Stage (2 canvases: scene + hit) via InactivePagePreview, all the
+// time, even pages far from the one being edited — so a project with
+// several pages sat permanently close to that ceiling on an iPhone, and an
+// ordinary edit's redraw/compositing on the ACTIVE page's own canvas was
+// enough to tip it over ("A problem repeatedly occurred"). iOS only: cache
+// each inactive page as one static PNG (via the same
+// usePageThumbnails/ThumbnailStage machinery PagesPanel's sidebar already
+// uses) and show a plain <img> for it instead of a live Stage — leaving
+// only the active page's Stage (plus, briefly, one single offscreen Stage
+// while a queued page's preview regenerates) actually canvas-backed.
+// Desktop/Android are unaffected: isIOSWebKit() gates all of this off, and
+// PageSlot/InactivePagePreview fall back to exactly their prior behavior
+// whenever no cached preview is available yet.
+const IOS_PAGE_PREVIEW_MAX_SIDE = 1200;
+
+function iosPagePreviewSize(page) {
+  const longest = Math.max(page.width, page.height) || 1;
+  const ratio = Math.min(1.5, IOS_PAGE_PREVIEW_MAX_SIDE / longest);
+  return { width: Math.max(1, Math.round(page.width * ratio)), height: Math.max(1, Math.round(page.height * ratio)) };
+}
 
 // Pan lives entirely in native scroll (scrollLeft/scrollTop), not in Konva —
 // see the Phase 1 plan for why. Zoom changes `scale`; the actual Konva
@@ -43,6 +71,12 @@ const Workspace = forwardRef(function Workspace(
   const containerRef = useRef(null);
   const activePageWrapperRef = useRef(null);
   const panStateRef = useRef(null);
+  // iOS-only static page previews — see this file's top comment.
+  const iosStaticPreviews = useMemo(() => isIOSWebKit(), []);
+  const { thumbnails: iosPagePreviews, renderingPageId: iosPreviewRenderingId, handleCapture: handleIosPreviewCapture } = usePageThumbnails(pages, items, {
+    enabled: iosStaticPreviews,
+  });
+  const iosPreviewRenderingPage = iosStaticPreviews ? pages.find((p) => p.id === iosPreviewRenderingId) : null;
   const pendingZoomAnchorRef = useRef(null);
   const programmaticScrollRef = useRef(false);
   // Two-finger pinch/pan gesture tracking — see the dedicated effect below.
@@ -434,6 +468,7 @@ const Workspace = forwardRef(function Workspace(
                     pageNumbers={pageNumbers}
                     onActivate={() => onActivatePage(page.id)}
                     onAddPage={onAddPageAfter ? () => onAddPageAfter(page.id) : undefined}
+                    previewImageUrl={!isActive && iosStaticPreviews ? iosPagePreviews.get(page.id) : undefined}
                   >
                     {isActive ? renderActivePage(page, scale) : null}
                   </PageSlot>
@@ -442,6 +477,27 @@ const Workspace = forwardRef(function Workspace(
             })}
           </div>
         </div>
+        {/* iOS-only: mounts exactly one offscreen Stage at a time to
+            (re)generate a static preview for whichever page is currently
+            queued — see this file's top comment and PagesPanel's identical
+            ThumbnailHost pattern for its sidebar thumbnails. */}
+        {iosPreviewRenderingPage &&
+          (() => {
+            const size = iosPagePreviewSize(iosPreviewRenderingPage);
+            return (
+              <div style={{ position: "fixed", left: -9999, top: -9999 }} aria-hidden="true">
+                <ThumbnailStage
+                  page={iosPreviewRenderingPage}
+                  items={items}
+                  width={size.width}
+                  height={size.height}
+                  pageNumber={pages.findIndex((p) => p.id === iosPreviewRenderingPage.id) + 1}
+                  numberPosition={pageNumbers?.enabled ? pageNumbers.position : null}
+                  onCapture={(url) => handleIosPreviewCapture(iosPreviewRenderingPage.id, url)}
+                />
+              </div>
+            );
+          })()}
         {showRulers && (
           <Ruler
             orientation="vertical"

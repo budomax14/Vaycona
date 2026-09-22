@@ -8,7 +8,7 @@ const THUMBNAIL_DEBOUNCE_MS = 500;
 // the rendering). Regeneration is debounced after items/pages change, not
 // triggered on every pointer-move; a page not currently in view simply
 // stays queued and renders lazily the next time it's actually requested.
-export function usePageThumbnails(pages, items) {
+export function usePageThumbnails(pages, items, { enabled = true } = {}) {
   const [thumbnails, setThumbnails] = useState(() => new Map());
   const [renderingPageId, setRenderingPageId] = useState(null);
   const queueRef = useRef([]);
@@ -16,6 +16,11 @@ export function usePageThumbnails(pages, items) {
   const pageIdsRef = useRef(pages.map((p) => p.id).join("|"));
 
   useEffect(() => {
+    // `enabled` lets a second caller (Workspace.jsx's iOS-only static page
+    // previews) reuse this same queue/cache machinery without ever running
+    // it — and paying its debounce timer — on platforms/callers that don't
+    // opt in. PagesPanel's own call never passes this, so it's unaffected.
+    if (!enabled) return undefined;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       const currentIds = pages.map((p) => p.id);

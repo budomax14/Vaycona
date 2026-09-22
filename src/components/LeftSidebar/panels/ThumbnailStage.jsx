@@ -3,6 +3,7 @@ import { Layer, Rect, Stage } from "react-konva";
 import DesignNode from "../../../DesignNode";
 import { isEffectivelyHidden } from "../../../hierarchy";
 import { borderDashProps } from "../../../borderStyles";
+import PageNumberLabel from "../../Workspace/PageNumberLabel";
 
 const noop = () => {};
 
@@ -12,7 +13,13 @@ const noop = () => {};
 // with no second parallel rendering implementation. Mounted only while
 // actively generating a thumbnail (see usePageThumbnails), never kept
 // alive per-page.
-export default function ThumbnailStage({ page, items, width, height, onCapture }) {
+//
+// `pageNumber`/`numberPosition`: optional, only passed by Workspace.jsx's
+// iOS static page-preview use (see there) — bakes the page-number badge
+// into the captured PNG so it still shows once a live InactivePagePreview
+// Stage is swapped for this raster. PagesPanel's small sidebar thumbnails
+// don't pass these and are unaffected.
+export default function ThumbnailStage({ page, items, width, height, onCapture, pageNumber, numberPosition }) {
   const stageRef = useRef(null);
   const itemsById = new Map(items.map((it) => [it.id, it]));
   const scale = Math.min(width / page.width, height / page.height);
@@ -68,6 +75,7 @@ export default function ThumbnailStage({ page, items, width, height, onCapture }
             listening={false}
           />
         )}
+        {numberPosition && <PageNumberLabel page={page} pageNumber={pageNumber} position={numberPosition} />}
       </Layer>
     </Stage>
   );
