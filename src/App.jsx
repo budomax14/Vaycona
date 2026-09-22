@@ -5602,6 +5602,53 @@ export default function App({ editorMode = "workspace", templateSession = null }
   async function handlePrint() {
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
+
+    // iOS Safari: the desktop path below (open a blank tab, navigate it to
+    // a blob: PDF URL, call print() on that tab) is unreliable there —
+    // iOS's blob-URL-in-a-new-tab navigation regularly leaves the tab
+    // blank, and there's no desktop-style PDF-plugin toolbar for
+    // window.print() to drive on a *different* window even when the tab
+    // does load. iOS doesn't have a script-triggered print dialog at all;
+    // printing goes through the Share Sheet (AirPrint lives inside it),
+    // reached here via the Web Share API with the PDF as a real File — no
+    // new tab, no window.print(). Desktop/Android are untouched below.
+    if (isIOSWebKit()) {
+      const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName };
+      const { request, errors } = buildExportRequest(
+        { format: "pdf", pageSelection: "current", pdfMode: "standard", filenameBase: projectName },
+        context
+      );
+      if (errors.length) {
+        setStatus(errors[0]);
+        window.setTimeout(() => setStatus(""), 3000);
+        return;
+      }
+      setStatus("Preparing to print…");
+      try {
+        const result = await runExport(request, context);
+        const file = new File([result.blob], result.filename, { type: "application/pdf" });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], title: result.filename });
+        } else {
+          // Older iOS without file-sharing support: at least get the PDF
+          // onto the device (Files app / Downloads), openable and
+          // printable from there.
+          downloadExportResult(result.blob, result.filename);
+        }
+        setStatus("");
+      } catch (err) {
+        // The user backing out of the Share Sheet also rejects as
+        // AbortError — that's a cancel, not a failure, so stays silent.
+        if (err?.name !== "AbortError") {
+          setStatus(err.message || "Print failed.");
+          window.setTimeout(() => setStatus(""), 3000);
+        } else {
+          setStatus("");
+        }
+      }
+      return;
+    }
+
     // Opened synchronously, before any `await`, so it stays tied to this
     // click's user-gesture — otherwise the browser treats the later
     // `.location` assignment as a script-initiated popup and silently
