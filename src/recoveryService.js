@@ -304,6 +304,44 @@ export function wasPriorSessionUnclean() {
 
 export const HEARTBEAT_INTERVAL = HEARTBEAT_INTERVAL_MS;
 
+// --- crash diagnostic (phone drag-crash investigation) ---
+//
+// The "A problem repeatedly occurred" WebKit crash reloads the page and
+// wipes console/DOM state, so there is no way to inspect what was actually
+// happening the instant it died — on an iPhone there's no devtools either.
+// Piggybacks on the session marker above (same localStorage write, same
+// synchronous-at-startup guarantee): the LIVE session keeps overwriting
+// `lastDiag` with a small snapshot of canvas/drag state (throttled — see
+// call site — never on every pointer-move), so whatever was written last
+// survives an unclean death and can be read back on the next load, before
+// markSessionOpen() replaces the marker for the new session.
+export function recordSessionDiagnostic(sessionId, diag) {
+  try {
+    const raw = localStorage.getItem(SESSION_MARKER_KEY);
+    if (!raw) return;
+    const marker = JSON.parse(raw);
+    if (marker.sessionId !== sessionId) return;
+    marker.lastDiag = { ...diag, t: Date.now() };
+    localStorage.setItem(SESSION_MARKER_KEY, JSON.stringify(marker));
+  } catch {
+    // best-effort
+  }
+}
+
+// Reads the marker left by whatever session was open before this page load
+// — must be called before markSessionOpen() overwrites it (same ordering
+// requirement as wasPriorSessionUnclean(), see its call site in App.jsx).
+export function getPriorSessionDiagnostic() {
+  try {
+    const raw = localStorage.getItem(SESSION_MARKER_KEY);
+    if (!raw) return null;
+    const marker = JSON.parse(raw);
+    return marker.lastDiag || null;
+  } catch {
+    return null;
+  }
+}
+
 // --- one-shot reload signals used by the error-boundary screen (Phase 7C)
 // — it renders outside the (possibly crashed) App component, so it can't
 // call into App's own recovery handlers directly; instead it sets one of

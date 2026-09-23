@@ -21,6 +21,7 @@ export default function RecoveryDialog({
   recoverySummary,
   savedSummary,
   reason,
+  crashDiagnostic,
   onRecover,
   onOpenSaved,
   onDelete,
@@ -136,6 +137,19 @@ export default function RecoveryDialog({
             <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
               <FileWarning size={14} />
               {t.missingAssetsNote(recoverySummary.missingAssetCount)}
+            </div>
+          )}
+
+          {reason === "unclean-session" && crashDiagnostic && (
+            // TEMPORARY: phone drag-crash investigation. Not localized —
+            // a raw technical readout for screenshotting/reporting, same
+            // spirit as canvasDebug.js's on-screen panel. Remove once the
+            // underlying crash is found and fixed.
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+              <div className="text-xs font-semibold text-red-700">Last recorded state before this crash (for support):</div>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all text-[10px] leading-tight text-red-900">
+                {JSON.stringify(crashDiagnostic, null, 1)}
+              </pre>
             </div>
           )}
 

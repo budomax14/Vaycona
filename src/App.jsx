@@ -142,6 +142,8 @@ import {
   heartbeatSession,
   markSessionClosed,
   wasPriorSessionUnclean,
+  recordSessionDiagnostic,
+  getPriorSessionDiagnostic,
   HEARTBEAT_INTERVAL,
   consumeSkipRecoveryFlag,
   consumeForceRecoveryFlag,
@@ -790,6 +792,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // guide-line/label overlay updates less often.
   const iosOverlayThrottleRef = useRef({ timer: null, pending: null, lastCommit: 0 });
   const IOS_OVERLAY_THROTTLE_MS = 50; // ~20/sec, well below the render cost that was crashing the tab
+  // Phone drag-crash investigation — throttled so the diagnostic write
+  // itself (a synchronous localStorage read+stringify+write) never runs at
+  // pointer-move frequency; see recordDragDiagnostic below and
+  // recoveryService.js's recordSessionDiagnostic.
+  const dragDiagnosticLastWriteRef = useRef(0);
+  const DRAG_DIAGNOSTIC_THROTTLE_MS = 400;
   // Phase 10 — coalesces a burst of held-down-arrow-key nudges into ONE
   // history entry (spec §55/§76/§123): each keypress live-updates items
   // immediately (so it still feels instant) and (re)starts a short idle
@@ -846,6 +854,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Phase 7C recovery — null unless the startup comparison finds a
   // recovery snapshot worth offering. `null` reason means no dialog.
   const [recoveryOffer, setRecoveryOffer] = useState(null);
+  // Phone drag-crash investigation — whatever recordSessionDiagnostic last
+  // wrote before the prior session died uncleanly, surfaced read-only in
+  // RecoveryDialog so a phone with no devtools can still screenshot it.
+  const [crashDiagnostic, setCrashDiagnostic] = useState(null);
   const [isRecoveryCenterOpen, setIsRecoveryCenterOpen] = useState(false);
   const [recoverySnapshots, setRecoverySnapshots] = useState([]);
 
@@ -2657,6 +2669,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }
       if (consumeSkipRecoveryFlag()) return; // set by "Open last saved version" from the error screen
       const priorUnclean = wasPriorSessionUnclean();
+      if (priorUnclean) {
+        const diag = getPriorSessionDiagnostic();
+        setCrashDiagnostic(diag);
+        if (diag) console.log("[crashDiagnostic] prior session's last recorded state:", diag);
+      }
       const snapshot = await getNewestValidSnapshot();
       if (cancelled || !snapshot) return;
 
@@ -6505,6 +6522,41 @@ export default function App({ editorMode = "workspace", templateSession = null }
     [flushIosOverlay]
   );
 
+  // Phone drag-crash investigation — writes a small, crash-survivable
+  // snapshot (see recoveryService.js's recordSessionDiagnostic) of exactly
+  // what the canvas looked like right before/during/after a drag, so that
+  // if Safari's watchdog kills the tab mid-drag, the NEXT load can show the
+  // user what was happening the instant it died (there's no devtools on a
+  // phone to catch it live). "drag-move" is throttled — see
+  // DRAG_DIAGNOSTIC_THROTTLE_MS — "drag-start"/"drag-end" always write.
+  const recordDragDiagnostic = useCallback((action, extra) => {
+    if (!isMobileDevice()) return;
+    const sessionId = sessionIdRef.current;
+    if (!sessionId) return;
+    if (action === "drag-move") {
+      const now = performance.now();
+      if (now - dragDiagnosticLastWriteRef.current < DRAG_DIAGNOSTIC_THROTTLE_MS) return;
+      dragDiagnosticLastWriteRef.current = now;
+    }
+    const stage = stageRef.current;
+    const layer = stage?.getLayers?.()[0];
+    const sceneCanvas = layer?.getCanvas?.();
+    const canvasEl = sceneCanvas?._canvas;
+    const page = activePageRef.current;
+    const items = itemsRef.current;
+    recordSessionDiagnostic(sessionId, {
+      action,
+      ...extra,
+      itemCountOnPage: page ? items.filter((it) => it.pageId === page.id).length : null,
+      hasDocumentBody: page ? items.some((it) => it.pageId === page.id && it.documentBody) : null,
+      stageBackingPx: canvasEl ? `${canvasEl.width}x${canvasEl.height}` : null,
+      scenePixelRatio: sceneCanvas?.getPixelRatio?.() ?? null,
+      dpr: window.devicePixelRatio,
+      innerSize: `${window.innerWidth}x${window.innerHeight}`,
+      ua: (navigator.userAgent || "").slice(0, 140),
+    });
+  }, []);
+
   const onItemDragStart = useCallback((id, node) => {
     const items = itemsRef.current;
     // Once an object belongs to a group, it can never be dragged
@@ -6542,7 +6594,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const pointerStartContent = node.getStage().getRelativePointerPosition();
     dragOriginsRef.current = { leaderId: id, startPositions, pointerStartContent, frozenUnclippedIds };
     setInteractionMode("dragging");
-  }, []);
+    const draggedItem = items.find((candidate) => candidate.id === id);
+    recordDragDiagnostic("drag-start", { itemId: id, itemType: draggedItem?.type, movedCount: idsToMove.length });
+  }, [recordDragDiagnostic]);
 
   const onItemDragMove = useCallback((id, node) => {
     const origin = dragOriginsRef.current;
@@ -6558,7 +6612,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (otherNode) otherNode.position({ x: pos.x + deltaX, y: pos.y + deltaY });
     });
     node.getLayer()?.batchDraw();
-  }, []);
+    recordDragDiagnostic("drag-move", { itemId: id });
+  }, [recordDragDiagnostic]);
 
   const onItemDragEnd = useCallback(
     (id, node) => {
@@ -6602,8 +6657,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
       setEqualSpacing({ horizontal: null, vertical: null });
       setDistanceLabels([]);
       setInteractionMode("idle");
+      recordDragDiagnostic("drag-end", { itemId: id, movedCount: movedIds.length });
     },
-    [commit, cancelIosOverlayThrottle]
+    [commit, cancelIosOverlayThrottle, recordDragDiagnostic]
   );
 
   const dragBoundFunc = useCallback(function dragBoundFunc(pos) {
@@ -8697,6 +8753,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         recoverySummary={recoverySummaryForDialog}
         savedSummary={savedSummaryForDialog}
         reason={recoveryOffer?.reason}
+        crashDiagnostic={crashDiagnostic}
         onRecover={() => recoveryOffer && handleRecoverLatest(recoveryOffer.snapshot)}
         onOpenSaved={handleOpenSavedVersion}
         onDelete={handleDeleteRecoveryOffer}
