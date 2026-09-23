@@ -6539,7 +6539,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       dragDiagnosticLastWriteRef.current = now;
     }
     const stage = stageRef.current;
-    const layer = stage?.getLayers?.()[0];
+    const layer = stage?.getLayers?.()?.[0];
     const sceneCanvas = layer?.getCanvas?.();
     const canvasEl = sceneCanvas?._canvas;
     const page = activePageRef.current;
@@ -6603,6 +6603,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (!origin || origin.leaderId !== id) return;
     const start = origin.startPositions.get(id);
     if (!start) return;
+    // `node` is read from shapeRef.current by DesignNode's wrapper closure
+    // AT FIRE TIME, not bound when the listener was attached — a dragend/
+    // dragmove that arrives while this exact node is mid-destroy (see
+    // onItemDragEnd's zombie-node comment below) can find the ref already
+    // cleared. Without this guard, node.x() threw straight through every
+    // line of cleanup after it (dragOriginsRef never reset, interaction
+    // mode stuck on "dragging", the pending move never committed) — a real
+    // state-corrupting crash, not just a missed frame.
+    if (!node) return;
     const deltaX = node.x() - start.x;
     const deltaY = node.y() - start.y;
 
@@ -6626,11 +6635,23 @@ export default function App({ editorMode = "workspace", templateSession = null }
       // and crashing on `start.x`.
       if (!origin || origin.leaderId !== id) return;
       const start = origin.startPositions.get(id);
-      if (!start) {
-        // Defense-in-depth only — should be unreachable now that
-        // handleStageMouseUp no longer resets interactionMode out from
-        // under an in-progress item drag (see its own comment).
+      // `!start` OR `!node` both mean this dragend can't be trusted to
+      // reflect a real end position (node.x()/node.y() below would throw
+      // on a null node — this is what a real Web Inspector session on the
+      // actual crash caught: a Konva node firing "dragend" while it was
+      // mid-destroy/remove, with shapeRef.current already cleared by the
+      // time this handler re-read it). Reset interaction state without
+      // committing rather than let the throw skip every line after it —
+      // an uncaught exception here left dragOriginsRef permanently set,
+      // interactionMode stuck on "dragging", and the move never
+      // committed, which is a far worse, harder-to-recover state than
+      // just dropping this one gesture's final position.
+      if (!start || !node) {
         dragOriginsRef.current = null;
+        cancelIosOverlayThrottle();
+        setAlignmentLines({ vertical: [], horizontal: [] });
+        setEqualSpacing({ horizontal: null, vertical: null });
+        setDistanceLabels([]);
         setInteractionMode("idle");
         return;
       }
