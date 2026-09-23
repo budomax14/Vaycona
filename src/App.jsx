@@ -98,7 +98,7 @@ import { borderDashProps } from "./borderStyles";
 import { getItemBounds, rectsIntersect, unionBounds } from "./bounds";
 import { screenToContent, contentToScreen } from "./viewport";
 import { applyCanvasPixelBudget, isIOSWebKit, isMobileDevice } from "./canvasPixelBudget";
-import { logCanvasDebug, isCanvasDebugEnabled } from "./canvasDebug";
+import { logCanvasDebug, isCanvasDebugEnabled, logPriorCrashDiagnostic } from "./canvasDebug";
 import { collectSnapCandidates, computeSnap, snapResizeEdge, thresholdForScale } from "./snapping";
 import { alignItems, alignToPage, distributeItems, distributeItemsWithGap, computeCurrentGap, inferDistributeAxis } from "./alignment";
 import {
@@ -934,7 +934,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // so picking a design is a real first step, not skippable. Never shown
   // in template-editing mode (AdminApp already put the user on a specific
   // template; there's nothing to "pick").
-  const [showHomePage, setShowHomePage] = useState(editorMode === "workspace");
+  //
+  // Skipped when the PRIOR session ended uncleanly (see recoveryService's
+  // wasPriorSessionUnclean — reads the still-unoverwritten marker from
+  // before markSessionOpen's later effect runs). Otherwise a mid-edit
+  // Safari memory-pressure reload (the "add stuff and it crashes" class of
+  // bug elsewhere in canvasPixelBudget.js/useImageElement.js) drops the
+  // user straight onto this HomePage gate on the next boot — and because
+  // it's an early return above the rest of the tree, RecoveryDialog never
+  // even mounts to offer restoring what was lost. It reads like "the app
+  // just kicked me back to the main page" with no crash message and no way
+  // back in, instead of the real WebKit reload it actually was. Landing in
+  // the workspace instead lets the normal recovery-offer flow do its job.
+  const [showHomePage, setShowHomePage] = useState(() => editorMode === "workspace" && !wasPriorSessionUnclean());
 
   useEffect(() => {
     if (editorMode === "workspace") refreshTemplateLists();
@@ -2672,7 +2684,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (priorUnclean) {
         const diag = getPriorSessionDiagnostic();
         setCrashDiagnostic(diag);
-        if (diag) console.log("[crashDiagnostic] prior session's last recorded state:", diag);
+        if (diag) {
+          console.log("[crashDiagnostic] prior session's last recorded state:", diag);
+          // Shows unconditionally (?canvasDebug=1) — the Recovery dialog
+          // below only appears when there's a snapshot worth restoring,
+          // which a hard Safari crash with nothing dirty to save won't have.
+          logPriorCrashDiagnostic(diag);
+        }
       }
       const snapshot = await getNewestValidSnapshot();
       if (cancelled || !snapshot) return;
@@ -3174,6 +3192,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
       },
     ];
     const typeLabel = partial.type ? partial.type[0].toUpperCase() + partial.type.slice(1) : "object";
+    // Same crash-survivable write recordDragDiagnostic does for drags (see
+    // its definition below) — reported iPhone Safari crashes on ADDING an
+    // element, not just dragging one, and until now nothing recorded state
+    // for that path, so a crash there left the diagnostic panel empty.
+    // Written before addItem's own commit() (and the new node's decode/
+    // mount work that follows it) so it captures state at the moment the
+    // add was requested, same as "drag-start" does before its gesture.
+    recordDragDiagnostic("add-item", { itemType: partial.type });
     commit(next, { type: "add-object", label: label || `Add ${typeLabel}`, itemIds: [newId], pageIds: [activePageId] });
     setSelectedIds([newId]);
   }

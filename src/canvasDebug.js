@@ -93,3 +93,15 @@ export function logCanvasDebug({ reason, page, container, displayScale, stage, f
   console.table(rows);
   showPanel(`[canvasDebug] ${reason}\n${JSON.stringify(summary, null, 1)}\n${rows.map((row) => JSON.stringify(row)).join("\n")}`);
 }
+
+// Surfaces recoveryService's crash-survivable diagnostic (recorded right
+// before a phone drag-crash) on screen, independent of whether a recovery
+// offer ends up showing — the offer is gated on "is there a newer snapshot
+// worth restoring", which has nothing to do with whether there's a crash
+// snapshot worth reading. Without this, a Safari crash with no restorable
+// snapshot leaves the diagnostic sitting only in console.log, which is
+// unreachable on a phone with no attached devtools.
+export function logPriorCrashDiagnostic(diag) {
+  if (!isCanvasDebugEnabled() || !diag) return;
+  showPanel(`[priorCrashDiagnostic]\n${JSON.stringify(diag, null, 1)}`);
+}
