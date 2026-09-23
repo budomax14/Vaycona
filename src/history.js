@@ -14,7 +14,15 @@
 // safe — every remaining entry is still a complete, self-consistent
 // {items, pages} pair, so there's nothing to "break" by losing older ones.
 
-export const HISTORY_LIMIT = 150;
+import { isMobileDevice } from "./canvasPixelBudget";
+
+// Each entry is a full {items, pages, guides} snapshot (see module comment
+// below), so on a phone 150 of them is real, held-in-memory JSON weight for
+// no benefit the user can feel — nobody undoes 150 steps on a small screen.
+// Evaluated once at module load: device type doesn't change mid-session.
+const DESKTOP_HISTORY_LIMIT = 150;
+const MOBILE_HISTORY_LIMIT = 40;
+export const HISTORY_LIMIT = isMobileDevice() ? MOBILE_HISTORY_LIMIT : DESKTOP_HISTORY_LIMIT;
 
 function stripVolatile(items) {
   // updatedAt (and createdAt, for newly-created items) changes on every

@@ -1,3 +1,5 @@
+import Konva from "konva";
+
 // Konva sizes every canvas' backing store as (cssWidth * pixelRatio) x
 // (cssHeight * pixelRatio), and its default pixelRatio is devicePixelRatio
 // (3 on iPhone). The editing Stage is already RENDER_SCALE_CAP x the page
@@ -18,99 +20,627 @@
 // per-node filter caches. Near the ceiling an *edit* (which redraws and
 // re-caches) pushes the tab over iOS's memory limit and the page reloads
 // ("a problem repeatedly occurred"). Stay well under it.
-export const IOS_MAX_CANVAS_PIXELS = 4_000_000;
+/**
+ * Mobile Canvas Memory Safety
+ * ---------------------------------------------------------
+ * Designed for Konva-based editors running on:
+ * - iPhone / iPad Safari
+ * - iOS Chrome/Firefox (still WebKit)
+ * - Android Chrome/WebView
+ *
+ * Goals:
+ * 1. Prevent oversized backing canvases.
+ * 2. Prevent huge Konva node caches.
+ * 3. Reduce large camera images before using them in editor.
+ * 4. Restore canvas ratios correctly after resize.
+ * 5. Avoid unnecessary redraws.
+ * 6. Keep desktop rendering unchanged.
+ */
 
-// The hit canvas only needs to be finger-accurate: at phone zoom one Stage
-// pixel is well under a CSS pixel, so half resolution is still far finer
-// than a touch. It is redrawn alongside the scene on every drag frame.
-const IOS_HIT_PIXEL_RATIO = 0.5;
 
-// Node.cache() canvases (image filters, fade, 3D text) and decoded photos
-// get their own, smaller budgets — several can be alive at once.
-export const IOS_MAX_CACHE_PIXELS = 4_000_000;
-export const IOS_MAX_IMAGE_PIXELS = 6_000_000;
-export const IOS_MAX_IMAGE_SIDE = 2560;
+/* =========================================================
+   CONFIG
+   ========================================================= */
 
-// Below this the scene turns visibly soft; a page that still doesn't fit
-// keeps drawing (blurry beats blank).
-const MIN_PIXEL_RATIO = 0.5;
+// Cut roughly in half from the original crash-safety budget: phones don't
+// just need to avoid the iOS canvas ceiling, they need the whole editor to
+// feel light — fewer backing-store pixels to rasterize and composite on
+// every edit/drag/zoom, at the cost of some sharpness.
+export const MOBILE_MAX_SCENE_PIXELS = 1_600_000;
+
+export const MOBILE_MAX_CACHE_PIXELS = 1_000_000;
+
+export const MOBILE_MAX_IMAGE_PIXELS = 2_000_000;
+
+export const MOBILE_MAX_IMAGE_SIDE = 1600;
+
+// Hit detection does not need retina resolution.
+const MOBILE_HIT_PIXEL_RATIO = 0.4;
+
+// Don't let rendering become completely unusable.
+const MIN_SCENE_PIXEL_RATIO = 0.3;
+
+const MIN_CACHE_PIXEL_RATIO = 0.3;
+
+
+/* =========================================================
+   DEVICE DETECTION
+   ========================================================= */
 
 export function isIOSWebKit() {
-  if (typeof navigator === "undefined") return false;
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
   const ua = navigator.userAgent || "";
-  if (/iPhone|iPad|iPod/.test(ua)) return true;
-  // iPadOS 13+ reports itself as a Mac; the touch points give it away.
-  return /Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1;
+
+  // Normal iPhone / iPad / iPod detection
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    return true;
+  }
+
+  // iPadOS 13+ can identify itself as Macintosh
+  return (
+    /Macintosh/i.test(ua) &&
+    (navigator.maxTouchPoints || 0) > 1
+  );
 }
 
-// Returns the pixelRatio Konva canvases of the given CSS size should use, or
-// null when the platform default (devicePixelRatio) is fine and nothing
-// should be touched — which is always the case off iOS, so desktop and
-// Android rendering are untouched.
-export function getSafePixelRatio(cssWidth, cssHeight, { limited = isIOSWebKit(), maxPixels = IOS_MAX_CANVAS_PIXELS } = {}) {
-  if (!limited || !(cssWidth > 0) || !(cssHeight > 0)) return null;
-  const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
-  const fitting = Math.sqrt(maxPixels / (cssWidth * cssHeight));
-  if (fitting >= dpr) return null;
-  return Math.max(MIN_PIXEL_RATIO, fitting);
+
+export function isAndroid() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  return /Android/i.test(navigator.userAgent || "");
 }
 
-// Applies the budget to every layer of a Konva Stage (scene canvas + hit
-// canvas — the hit canvas is normally ratio 1 but is over budget by itself on
-// very large pages). Idempotent; safe to call after every Stage resize.
-// Returns the ratio applied to the scene canvases, or null if untouched.
+
+export function isMobileDevice() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  if (isIOSWebKit()) {
+    return true;
+  }
+
+  if (isAndroid()) {
+    return true;
+  }
+
+  return /Mobi/i.test(navigator.userAgent || "");
+}
+
+// Every fix below (applyCanvasPixelBudget, getSafeCachePixelRatio,
+// safeCacheNode) runs AFTER a canvas already exists, correcting it in a
+// React effect or at an explicit call site. Konva itself defaults every
+// canvas it creates — each layer's scene canvas, its hit canvas, and every
+// node.cache() call anywhere in the app — to window.devicePixelRatio
+// unless told otherwise (see konva/lib/Canvas.js: `conf.pixelRatio ||
+// Konva.pixelRatio || getDevicePixelRatio()`). On a real phone (DPR
+// 2.75-4, not the 1-2 a desktop-Chromium device emulator reports) that
+// FIRST allocation, before any correction effect has run and for any
+// node.cache() call site that doesn't explicitly pass a safe ratio, is by
+// itself large enough to crash Safari — which is why a crash can happen
+// immediately on a brand-new blank design, not just on drag. Overriding
+// Konva's own global default closes both holes in one place: nothing it
+// ever creates can start out oversized, on any phone, regardless of
+// whether the per-call-site correction below runs, lags, or was missed.
+if (isMobileDevice()) {
+  Konva.pixelRatio = 1;
+
+  // perfectDrawEnabled makes every shape with both a fill+stroke or an
+  // opacity<1 draw twice (once to an offscreen buffer, to avoid the
+  // overlapping seam where stroke meets fill) before compositing. That's a
+  // real cost on underpowered phone GPUs and CPUs across a canvas full of
+  // shapes/text/frames, for a seam that's rarely visible at phone viewing
+  // sizes. Off globally on mobile only; desktop keeps the crisper default.
+  Konva.perfectDrawEnabled = false;
+}
+
+/* =========================================================
+   DEVICE PIXEL RATIO
+   ========================================================= */
+
+function getDevicePixelRatio() {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+
+  return Math.max(1, window.devicePixelRatio || 1);
+}
+
+
+/* =========================================================
+   PIXEL RATIO CALCULATION
+   ========================================================= */
+
+/**
+ * Calculate the highest safe pixel ratio for a canvas.
+ */
+export function calculateSafePixelRatio(
+  width,
+  height,
+  maxPixels = MOBILE_MAX_SCENE_PIXELS
+) {
+  if (!(width > 0) || !(height > 0)) {
+    return 1;
+  }
+
+  const dpr = getDevicePixelRatio();
+
+  const cssPixels = width * height;
+
+  if (!Number.isFinite(cssPixels) || cssPixels <= 0) {
+    return 1;
+  }
+
+  const fittingRatio = Math.sqrt(
+    maxPixels / cssPixels
+  );
+
+  return Math.min(
+    dpr,
+    Math.max(
+      MIN_SCENE_PIXEL_RATIO,
+      fittingRatio
+    )
+  );
+}
+
+
+/* =========================================================
+   KONVA STAGE SAFETY
+   ========================================================= */
+
+/**
+ * Apply mobile-safe backing-store sizes to all layers.
+ *
+ * Desktop is intentionally untouched.
+ */
 export function applyCanvasPixelBudget(stage) {
-  if (!stage) return null;
-  const cssWidth = stage.width();
-  const cssHeight = stage.height();
-  const ratio = getSafePixelRatio(cssWidth, cssHeight);
-  stage.getLayers().forEach((layer) => {
+  if (!stage) {
+    return null;
+  }
+
+  if (!isMobileDevice()) {
+    return null;
+  }
+
+  const width = Number(stage.width());
+  const height = Number(stage.height());
+
+  if (!(width > 0) || !(height > 0)) {
+    return null;
+  }
+
+  const sceneRatio = calculateSafePixelRatio(
+    width,
+    height,
+    MOBILE_MAX_SCENE_PIXELS
+  );
+
+  const hitRatio = Math.min(
+    MOBILE_HIT_PIXEL_RATIO,
+    sceneRatio
+  );
+
+  const layers = stage.getLayers?.() || [];
+
+  for (const layer of layers) {
+    if (!layer || layer.isDestroyed?.()) {
+      continue;
+    }
+
+    const sceneCanvas = layer.getCanvas?.();
+    const hitCanvas = layer.getHitCanvas?.();
+
     let changed = false;
-    const scene = layer.getCanvas();
-    const hit = layer.getHitCanvas();
-    if (ratio !== null) {
-      if (scene.getPixelRatio() !== ratio) {
-        scene.setPixelRatio(ratio);
-        changed = true;
-      }
-      const hitRatio = Math.min(IOS_HIT_PIXEL_RATIO, ratio);
-      if (hit.getPixelRatio() !== hitRatio) {
-        hit.setPixelRatio(hitRatio);
+
+    /*
+     * Scene canvas
+     */
+    if (
+      sceneCanvas &&
+      typeof sceneCanvas.setPixelRatio === "function"
+    ) {
+      const current =
+        sceneCanvas.getPixelRatio?.();
+
+      if (
+        !Number.isFinite(current) ||
+        Math.abs(current - sceneRatio) > 0.01
+      ) {
+        sceneCanvas.setPixelRatio(sceneRatio);
         changed = true;
       }
     }
-    if (changed) layer.batchDraw();
-  });
-  return ratio;
+
+    /*
+     * Hit canvas
+     */
+    if (
+      hitCanvas &&
+      typeof hitCanvas.setPixelRatio === "function"
+    ) {
+      const current =
+        hitCanvas.getPixelRatio?.();
+
+      if (
+        !Number.isFinite(current) ||
+        Math.abs(current - hitRatio) > 0.01
+      ) {
+        hitCanvas.setPixelRatio(hitRatio);
+        changed = true;
+      }
+    }
+
+    /*
+     * Only redraw when something actually changed.
+     */
+    if (changed) {
+      layer.batchDraw?.();
+    }
+  }
+
+  return sceneRatio;
 }
 
-// pixelRatio to pass to node.cache() for a cache of the given local size, or
-// undefined (Konva's default) off iOS. Konva's default is devicePixelRatio
-// (3 on iPhone), which makes a full-page image's filter cache ~9x its area.
-export function getSafeCachePixelRatio(width, height) {
-  if (!isIOSWebKit() || !(width > 0) || !(height > 0)) return undefined;
-  const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
-  const fitting = Math.sqrt(IOS_MAX_CACHE_PIXELS / (width * height));
-  return Math.max(MIN_PIXEL_RATIO, Math.min(dpr, fitting));
+
+/* =========================================================
+   KONVA CACHE SAFETY
+   ========================================================= */
+
+/**
+ * Pixel ratio for node.cache().
+ *
+ * Example:
+ *
+ * node.cache({
+ *   pixelRatio: getSafeCachePixelRatio(
+ *     node.width(),
+ *     node.height()
+ *   )
+ * });
+ */
+export function getSafeCachePixelRatio(
+  width,
+  height
+) {
+  if (!isMobileDevice()) {
+    return undefined;
+  }
+
+  if (!(width > 0) || !(height > 0)) {
+    return 1;
+  }
+
+  const dpr = getDevicePixelRatio();
+
+  const area = width * height;
+
+  if (!Number.isFinite(area) || area <= 0) {
+    return 1;
+  }
+
+  const fittingRatio = Math.sqrt(
+    MOBILE_MAX_CACHE_PIXELS / area
+  );
+
+  return Math.min(
+    dpr,
+    Math.max(
+      MIN_CACHE_PIXEL_RATIO,
+      fittingRatio
+    )
+  );
 }
 
-// Photos straight off an iPhone are 12-48MP; decoded that is 48-192MB each,
-// and flipping one copies it again. On iOS, redraw an oversized image into a
-// smaller canvas (aspect preserved) and let the original decode be freed.
-// Returns the original image when it is already small enough or off iOS.
-// Only the editor's working copy shrinks; the stored asset is untouched.
-export function downscaleForIOS(img) {
-  if (!isIOSWebKit()) return img;
-  const w = img.naturalWidth || img.width;
-  const h = img.naturalHeight || img.height;
-  if (!w || !h) return img;
-  const scale = Math.min(1, IOS_MAX_IMAGE_SIDE / Math.max(w, h), Math.sqrt(IOS_MAX_IMAGE_PIXELS / (w * h)));
-  if (scale >= 1) return img;
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(w * scale));
-  canvas.height = Math.max(1, Math.round(h * scale));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return img;
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas;
+
+/* =========================================================
+   SAFE CACHE WRAPPER
+   ========================================================= */
+
+/**
+ * Safer way to cache Konva nodes.
+ */
+export function safeCacheNode(node, options = {}) {
+  if (!node || node.isDestroyed?.()) {
+    return false;
+  }
+
+  try {
+    const rect = node.getClientRect?.({
+      skipTransform: true,
+      skipShadow: true,
+      skipStroke: false
+    });
+
+    const width =
+      Math.abs(rect?.width || node.width?.() || 0);
+
+    const height =
+      Math.abs(rect?.height || node.height?.() || 0);
+
+    if (!(width > 0) || !(height > 0)) {
+      return false;
+    }
+
+    const pixelRatio =
+      getSafeCachePixelRatio(width, height);
+
+    node.clearCache?.();
+
+    node.cache({
+      ...options,
+
+      ...(pixelRatio !== undefined
+        ? { pixelRatio }
+        : {})
+    });
+
+    return true;
+  } catch (error) {
+    console.warn(
+      "[CanvasSafety] Failed to cache node:",
+      error
+    );
+
+    try {
+      node.clearCache?.();
+    } catch {
+      // Ignore cleanup failure
+    }
+
+    return false;
+  }
+}
+
+
+/* =========================================================
+   IMAGE DOWNSCALING
+   ========================================================= */
+
+/**
+ * Shrinks oversized images before they become editor working
+ * images.
+ *
+ * IMPORTANT:
+ * Stored/original uploaded asset remains untouched.
+ */
+export function downscaleForMobile(img) {
+  if (!img) {
+    return img;
+  }
+
+  if (!isMobileDevice()) {
+    return img;
+  }
+
+  const width =
+    img.naturalWidth ||
+    img.videoWidth ||
+    img.width ||
+    0;
+
+  const height =
+    img.naturalHeight ||
+    img.videoHeight ||
+    img.height ||
+    0;
+
+  if (!(width > 0) || !(height > 0)) {
+    return img;
+  }
+
+  const totalPixels = width * height;
+
+  const sideScale =
+    MOBILE_MAX_IMAGE_SIDE /
+    Math.max(width, height);
+
+  const areaScale =
+    Math.sqrt(
+      MOBILE_MAX_IMAGE_PIXELS /
+      totalPixels
+    );
+
+  const scale = Math.min(
+    1,
+    sideScale,
+    areaScale
+  );
+
+  // Already safe
+  if (scale >= 0.999) {
+    return img;
+  }
+
+  const targetWidth = Math.max(
+    1,
+    Math.round(width * scale)
+  );
+
+  const targetHeight = Math.max(
+    1,
+    Math.round(height * scale)
+  );
+
+  let canvas;
+
+  try {
+    canvas =
+      document.createElement("canvas");
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const ctx = canvas.getContext(
+      "2d",
+      {
+        alpha: true,
+        willReadFrequently: false
+      }
+    );
+
+    if (!ctx) {
+      return img;
+    }
+
+    /*
+     * Scaling quality. Phones get "medium": a lighter/faster resample
+     * than "high" for a one-time decode that already targets a smaller
+     * MOBILE_MAX_IMAGE_SIDE/PIXELS budget, so the extra sharpness "high"
+     * buys isn't worth its CPU cost on underpowered hardware.
+     */
+    ctx.imageSmoothingEnabled = true;
+
+    if ("imageSmoothingQuality" in ctx) {
+      ctx.imageSmoothingQuality = "medium";
+    }
+
+    ctx.drawImage(
+      img,
+      0,
+      0,
+      targetWidth,
+      targetHeight
+    );
+
+    return canvas;
+
+  } catch (error) {
+    console.warn(
+      "[CanvasSafety] Image downscale failed:",
+      error
+    );
+
+    /*
+     * Release partially-created backing store.
+     */
+    if (canvas) {
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+
+    return img;
+  }
+}
+
+
+/* =========================================================
+   RELEASE TEMPORARY CANVAS
+   ========================================================= */
+
+/**
+ * Call this when you KNOW a temporary canvas is no longer
+ * being used.
+ *
+ * Never call it while Konva still references the canvas.
+ */
+export function releaseCanvas(canvas) {
+  if (!canvas) {
+    return;
+  }
+
+  try {
+    const ctx = canvas.getContext?.("2d");
+
+    if (ctx) {
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+    }
+
+    canvas.width = 1;
+    canvas.height = 1;
+
+  } catch {
+    // Cleanup should never crash the editor.
+  }
+}
+
+
+/* =========================================================
+   MEMORY ESTIMATION
+   ========================================================= */
+
+/**
+ * Debug helper.
+ *
+ * Gives an approximate backing-store memory cost.
+ */
+export function estimateCanvasMemory(
+  width,
+  height,
+  pixelRatio = 1
+) {
+  const pixels =
+    width *
+    height *
+    pixelRatio *
+    pixelRatio;
+
+  const bytes = pixels * 4;
+
+  return {
+    pixels,
+
+    bytes,
+
+    megabytes:
+      bytes / 1024 / 1024
+  };
+}
+
+
+/* =========================================================
+   DEBUG INFORMATION
+   ========================================================= */
+
+export function getCanvasSafetyInfo(
+  width,
+  height
+) {
+  const dpr = getDevicePixelRatio();
+
+  const safeRatio =
+    calculateSafePixelRatio(
+      width,
+      height
+    );
+
+  return {
+    mobile: isMobileDevice(),
+
+    ios: isIOSWebKit(),
+
+    android: isAndroid(),
+
+    devicePixelRatio: dpr,
+
+    width,
+
+    height,
+
+    safePixelRatio: safeRatio,
+
+    nativeMemory:
+      estimateCanvasMemory(
+        width,
+        height,
+        dpr
+      ),
+
+    safeMemory:
+      estimateCanvasMemory(
+        width,
+        height,
+        safeRatio
+      )
+  };
 }

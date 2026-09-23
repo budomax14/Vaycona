@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { downscaleForIOS } from "./canvasPixelBudget";
+import { downscaleForMobile } from "./canvasPixelBudget";
 
 // crop: { top, right, bottom, left } as percentages (0-100) of the natural
 // image dimensions, applied after flip so insets match what's shown in the
@@ -43,7 +43,7 @@ export function useImageElement(src, { flipX = false, flipY = false } = {}) {
     let cancelled = false;
     img.onload = () => {
       if (cancelled) return;
-      const working = downscaleForIOS(img);
+      const working = downscaleForMobile(img);
       // Drop the full-resolution decode once a smaller copy replaces it.
       if (working !== img) img.src = "";
       setBaseImage(working);

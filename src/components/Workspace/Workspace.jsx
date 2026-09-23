@@ -4,7 +4,7 @@ import Ruler from "../../Ruler";
 import { useResizeObserver } from "../../useResizeObserver";
 import { useBreakpoint } from "../../useBreakpoint";
 import { clamp } from "../../viewport";
-import { isIOSWebKit } from "../../canvasPixelBudget";
+import { isMobileDevice } from "../../canvasPixelBudget";
 import { usePageThumbnails } from "../LeftSidebar/panels/usePageThumbnails";
 import ThumbnailStage from "../LeftSidebar/panels/ThumbnailStage";
 import {
@@ -17,23 +17,24 @@ import {
   ZOOM_STEP,
 } from "../../constants";
 
-// iOS Safari promotes every <canvas> to its own GPU-backed hardware layer
-// (independent of the canvas's own pixel budget — see canvasPixelBudget.js),
-// and the whole tab is killed once total graphics memory crosses roughly
-// ~300MB. Every page in the project was mounting its own live, full
-// Konva Stage (2 canvases: scene + hit) via InactivePagePreview, all the
-// time, even pages far from the one being edited — so a project with
-// several pages sat permanently close to that ceiling on an iPhone, and an
+// Mobile browsers promote every <canvas> to its own GPU-backed hardware
+// layer (independent of the canvas's own pixel budget — see
+// canvasPixelBudget.js), and the whole tab/app is killed once graphics
+// memory crosses a platform ceiling (~300MB on iOS; lower still on low-RAM
+// Android phones). Every page in the project was mounting its own live,
+// full Konva Stage (2 canvases: scene + hit) via InactivePagePreview, all
+// the time, even pages far from the one being edited — so a project with
+// several pages sat permanently close to that ceiling on a phone, and an
 // ordinary edit's redraw/compositing on the ACTIVE page's own canvas was
-// enough to tip it over ("A problem repeatedly occurred"). iOS only: cache
-// each inactive page as one static PNG (via the same
-// usePageThumbnails/ThumbnailStage machinery PagesPanel's sidebar already
-// uses) and show a plain <img> for it instead of a live Stage — leaving
-// only the active page's Stage (plus, briefly, one single offscreen Stage
-// while a queued page's preview regenerates) actually canvas-backed.
-// Desktop/Android are unaffected: isIOSWebKit() gates all of this off, and
-// PageSlot/InactivePagePreview fall back to exactly their prior behavior
-// whenever no cached preview is available yet.
+// enough to tip it over ("A problem repeatedly occurred" on iOS; a silent
+// tab reload/OOM kill on Android). Phones only: cache each inactive page as
+// one static PNG (via the same usePageThumbnails/ThumbnailStage machinery
+// PagesPanel's sidebar already uses) and show a plain <img> for it instead
+// of a live Stage — leaving only the active page's Stage (plus, briefly,
+// one single offscreen Stage while a queued page's preview regenerates)
+// actually canvas-backed. Desktop is unaffected: isMobileDevice() gates all
+// of this off, and PageSlot/InactivePagePreview fall back to exactly their
+// prior behavior whenever no cached preview is available yet.
 const IOS_PAGE_PREVIEW_MAX_SIDE = 1200;
 
 function iosPagePreviewSize(page) {
@@ -71,8 +72,8 @@ const Workspace = forwardRef(function Workspace(
   const containerRef = useRef(null);
   const activePageWrapperRef = useRef(null);
   const panStateRef = useRef(null);
-  // iOS-only static page previews — see this file's top comment.
-  const iosStaticPreviews = useMemo(() => isIOSWebKit(), []);
+  // Phone-only static page previews — see this file's top comment.
+  const iosStaticPreviews = useMemo(() => isMobileDevice(), []);
   const { thumbnails: iosPagePreviews, renderingPageId: iosPreviewRenderingId, handleCapture: handleIosPreviewCapture } = usePageThumbnails(pages, items, {
     enabled: iosStaticPreviews,
   });

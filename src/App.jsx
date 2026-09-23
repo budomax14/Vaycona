@@ -97,7 +97,7 @@ import { getPresetByKey } from "./textStyles";
 import { borderDashProps } from "./borderStyles";
 import { getItemBounds, rectsIntersect, unionBounds } from "./bounds";
 import { screenToContent, contentToScreen } from "./viewport";
-import { applyCanvasPixelBudget, isIOSWebKit } from "./canvasPixelBudget";
+import { applyCanvasPixelBudget, isIOSWebKit, isMobileDevice } from "./canvasPixelBudget";
 import { logCanvasDebug, isCanvasDebugEnabled } from "./canvasDebug";
 import { collectSnapCandidates, computeSnap, snapResizeEdge, thresholdForScale } from "./snapping";
 import { alignItems, alignToPage, distributeItems, distributeItemsWithGap, computeCurrentGap, inferDistributeAxis } from "./alignment";
@@ -780,12 +780,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // labels' rounded distance changes on nearly every frame, forcing a full
   // app re-render (Layers panel, sidebars, toolbar, the lot) up to 120x/sec
   // while dragging — heavy enough that Safari's WebContent process gets
-  // killed mid-drag ("A problem repeatedly occurred"). Desktop/Android never
-  // see pointermove at that rate, so they were fine. Coalesce the overlay's
-  // *visual* state to a lower, fixed cadence on iOS only; the dragged node
-  // itself still tracks the finger every frame via the imperative
-  // node.position() calls in onItemDragMove, so the drag stays 1:1 with the
-  // touch — only the guide-line/label overlay updates less often.
+  // killed mid-drag ("A problem repeatedly occurred"). High-refresh-rate
+  // Android phones can fire touchmove just as fast, so this now applies to
+  // any phone, not just iOS — desktop pointer input never approaches that
+  // rate, so it stays untouched. Coalesce the overlay's *visual* state to a
+  // lower, fixed cadence on phones only; the dragged node itself still
+  // tracks the finger every frame via the imperative node.position() calls
+  // in onItemDragMove, so the drag stays 1:1 with the touch — only the
+  // guide-line/label overlay updates less often.
   const iosOverlayThrottleRef = useRef({ timer: null, pending: null, lastCommit: 0 });
   const IOS_OVERLAY_THROTTLE_MS = 50; // ~20/sec, well below the render cost that was crashing the tab
   // Phase 10 — coalesces a burst of held-down-arrow-key nudges into ONE
@@ -6479,13 +6481,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setDistanceLabels(next.distanceLabels);
   }, []);
 
-  // Applies the overlay state immediately off iOS (unchanged behavior); on
-  // iOS, coalesces rapid calls down to IOS_OVERLAY_THROTTLE_MS, always
+  // Applies the overlay state immediately on desktop (unchanged behavior);
+  // on phones, coalesces rapid calls down to IOS_OVERLAY_THROTTLE_MS, always
   // flushing the latest values so the guides settle correctly once the
   // finger stops moving or the drag ends.
   const commitDragOverlay = useCallback(
     (next) => {
-      if (!isIOSWebKit()) {
+      if (!isMobileDevice()) {
         setAlignmentLines(next.lines);
         setEqualSpacing(next.equalSpacing);
         setDistanceLabels(next.distanceLabels);
