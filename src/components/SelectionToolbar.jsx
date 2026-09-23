@@ -14,6 +14,11 @@ import { TOOLBAR_MENU_STRINGS } from "../i18n/toolbarMenus";
 // that DesignNode.jsx no longer has a double-tap gesture for it.
 const TOOLBAR_WIDTH = 418 + 48;
 const TOOLBAR_HEIGHT = 50;
+// Phone ("large") buttons are bigger touch targets — see the `large` prop
+// below — so the estimated footprint used for positioning/clamping grows
+// with them.
+const TOOLBAR_WIDTH_LARGE = 560;
+const TOOLBAR_HEIGHT_LARGE = 64;
 // Large enough to clear the Transformer's rotate handle — both this GAP and
 // App.jsx's `rotateAnchorOffset` live in the same raw Konva-unit space
 // (neither is scale-compensated), so they shrink/grow together at every
@@ -21,22 +26,29 @@ const TOOLBAR_HEIGHT = 50;
 // the two were zoom-invariant.
 const GAP = 56;
 
-function getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize) {
+function getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize, large) {
+  const toolbarWidth = large ? TOOLBAR_WIDTH_LARGE : TOOLBAR_WIDTH;
+  const toolbarHeight = large ? TOOLBAR_HEIGHT_LARGE : TOOLBAR_HEIGHT;
   const topLeft = contentToScreen({ x: selectionBoundsContent.left, y: selectionBoundsContent.top }, viewport);
   const bottomRight = contentToScreen(
     { x: selectionBoundsContent.right, y: selectionBoundsContent.bottom },
     viewport
   );
 
-  const desiredTop = topLeft.y - TOOLBAR_HEIGHT - GAP;
+  const desiredTop = topLeft.y - toolbarHeight - GAP;
   const flipBelow = desiredTop < 0;
   const top = flipBelow ? bottomRight.y + GAP : desiredTop;
-  const clampedTop = Math.max(0, Math.min(frameSize.height - TOOLBAR_HEIGHT, top));
+  const clampedTop = Math.max(0, Math.min(frameSize.height - toolbarHeight, top));
 
+  // On a narrow phone the toolbar can be wider than the available frame —
+  // it never shrinks its icons to fit (see the component below) — so clamp
+  // against whichever is smaller and let the toolbar scroll horizontally
+  // instead of clipping against the frame edge or running off-screen.
+  const effectiveWidth = Math.min(toolbarWidth, Math.max(0, frameSize.width - 16));
   const centerX = (topLeft.x + bottomRight.x) / 2;
-  const left = Math.max(TOOLBAR_WIDTH / 2, Math.min(frameSize.width - TOOLBAR_WIDTH / 2, centerX));
+  const left = Math.max(effectiveWidth / 2, Math.min(frameSize.width - effectiveWidth / 2, centerX));
 
-  return { left, top: clampedTop };
+  return { left, top: clampedTop, maxWidth: effectiveWidth };
 }
 
 export default function SelectionToolbar({
@@ -53,53 +65,56 @@ export default function SelectionToolbar({
   onToggleLock,
   onOpenShapeFill,
   onOpenContextMenu,
+  // Phone-only: buttons closer in size to MobileBottomBar's, since the
+  // regular desktop size (below) reads as noticeably smaller/harder to tap
+  // next to that bar's icons.
+  large = false,
 }) {
   const { language } = useLanguage();
   const t = TOOLBAR_MENU_STRINGS[language].selectionToolbar;
 
   if (!selectionBoundsContent) return null;
-  const { left, top } = getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize);
+  const { left, top, maxWidth } = getSelectionToolbarPos(selectionBoundsContent, viewport, frameSize, large);
+  const iconSize = large ? 30 : 24;
+  const buttonPad = large ? "p-3.5" : "p-2.5";
+  const buttonClass = `rounded-lg ${buttonPad} text-gray-500 hover:bg-gray-100`;
 
   return (
     <div
-      className="pointer-events-auto absolute z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg"
-      style={{ left, top }}
+      className="pointer-events-auto absolute z-10 flex -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg"
+      style={{ left, top, maxWidth }}
     >
       {onOpenShapeFill && (
-        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenShapeFill} title={t.shapeFill}>
-          <ImagePlus size={24} />
+        <button className={buttonClass} onClick={onOpenShapeFill} title={t.shapeFill}>
+          <ImagePlus size={iconSize} />
         </button>
       )}
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onCopy} title={t.copy}>
-        <ClipboardCopy size={24} />
+      <button className={buttonClass} onClick={onCopy} title={t.copy}>
+        <ClipboardCopy size={iconSize} />
       </button>
       {onPaste && (
-        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onPaste} title={t.paste}>
-          <ClipboardPaste size={24} />
+        <button className={buttonClass} onClick={onPaste} title={t.paste}>
+          <ClipboardPaste size={iconSize} />
         </button>
       )}
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onDuplicate} title={t.duplicate}>
-        <Copy size={24} />
+      <button className={buttonClass} onClick={onDuplicate} title={t.duplicate}>
+        <Copy size={iconSize} />
       </button>
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onForward} title={t.bringForward}>
-        <ArrowUp size={24} />
+      <button className={buttonClass} onClick={onForward} title={t.bringForward}>
+        <ArrowUp size={iconSize} />
       </button>
-      <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onBackward} title={t.sendBackward}>
-        <ArrowDown size={24} />
+      <button className={buttonClass} onClick={onBackward} title={t.sendBackward}>
+        <ArrowDown size={iconSize} />
       </button>
-      <button
-        className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100"
-        onClick={onToggleLock}
-        title={isLocked ? t.unlock : t.lock}
-      >
-        {isLocked ? <Lock size={24} /> : <Unlock size={24} />}
+      <button className={buttonClass} onClick={onToggleLock} title={isLocked ? t.unlock : t.lock}>
+        {isLocked ? <Lock size={iconSize} /> : <Unlock size={iconSize} />}
       </button>
-      <button className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={onDelete} title={t.delete}>
-        <Trash2 size={24} />
+      <button className={`rounded-lg ${buttonPad} text-red-500 hover:bg-red-50`} onClick={onDelete} title={t.delete}>
+        <Trash2 size={iconSize} />
       </button>
       {onOpenContextMenu && (
-        <button className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100" onClick={onOpenContextMenu} title={t.moreOptions}>
-          <MoreVertical size={24} />
+        <button className={buttonClass} onClick={onOpenContextMenu} title={t.moreOptions}>
+          <MoreVertical size={iconSize} />
         </button>
       )}
     </div>

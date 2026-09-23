@@ -432,12 +432,7 @@ export default function TopNavBar({
         <button className={iconButton} onClick={onOpenHome} title={t.backToHome} aria-label={t.backToHome}>
           <Home size={18} />
         </button>
-        <input
-          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-center text-sm font-medium text-gray-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100"
-          value={projectName}
-          onChange={(event) => onProjectNameChange(event.target.value)}
-          aria-label={t.projectNameLabel}
-        />
+        <div className="flex-1" />
         <button className={iconButton} onClick={onUndo} disabled={!canUndo} title={t.undo} aria-label={t.undo}>
           <Undo2 size={18} />
         </button>

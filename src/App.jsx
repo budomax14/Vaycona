@@ -1108,9 +1108,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const { isCompact } = breakpoint;
   const isPhone = breakpoint.isMobile;
   const hasSelection = selectedIds.length > 0;
-  // Selecting something opens the Edit row for it; deselecting closes it.
+  // A plain tap-select no longer force-opens the full Edit panel here — it
+  // shows SelectionToolbar's small floating popup above the element instead
+  // (see SelectionToolbar.jsx), matching desktop. The bottom bar's Edit
+  // button still opens the full panel on demand (see its onToggleEdit), and
+  // entering text-edit/crop/etc. still opens it directly (see the
+  // propertiesToolbarElement render condition below). Deselecting still
+  // closes it.
   useEffect(() => {
-    if (isPhone) setMobileEditOpen(hasSelection);
+    if (isPhone && !hasSelection) setMobileEditOpen(false);
   }, [isPhone, hasSelection]);
   const { hasCoarsePointer } = usePointerCapability();
   useEffect(() => {
@@ -7842,6 +7848,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 viewport={KONVA_VIEWPORT}
                 frameSize={{ width: konvaWidth, height: konvaHeight }}
                 isLocked={isSelectionLocked}
+                large={isPhone}
                 onCopy={copySelection}
                 onPaste={clipboardRef.current.length > 0 ? pasteClipboard : undefined}
                 onDuplicate={duplicateSelection}
@@ -8232,7 +8239,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     <RecentColorsProvider>
     <DocumentColorsProvider items={items}>
     <div
-      className="flex h-screen flex-col overflow-hidden bg-gray-100 text-gray-900"
+      className="flex h-dvh flex-col overflow-hidden bg-gray-100 text-gray-900"
       style={{
         paddingTop: "var(--safe-top)",
         paddingBottom: "var(--safe-bottom)",
@@ -8631,7 +8638,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         </div>
       </main>
 
-      {isPhone && (mobileEditOpen || croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId) && propertiesToolbarElement}
+      {isPhone && (mobileEditOpen || editingTextId || croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId) && propertiesToolbarElement}
 
       {isPhone && (
         <>
