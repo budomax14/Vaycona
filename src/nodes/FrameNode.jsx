@@ -23,10 +23,11 @@ export default function FrameNode({ item, commonProps }) {
   const width = item.width || 100;
   const height = item.height || 100;
   const innerImageRef = useRef(null);
-  const { status, objectUrl } = useAsset(item.contentAssetId);
+  const { status, objectUrl, meta } = useAsset(item.contentAssetId);
   const { image, naturalWidth, naturalHeight } = useImageElement(objectUrl, {
     flipX: item.flipX,
     flipY: item.flipY,
+    meta,
   });
 
   const clipFunc = (ctx) => kindDef.clipPath(ctx, width, height, item);

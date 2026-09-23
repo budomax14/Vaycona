@@ -36,10 +36,11 @@ function boxSceneFunc(ctx, shapeNode) {
 // once on initial mount, silently detaching the Transformer.
 export default function ImageNode({ item, commonProps }) {
   const innerImageRef = useRef(null);
-  const { status, objectUrl } = useAsset(item.assetId);
+  const { status, objectUrl, meta } = useAsset(item.assetId);
   const { image, naturalWidth, naturalHeight } = useImageElement(objectUrl, {
     flipX: item.flipX,
     flipY: item.flipY,
+    meta,
   });
 
   const width = item.width || 100;

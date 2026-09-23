@@ -425,6 +425,50 @@ export function safeCacheNode(node, options = {}) {
    ========================================================= */
 
 /**
+ * Shared math: given an image's real natural dimensions, what size should
+ * it be decoded/redrawn at on mobile? Returns null when it's already
+ * within budget (caller should use the original, untouched). Split out of
+ * downscaleForMobile so computeMobileDownscaleTarget can also be used
+ * BEFORE a full decode happens (see useImageElement.js's createImageBitmap
+ * path) — asset metadata already carries natural width/height (recorded
+ * at upload time), so the safe target size is knowable up front, without
+ * ever materializing the full-resolution bitmap just to measure it.
+ */
+export function computeMobileDownscaleTarget(width, height) {
+  if (!(width > 0) || !(height > 0)) {
+    return null;
+  }
+
+  const totalPixels = width * height;
+
+  const sideScale =
+    MOBILE_MAX_IMAGE_SIDE /
+    Math.max(width, height);
+
+  const areaScale =
+    Math.sqrt(
+      MOBILE_MAX_IMAGE_PIXELS /
+      totalPixels
+    );
+
+  const scale = Math.min(
+    1,
+    sideScale,
+    areaScale
+  );
+
+  // Already safe
+  if (scale >= 0.999) {
+    return null;
+  }
+
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+/**
  * Shrinks oversized images before they become editor working
  * images.
  *
@@ -452,42 +496,14 @@ export function downscaleForMobile(img) {
     img.height ||
     0;
 
-  if (!(width > 0) || !(height > 0)) {
-    return img;
-  }
-
-  const totalPixels = width * height;
-
-  const sideScale =
-    MOBILE_MAX_IMAGE_SIDE /
-    Math.max(width, height);
-
-  const areaScale =
-    Math.sqrt(
-      MOBILE_MAX_IMAGE_PIXELS /
-      totalPixels
-    );
-
-  const scale = Math.min(
-    1,
-    sideScale,
-    areaScale
-  );
+  const target = computeMobileDownscaleTarget(width, height);
 
   // Already safe
-  if (scale >= 0.999) {
+  if (!target) {
     return img;
   }
 
-  const targetWidth = Math.max(
-    1,
-    Math.round(width * scale)
-  );
-
-  const targetHeight = Math.max(
-    1,
-    Math.round(height * scale)
-  );
+  const { width: targetWidth, height: targetHeight } = target;
 
   let canvas;
 
