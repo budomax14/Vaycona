@@ -244,12 +244,53 @@ export async function removeObsoleteSnapshots(savedData) {
   }
 }
 
+// Tab-scoped companion to the localStorage marker below. The localStorage
+// heartbeat-staleness check (STALE_HEARTBEAT_THRESHOLD_MS) exists to avoid a
+// false "unclean" reading when a SECOND tab of the app is legitimately still
+// open and heartbeating — but that same 30s grace window is blind to the
+// most common real crash on phone: iOS's memory-pressure watchdog kills the
+// tab and respawns it in the SAME tab almost instantly (typically 1-3s),
+// well under the threshold, so `wasPriorSessionUnclean()` read it back as
+// "still fresh, must be clean" and the crash went undetected. sessionStorage
+// is scoped to this exact browsing tab/context — never shared with another
+// open tab, so it can't produce that cross-tab false positive — and survives
+// exactly this kind of same-tab renderer-crash-and-reload (it's owned by the
+// tab, not the render process that died). Armed on open, disarmed only by a
+// clean beforeunload, so it's still armed on the very next mount regardless
+// of how little time passed, closing the fast-crash blind spot above.
+const TAB_SESSION_KEY = "personal-canva-tab-session-active-v1";
+
+function wasThisTabSessionUnclean() {
+  try {
+    return sessionStorage.getItem(TAB_SESSION_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function armTabSession() {
+  try {
+    sessionStorage.setItem(TAB_SESSION_KEY, "1");
+  } catch {
+    // Best-effort — falls back to the localStorage heartbeat heuristic below.
+  }
+}
+
+function disarmTabSession() {
+  try {
+    sessionStorage.removeItem(TAB_SESSION_KEY);
+  } catch {
+    // best-effort
+  }
+}
+
 // --- session-open / clean-shutdown marker (localStorage — small, must be
 // readable synchronously at startup) ---
 
 export function markSessionOpen() {
   const sessionId = crypto.randomUUID();
   const now = Date.now();
+  armTabSession();
   try {
     localStorage.setItem(
       SESSION_MARKER_KEY,
@@ -276,6 +317,7 @@ export function heartbeatSession(sessionId) {
 }
 
 export function markSessionClosed(sessionId) {
+  disarmTabSession();
   try {
     const raw = localStorage.getItem(SESSION_MARKER_KEY);
     if (!raw) return;
@@ -291,6 +333,7 @@ export function markSessionClosed(sessionId) {
 // Supporting evidence only (spec §8/§10) — never the sole basis for a
 // recovery prompt, just one input alongside the revision/timestamp compare.
 export function wasPriorSessionUnclean() {
+  if (wasThisTabSessionUnclean()) return true;
   try {
     const raw = localStorage.getItem(SESSION_MARKER_KEY);
     if (!raw) return false;
