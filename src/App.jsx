@@ -7358,7 +7358,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
-    setAppliedPixelRatio(applyCanvasPixelBudget(stage));
+    setAppliedPixelRatio(applyCanvasPixelBudget(stage, { dragging: interactionMode === "dragging" }));
   });
 
   // Phone/tablet touch: the workspace scroller allows native one-finger

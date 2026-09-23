@@ -42,25 +42,41 @@ import Konva from "konva";
    CONFIG
    ========================================================= */
 
-// Cut roughly in half from the original crash-safety budget: phones don't
-// just need to avoid the iOS canvas ceiling, they need the whole editor to
-// feel light — fewer backing-store pixels to rasterize and composite on
-// every edit/drag/zoom, at the cost of some sharpness.
-export const MOBILE_MAX_SCENE_PIXELS = 1_600_000;
+// Cut hard from the original crash-safety budget: phones don't just need to
+// avoid the iOS canvas ceiling, they need the whole editor to feel light —
+// fewer backing-store pixels to rasterize and composite on every
+// edit/drag/zoom, at the cost of some sharpness.
+export const MOBILE_MAX_SCENE_PIXELS = 900_000;
 
-export const MOBILE_MAX_CACHE_PIXELS = 1_000_000;
+export const MOBILE_MAX_CACHE_PIXELS = 600_000;
 
-export const MOBILE_MAX_IMAGE_PIXELS = 2_000_000;
+export const MOBILE_MAX_IMAGE_PIXELS = 1_200_000;
 
-export const MOBILE_MAX_IMAGE_SIDE = 1600;
+export const MOBILE_MAX_IMAGE_SIDE = 1280;
+
+// While a drag gesture is actually in progress, cut further still: this is
+// the exact moment the "A problem repeatedly occurred" crash hits, because
+// every pointermove forces a full-layer redraw (batchDraw doesn't do a
+// dirty-rect repaint, it repaints the whole backing store) at whatever the
+// steady-state budget is, stacked on top of everything else already
+// resident (every other cached node, every other canvas on the page). A
+// smaller backing store during the drag means a cheaper redraw 60x/sec and
+// a smaller peak, and it's only in effect for the gesture's duration —
+// applyCanvasPixelBudget restores the normal budget the instant it ends.
+export const MOBILE_DRAG_MAX_SCENE_PIXELS = 350_000;
 
 // Hit detection does not need retina resolution.
 const MOBILE_HIT_PIXEL_RATIO = 0.4;
 
-// Don't let rendering become completely unusable.
-const MIN_SCENE_PIXEL_RATIO = 0.3;
+// Hit-testing isn't needed for the node actually being dragged (its
+// position is set imperatively, not via hit-graph lookups) or for anything
+// else while a drag owns the pointer — drop it hard for the gesture too.
+const MOBILE_DRAG_HIT_PIXEL_RATIO = 0.2;
 
-const MIN_CACHE_PIXEL_RATIO = 0.3;
+// Don't let rendering become completely unusable.
+const MIN_SCENE_PIXEL_RATIO = 0.25;
+
+const MIN_CACHE_PIXEL_RATIO = 0.25;
 
 
 /* =========================================================
@@ -197,9 +213,15 @@ export function calculateSafePixelRatio(
 /**
  * Apply mobile-safe backing-store sizes to all layers.
  *
- * Desktop is intentionally untouched.
+ * Desktop is intentionally untouched. Pass `{ dragging: true }` while a
+ * drag gesture owns the pointer to drop to the much tighter
+ * MOBILE_DRAG_MAX_SCENE_PIXELS budget for the gesture's duration — see
+ * that constant's comment for why the drag moment specifically needs its
+ * own, lower ceiling. Callers re-invoke this at drag start/end (interaction
+ * mode flipping), not per frame, so this only reallocates each backing
+ * store twice per gesture, never continuously.
  */
-export function applyCanvasPixelBudget(stage) {
+export function applyCanvasPixelBudget(stage, { dragging = false } = {}) {
   if (!stage) {
     return null;
   }
@@ -218,11 +240,11 @@ export function applyCanvasPixelBudget(stage) {
   const sceneRatio = calculateSafePixelRatio(
     width,
     height,
-    MOBILE_MAX_SCENE_PIXELS
+    dragging ? MOBILE_DRAG_MAX_SCENE_PIXELS : MOBILE_MAX_SCENE_PIXELS
   );
 
   const hitRatio = Math.min(
-    MOBILE_HIT_PIXEL_RATIO,
+    dragging ? MOBILE_DRAG_HIT_PIXEL_RATIO : MOBILE_HIT_PIXEL_RATIO,
     sceneRatio
   );
 
