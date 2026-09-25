@@ -7,6 +7,9 @@ import { clamp } from "../../viewport";
 import { isMobileDevice } from "../../canvasPixelBudget";
 import { usePageThumbnails } from "../LeftSidebar/panels/usePageThumbnails";
 import ThumbnailStage from "../LeftSidebar/panels/ThumbnailStage";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useLanguage } from "../../languageContext";
+import { STATUS_BAR_STRINGS } from "../../i18n/statusBarAndMenus";
 import {
   BUTTON_ZOOM_STEP,
   MAX_SCALE,
@@ -73,7 +76,13 @@ const Workspace = forwardRef(function Workspace(
   const activePageWrapperRef = useRef(null);
   const panStateRef = useRef(null);
   // Phone-only static page previews — see this file's top comment.
-  const iosStaticPreviews = useMemo(() => isMobileDevice(), []);
+  // Phone layout shows only the active page (with prev/next arrows), so
+  // there are no inactive pages on screen to preview.
+  const { isMobile } = useBreakpoint();
+  const { language } = useLanguage();
+  const pagerText = STATUS_BAR_STRINGS[language].statusBar;
+  const isMobileDeviceOnce = useMemo(() => isMobileDevice(), []);
+  const iosStaticPreviews = isMobileDeviceOnce && !isMobile;
   const { thumbnails: iosPagePreviews, renderingPageId: iosPreviewRenderingId, handleCapture: handleIosPreviewCapture } = usePageThumbnails(pages, items, {
     enabled: iosStaticPreviews,
   });
@@ -96,7 +105,6 @@ const Workspace = forwardRef(function Workspace(
   const [pageOrigin, setPageOrigin] = useState({ x: 0, y: 0 });
 
   const containerSize = useResizeObserver(containerRef);
-  const { isMobile } = useBreakpoint();
   // Last page id a phone-size fit was applied for — see the effect below.
   const phoneFitPageIdRef = useRef(null);
   const activePage = pages.find((page) => page.id === activePageId) || pages[0];
@@ -473,6 +481,7 @@ const Workspace = forwardRef(function Workspace(
           >
             {pages.map((page, index) => {
               const isActive = page.id === activePageId;
+              if (isMobile && !isActive) return null;
               return (
                 <div key={page.id} ref={isActive ? activePageWrapperRef : undefined}>
                   <PageSlot
@@ -493,6 +502,35 @@ const Workspace = forwardRef(function Workspace(
             })}
           </div>
         </div>
+        {isMobile && pages.length > 1 && (() => {
+          const activeIndex = pages.findIndex((p) => p.id === activePageId);
+          const prevPage = activeIndex > 0 ? pages[activeIndex - 1] : null;
+          const nextPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
+          const arrowClass =
+            "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-md transition-opacity active:scale-95 disabled:pointer-events-none disabled:opacity-0";
+          return (
+            <>
+              <button
+                type="button"
+                className={`${arrowClass} left-2`}
+                aria-label={pagerText.previousPage}
+                disabled={!prevPage}
+                onClick={() => prevPage && onActivatePage(prevPage.id)}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                type="button"
+                className={`${arrowClass} right-2`}
+                aria-label={pagerText.nextPage}
+                disabled={!nextPage}
+                onClick={() => nextPage && onActivatePage(nextPage.id)}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </>
+          );
+        })()}
         {/* iOS-only: mounts exactly one offscreen Stage at a time to
             (re)generate a static preview for whichever page is currently
             queued — see this file's top comment and PagesPanel's identical
