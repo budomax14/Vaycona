@@ -1190,6 +1190,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // True while a phone preview drag is in flight (hides the selection pill).
   const [phoneDragging, setPhoneDragging] = useState(false);
   const lastPhoneDragEndRef = useRef(0);
+  // Fingers currently on screen (phone) — see handleTransformStart.
+  const phoneTouchCountRef = useRef(0);
   const [mobileViewOpen, setMobileViewOpen] = useState(false);
   const [grabItExtracting, setGrabItExtracting] = useState(false);
 
@@ -5999,6 +6001,25 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // every touchmove, including throughout every drag.
     if (pointer && !isPhone) setCursorPos(pointer);
 
+    // Phone: a pinch's first finger lands a moment before the second, so
+    // it has usually already started a marquee (or the empty-canvas
+    // long-press timer) by the time the two-finger gesture takes over. Left
+    // running, the marquee re-rendered the editor on every move of the
+    // pinch and then applied a nonsense selection when it ended — drop it
+    // the moment the gesture is detected.
+    if (isPhone && workspaceRef.current?.isGestureActive?.()) {
+      if (emptyLongPressTimerRef.current) {
+        clearTimeout(emptyLongPressTimerRef.current);
+        emptyLongPressTimerRef.current = null;
+      }
+      if (marqueeStartRef.current) {
+        marqueeStartRef.current = null;
+        setMarquee(null);
+        setInteractionMode("idle");
+      }
+      return;
+    }
+
     if (pointer && brushDrawingRef.current) {
       brushPointsRef.current = [...brushPointsRef.current, pointer.x, pointer.y];
       setLiveStroke({ points: brushPointsRef.current });
@@ -7116,6 +7137,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }, [selectedIds, items, editingTextId, croppingItemId, fadeEditItemId, grabItEditItemId, editingTableId, syncTransformerNodes]);
 
   function handleTransformStart() {
+    // Phone: a finger landing on a handle while another finger is already
+    // down is the start of a pinch, not a resize. Konva starts the
+    // transform from inside its own touchstart handling, so stop it right
+    // after that handler returns.
+    if (isPhone && phoneTouchCountRef.current >= 2) {
+      queueMicrotask(() => {
+        if (transformerRef.current?.isTransforming?.()) transformerRef.current.stopTransform();
+      });
+    }
     const anchor = transformerRef.current?.getActiveAnchor();
     setInteractionMode(anchor === "rotater" ? "rotating" : "resizing");
     // Capture each currently-selected GROUP's bounds before the gesture —
@@ -7716,9 +7746,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
       return false;
     }
     function handleTouchStart(event) {
+      phoneTouchCountRef.current = event.touches.length;
       if (event.touches.length !== 1) {
         claimedTouch = false; // second finger = pinch/pan
         if (phoneDrag) endPhoneDrag(false); // a pinch cancels a preview drag
+        // ...and a resize/rotate the first finger started on a handle —
+        // otherwise that finger keeps transforming the element (re-rendering
+        // and redrawing every frame) for the whole pinch.
+        const transformer = transformerRef.current;
+        if (isPhoneRef.current && transformer?.isTransforming?.()) transformer.stopTransform();
         return;
       }
       claimedTouch = false;
@@ -7735,6 +7771,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }
     }
     function handleTouchMove(event) {
+      // Phone two-finger gestures on the canvas are fully owned by
+      // Workspace's pinch handler (it shows zoom + pan as a CSS transform).
+      // Letting the browser natively pan the scroller underneath as well
+      // fought that transform and fired a scroll event every frame.
+      if (isPhoneRef.current && event.cancelable && event.touches.length >= 2 && event.target instanceof Element && event.target.closest(".canvas-area")) {
+        event.preventDefault();
+        return;
+      }
       if (phoneDrag && event.touches.length === 1) {
         const touch = Array.from(event.touches).find((t) => t.identifier === phoneDrag.touchId);
         if (touch) {
@@ -7750,6 +7794,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (claimedTouch || interactionModeRef.current === "dragging") event.preventDefault();
     }
     function handleTouchEnd(event) {
+      phoneTouchCountRef.current = event.touches.length;
       if (phoneDrag && !Array.from(event.touches).some((t) => t.identifier === phoneDrag.touchId)) {
         endPhoneDrag(event.type === "touchend");
       }

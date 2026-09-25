@@ -79,6 +79,8 @@ const Workspace = forwardRef(function Workspace(
   // Phone layout shows only the active page (with prev/next arrows), so
   // there are no inactive pages on screen to preview.
   const { isMobile } = useBreakpoint();
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
   const { language } = useLanguage();
   const pagerText = STATUS_BAR_STRINGS[language].statusBar;
   const isMobileDeviceOnce = useMemo(() => isMobileDevice(), []);
@@ -88,6 +90,12 @@ const Workspace = forwardRef(function Workspace(
   });
   const iosPreviewRenderingPage = iosStaticPreviews ? pages.find((p) => p.id === iosPreviewRenderingId) : null;
   const pendingZoomAnchorRef = useRef(null);
+  // Phone pinch: the page stack being visually zoomed by a CSS transform
+  // mid-gesture, and where to re-anchor once the real scale commits — see
+  // the pinch effect below.
+  const pageStackRef = useRef(null);
+  const pendingPinchAnchorRef = useRef(null);
+
   const programmaticScrollRef = useRef(false);
   // Two-finger pinch/pan gesture tracking — see the dedicated effect below.
   // gestureActiveRef is read by App.jsx's handleStageMouseDown (via
@@ -109,10 +117,16 @@ const Workspace = forwardRef(function Workspace(
   const phoneFitPageIdRef = useRef(null);
   const activePage = pages.find((page) => page.id === activePageId) || pages[0];
 
+  const showRulersRef = useRef(showRulers);
+  showRulersRef.current = showRulers;
   const measurePageOrigin = useCallback(() => {
     const container = containerRef.current;
     const wrapper = activePageWrapperRef.current;
     if (!container || !wrapper) return;
+    // pageOrigin only positions the rulers. On phone (rulers always hidden)
+    // setting it on every scroll event re-rendered the workspace — and
+    // with it the whole Konva page — on every frame of a scroll or pinch.
+    if (isMobileRef.current && !showRulersRef.current) return;
     const containerRect = container.getBoundingClientRect();
     const wrapperRect = wrapper.getBoundingClientRect();
     setPageOrigin({ x: wrapperRect.left - containerRect.left, y: wrapperRect.top - containerRect.top });
@@ -150,12 +164,39 @@ const Workspace = forwardRef(function Workspace(
     });
   }, [scale]);
 
+  // Phone pinch settle: runs in the same commit as the new scale, before
+  // paint, so the live CSS transform is swapped for the real zoom with no
+  // visible jump — drops the transform, then scrolls so the page point that
+  // was under the fingers at the start of the pinch sits under them now.
+  useLayoutEffect(() => {
+    settlePhonePinch();
+  }, [scale]);
+
+  function settlePhonePinch() {
+    const pending = pendingPinchAnchorRef.current;
+    const container = containerRef.current;
+    const stack = pageStackRef.current;
+    const wrapper = activePageWrapperRef.current;
+    if (!pending) return;
+    pendingPinchAnchorRef.current = null;
+    if (stack) stack.style.transform = "";
+    if (!container || !wrapper) return;
+    const pageRect = wrapper.getBoundingClientRect();
+    programmaticScrollRef.current = true;
+    container.scrollLeft += pageRect.left + pending.pageX * scale - pending.targetX;
+    container.scrollTop += pageRect.top + pending.pageY * scale - pending.targetY;
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+    measurePageOrigin();
+  }
+
   // Declared after the zoom-anchor-restore effect above so it reads the
   // already-corrected scroll position within the same commit, whenever
   // zoom, resize, or the active page itself changes.
   useLayoutEffect(() => {
     measurePageOrigin();
-  }, [measurePageOrigin, scale, containerSize.width, containerSize.height, activePageId, activePage?.width, activePage?.height]);
+  }, [measurePageOrigin, scale, containerSize.width, containerSize.height, activePageId, activePage?.width, activePage?.height, showRulers]);
 
   // Phone: when the page fits the screen width there's nothing to pan to
   // sideways, but the Stage's pasteboard margin still overhangs the page and
@@ -322,6 +363,34 @@ const Workspace = forwardRef(function Workspace(
         }
         const [a, b] = Array.from(activeTouchPointersRef.current.values());
         gestureStateRef.current = { startDistance: distanceBetween(a, b), startScale: scale, lastMid: midpointOf(a, b) };
+        // Phone: the pinch is shown as a GPU transform of the page stack and
+        // only committed to the real `scale` when the fingers lift. Changing
+        // `scale` every frame re-rendered the whole editor, restyled the
+        // Transformer and re-rasterized the CSS-scaled canvas on each
+        // pointermove — the same per-frame load that used to crash iOS
+        // Safari mid-drag.
+        const stack = pageStackRef.current;
+        const wrapper = activePageWrapperRef.current;
+        if (isMobileRef.current && stack && wrapper) {
+          const mid = midpointOf(a, b);
+          const stackRect = stack.getBoundingClientRect();
+          const pageRect = wrapper.getBoundingClientRect();
+          Object.assign(gestureStateRef.current, {
+            phone: true,
+            startMid: mid,
+            stackLeft: stackRect.left,
+            stackTop: stackRect.top,
+            scrollLeft0: container.scrollLeft,
+            scrollTop0: container.scrollTop,
+            // Page-local point (content units) under the fingers at start.
+            pageX: (mid.x - pageRect.left) / scale,
+            pageY: (mid.y - pageRect.top) / scale,
+            ratio: 1,
+            frame: 0,
+          });
+          stack.style.transformOrigin = "0 0";
+          stack.style.willChange = "transform";
+        }
         gestureActiveRef.current = true;
         onManualInteraction();
         try {
@@ -344,6 +413,26 @@ const Workspace = forwardRef(function Workspace(
       const mid = midpointOf(a, b);
       const distanceRatio = distanceBetween(a, b) / state.startDistance;
       const newScale = clamp(state.startScale * distanceRatio, MIN_SCALE, MAX_SCALE);
+      if (state.phone) {
+        state.ratio = newScale / state.startScale;
+        state.lastMid = mid;
+        if (!state.frame) {
+          state.frame = requestAnimationFrame(() => {
+            state.frame = 0;
+            const stack = pageStackRef.current;
+            if (!stack || gestureStateRef.current !== state) return;
+            const s = state.ratio;
+            const localX = state.startMid.x - state.stackLeft;
+            const localY = state.startMid.y - state.stackTop;
+            // Keep the start point under the (moving) finger midpoint, and
+            // cancel out any scroll the browser applied mid-gesture.
+            const tx = state.lastMid.x - state.stackLeft - s * localX + (container.scrollLeft - state.scrollLeft0);
+            const ty = state.lastMid.y - state.stackTop - s * localY + (container.scrollTop - state.scrollTop0);
+            stack.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${s})`;
+          });
+        }
+        return;
+      }
       const rect = container.getBoundingClientRect();
       const scaleChanged = Math.abs(newScale - scale) > 0.001;
       if (scaleChanged) {
@@ -359,7 +448,20 @@ const Workspace = forwardRef(function Workspace(
     function handlePointerEnd(event) {
       activeTouchPointersRef.current.delete(event.pointerId);
       if (activeTouchPointersRef.current.size < 2 && gestureStateRef.current) {
+        const state = gestureStateRef.current;
         gestureStateRef.current = null;
+        if (state.phone) {
+          if (state.frame) cancelAnimationFrame(state.frame);
+          const finalScale = clamp(state.startScale * state.ratio, MIN_SCALE, MAX_SCALE);
+          pendingPinchAnchorRef.current = { pageX: state.pageX, pageY: state.pageY, targetX: state.lastMid.x, targetY: state.lastMid.y };
+          if (Math.abs(finalScale - scale) > 0.0005) {
+            onScaleChange(finalScale); // settlePhonePinch runs in that commit
+          } else {
+            settlePhonePinch(); // pure two-finger pan: no re-render needed
+          }
+          const stack = pageStackRef.current;
+          if (stack) stack.style.willChange = "";
+        }
         // Delayed clear (not immediate) — the trailing single finger lifting
         // last would otherwise land on Konva's onPointerUp in the same tick
         // and be read as a stray single-finger tap/marquee-start.
@@ -379,7 +481,7 @@ const Workspace = forwardRef(function Workspace(
       container.removeEventListener("pointerup", handlePointerEnd);
       container.removeEventListener("pointercancel", handlePointerEnd);
     };
-  }, [scale, zoomAroundPoint, onManualInteraction, measurePageOrigin]);
+  }, [scale, zoomAroundPoint, onManualInteraction, measurePageOrigin, onScaleChange]);
 
   useEffect(() => () => clearTimeout(gestureEndTimeoutRef.current), []);
 
@@ -476,6 +578,7 @@ const Workspace = forwardRef(function Workspace(
           }}
         >
           <div
+            ref={pageStackRef}
             className="flex min-h-full flex-col items-center py-20"
             style={{ gap: WORKSPACE_PAGE_GAP, alignItems: "safe center", justifyContent: "safe center" }}
           >
