@@ -311,6 +311,18 @@ import ExportAnimationDialog from "./components/ExportAnimationDialog";
 // itself is always exactly page-sized/positioned — content (0,0) is its
 // own local (0,0) — regardless of the pasteboard below, so x/y stay 0.
 const KONVA_VIEWPORT = { scale: RENDER_SCALE_CAP, x: 0, y: 0 };
+// Which leaf ids a drag that starts on `id` moves — shared by the Konva
+// drag (onItemDragStart) and the phone preview drag. A grouped leaf always
+// drags its whole top-level group; a leaf inside the current selection
+// drags the whole (group-expanded) selection; anything else drags alone.
+function getDragMoveIds(items, id, selectedIds) {
+  const chain = getAncestorChain(items, id);
+  const topGroupId = chain.length > 1 ? chain[chain.length - 1] : null;
+  if (topGroupId) return expandToLeafIds(items, [topGroupId]);
+  const expandedSelected = expandToLeafIds(items, selectedIds);
+  return expandedSelected.includes(id) ? expandedSelected : [id];
+}
+
 // Phone selection handles, in on-screen CSS px (see phoneHandlePx).
 const PHONE_ANCHOR_SIZE = 14;
 const PHONE_ANCHOR_HIT_PAD = 14;
@@ -1175,6 +1187,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Phone layout (see useBreakpoint's `isMobile`): the properties row and the
   // View panel only show when asked for, instead of always sitting on screen.
   const [mobileEditOpen, setMobileEditOpen] = useState(false);
+  // True while a phone preview drag is in flight (hides the selection pill).
+  const [phoneDragging, setPhoneDragging] = useState(false);
+  const lastPhoneDragEndRef = useRef(0);
   const [mobileViewOpen, setMobileViewOpen] = useState(false);
   const [grabItExtracting, setGrabItExtracting] = useState(false);
 
@@ -3558,6 +3573,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // drag-overlay state commits — sustained over a multi-second drag, heavy
   // enough to crash Safari's tab process.
   const handleItemDblClick = useCallback((itemId, clientX, clientY) => {
+    if (Date.now() - lastPhoneDragEndRef.current < 400) return; // see handleItemTapSelect
     const liveItems = itemsRef.current;
     const chain = getAncestorChain(liveItems, itemId); // [itemId, parent, ..., topmost]
     const enteredGroupIdNow = enteredGroupIdRef.current;
@@ -5907,6 +5923,18 @@ export default function App({ editorMode = "workspace", templateSession = null }
     return clickedEmpty || clickedBackground;
   }
 
+  // Phone: whether a stage-space point falls inside the current selection's
+  // box (plus a small margin). A finger there grabs the selection for a
+  // preview drag even over transparent pixels, so it must not read as an
+  // empty-canvas tap (deselect + marquee) either.
+  function isInsidePhoneSelectionBox(pos) {
+    const transformer = transformerRef.current;
+    if (!pos || !transformer || transformer.nodes().length === 0 || !transformer.isVisible()) return false;
+    const box = transformer.getClientRect();
+    const pad = 12;
+    return pos.x >= box.x - pad && pos.x <= box.x + box.width + pad && pos.y >= box.y - pad && pos.y <= box.y + box.height + pad;
+  }
+
   function handleStageMouseDown(event) {
     if (workspaceRef.current?.isGestureActive?.()) return;
     setContextMenu(null);
@@ -5932,6 +5960,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     }
 
     if (!isEmptyClickTarget(event)) return;
+    if (isPhone && event.evt.pointerType !== "mouse" && isInsidePhoneSelectionBox(stageRef.current?.getPointerPosition())) return;
     if (editingTableIdRef.current) exitTableEditMode();
 
     const additive = event.evt.shiftKey || event.evt.metaKey || event.evt.ctrlKey;
@@ -5964,7 +5993,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
   function handleStageMouseMove(event) {
     const stage = stageRef.current;
     const pointer = stage.getRelativePointerPosition();
-    if (pointer) setCursorPos(pointer);
+    // cursorPos only feeds the desktop status bar's X/Y readout and the
+    // ruler cursor marker (hover concepts a finger doesn't have). On phone,
+    // storing it re-rendered the whole editor — and redrew the canvas — on
+    // every touchmove, including throughout every drag.
+    if (pointer && !isPhone) setCursorPos(pointer);
 
     if (pointer && brushDrawingRef.current) {
       brushPointsRef.current = [...brushPointsRef.current, pointer.x, pointer.y];
@@ -6493,6 +6526,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
     });
   }, []);
 
+  // Konva still fires tap/dbltap on the finger-up that ends a phone preview
+  // drag (the item never Konva-dragged, so nothing marks it as a drag). A
+  // tap there would collapse a multi-selection to one item, and two quick
+  // drags would read as a double-tap (entering text edit) — so drop both
+  // right after a preview drag.
+  const handleItemTapSelect = useCallback(
+    (id, options) => {
+      if (Date.now() - lastPhoneDragEndRef.current < 400) return;
+      handleSelect(id, options);
+    },
+    [handleSelect]
+  );
+
   const handleItemContextMenu = useCallback((id, nativeEvent) => {
     const resolved = resolveClickSelection(itemsRef.current, id, {
       ctrlKey: nativeEvent.metaKey || nativeEvent.ctrlKey,
@@ -6592,6 +6638,30 @@ export default function App({ editorMode = "workspace", templateSession = null }
     });
   }, []);
 
+  // Commits one move gesture (Konva drag or phone preview drag) as a single
+  // undo step: every id in startPositions shifts by the same content-space
+  // delta, and any group whose children moved gets its bounds recomputed.
+  const commitItemMove = useCallback(
+    (startPositions, deltaX, deltaY) => {
+      const now = Date.now();
+      const movedItems = itemsRef.current.filter((item) => startPositions.has(item.id));
+      const affectedParentIds = [...new Set(movedItems.map((item) => item.parentId).filter(Boolean))];
+      const next = itemsRef.current.map((item) => {
+        if (!startPositions.has(item.id)) return item;
+        const s = startPositions.get(item.id);
+        return { ...item, x: s.x + deltaX, y: s.y + deltaY, updatedAt: now };
+      });
+      const movedIds = [...startPositions.keys()];
+      commit(recomputeAffectedGroupBounds(next, affectedParentIds), {
+        type: "move",
+        label: movedIds.length > 1 ? `Move ${movedIds.length} objects` : "Move object",
+        itemIds: movedIds,
+      });
+      return movedIds;
+    },
+    [commit]
+  );
+
   const onItemDragStart = useCallback((id, node) => {
     const items = itemsRef.current;
     // Once an object belongs to a group, it can never be dragged
@@ -6601,19 +6671,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // Ungroup frees it. getAncestorChain's last entry is the topmost
     // ancestor, guaranteed to be a group if the chain has more than one
     // link (parentId only ever points at a group).
-    const chain = getAncestorChain(items, id);
-    const topGroupId = chain.length > 1 ? chain[chain.length - 1] : null;
     // Otherwise: if the physically-dragged leaf is part of the current
     // logical selection (expanded through any selected group), the whole
     // expanded set moves together; otherwise just the one leaf does
     // (matches the pre-Phase-5 shape of this check exactly, just against
     // the expanded leaf set instead of the raw selectedIds).
-    const expandedSelected = expandToLeafIds(items, selectedIdsRef.current);
-    const idsToMove = topGroupId
-      ? expandToLeafIds(items, [topGroupId])
-      : expandedSelected.includes(id)
-        ? expandedSelected
-        : [id];
+    const idsToMove = getDragMoveIds(items, id, selectedIdsRef.current);
     const startPositions = new Map();
     idsToMove.forEach((itemId) => {
       const item = items.find((candidate) => candidate.id === itemId);
@@ -6692,21 +6755,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }
       const deltaX = node.x() - start.x;
       const deltaY = node.y() - start.y;
-
-      const now = Date.now();
-      const movedItems = itemsRef.current.filter((item) => origin.startPositions.has(item.id));
-      const affectedParentIds = [...new Set(movedItems.map((item) => item.parentId).filter(Boolean))];
-      const next = itemsRef.current.map((item) => {
-        if (!origin.startPositions.has(item.id)) return item;
-        const s = origin.startPositions.get(item.id);
-        return { ...item, x: s.x + deltaX, y: s.y + deltaY, updatedAt: now };
-      });
-      const movedIds = [...origin.startPositions.keys()];
-      commit(recomputeAffectedGroupBounds(next, affectedParentIds), {
-        type: "move",
-        label: movedIds.length > 1 ? `Move ${movedIds.length} objects` : "Move object",
-        itemIds: movedIds,
-      });
+      const movedIds = commitItemMove(origin.startPositions, deltaX, deltaY);
       dragOriginsRef.current = null;
       cancelIosOverlayThrottle();
       setAlignmentLines({ vertical: [], horizontal: [] });
@@ -6715,7 +6764,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       setInteractionMode("idle");
       recordDragDiagnostic("drag-end", { itemId: id, movedCount: movedIds.length });
     },
-    [commit, cancelIosOverlayThrottle, recordDragDiagnostic]
+    [commit, cancelIosOverlayThrottle, recordDragDiagnostic, commitItemMove]
   );
 
   const dragBoundFunc = useCallback(function dragBoundFunc(pos) {
@@ -7495,8 +7544,140 @@ export default function App({ editorMode = "workspace", templateSession = null }
   isBrushSectionActiveRef.current = isBrushSectionActive;
   const isPhoneRef = useRef(isPhone);
   isPhoneRef.current = isPhone;
+  // Phone preview drag (see the effect below) reads these through a ref so
+  // its document listeners never go stale.
+  const phoneDragFnsRef = useRef({});
+  phoneDragFnsRef.current = { commitItemMove, handleSelect, setPhoneDragging };
   useEffect(() => {
     let claimedTouch = false;
+    // Phone "preview drag": items aren't Konva-draggable on phone (see the
+    // DesignNode isSpaceDown prop). Instead, once a finger on an item moves
+    // past a small threshold, the moving nodes are snapshotted at screen
+    // resolution into a fixed DOM layer that follows the finger via a GPU
+    // transform, the real nodes are hidden, and nothing on the canvas
+    // redraws until release — then the move commits as one undo step. This
+    // keeps a drag to two canvas redraws total (start + drop) instead of
+    // one per frame, which is what exhausted iOS Safari's canvas memory.
+    let phoneDrag = null;
+    const PHONE_DRAG_THRESHOLD = 6;
+
+    // The design item a Konva hit belongs to, if it can be moved by touch.
+    function movableItemIdForNode(node, stage) {
+      const items = itemsRef.current;
+      while (node && node !== stage) {
+        if (node.getClassName?.() === "Transformer") return null;
+        const id = node.id?.();
+        if (id && nodesMapRef.current.get(id) === node) {
+          const itemsById = new Map(items.map((it) => [it.id, it]));
+          const item = itemsById.get(id);
+          if (!item || item.documentBody || isEffectivelyLocked(item, itemsById)) return null;
+          return id;
+        }
+        node = node.getParent();
+      }
+      return null;
+    }
+    function phoneDragBlocked() {
+      return (
+        isBrushSectionActiveRef.current ||
+        !!editingTextIdRef.current ||
+        !!croppingItemIdRef.current ||
+        !!fadeEditItemIdRef.current ||
+        !!grabItEditItemIdRef.current ||
+        !!imageFillEditItemIdRef.current
+      );
+    }
+    function beginPhoneDrag() {
+      const stage = stageRef.current;
+      const drag = phoneDrag;
+      if (!stage || !drag) return false;
+      const items = itemsRef.current;
+      const ids = getDragMoveIds(items, drag.id, selectedIdsRef.current);
+      const startPositions = new Map();
+      const nodes = [];
+      ids.forEach((itemId) => {
+        const item = items.find((candidate) => candidate.id === itemId);
+        const node = nodesMapRef.current.get(itemId);
+        if (!item || !node) return;
+        startPositions.set(itemId, { x: item.x, y: item.y });
+        nodes.push(node);
+      });
+      if (nodes.length === 0) return false;
+      const containerRect = stage.container().getBoundingClientRect();
+      const k = containerRect.width / stage.width(); // stage px -> CSS px
+      const preview = document.createElement("div");
+      preview.setAttribute("data-phone-drag-preview", "");
+      preview.style.cssText = `position:fixed;left:${containerRect.left}px;top:${containerRect.top}px;width:0;height:0;z-index:30;pointer-events:none;will-change:transform;`;
+      const pixelRatio = Math.min(3, k * (window.devicePixelRatio || 1));
+      nodes.forEach((node) => {
+        const rect = node.getClientRect();
+        let piece = null;
+        try {
+          piece = node.toCanvas({ pixelRatio });
+        } catch {
+          piece = null; // canvas memory exhausted — fall back to an outline
+        }
+        if (!piece) {
+          piece = document.createElement("div");
+          piece.style.border = "2px dashed #d97706";
+          piece.style.borderRadius = "4px";
+        }
+        piece.style.position = "absolute";
+        piece.style.left = `${rect.x * k}px`;
+        piece.style.top = `${rect.y * k}px`;
+        piece.style.width = `${rect.width * k}px`;
+        piece.style.height = `${rect.height * k}px`;
+        piece.style.filter = "drop-shadow(0 6px 10px rgba(0,0,0,0.18))";
+        preview.appendChild(piece);
+      });
+      document.body.appendChild(preview);
+      nodes.forEach((node) => node.visible(false));
+      transformerRef.current?.visible(false);
+      nodes[0].getLayer()?.batchDraw();
+      Object.assign(drag, { started: true, startPositions, nodes, preview, frame: 0 });
+      phoneDragFnsRef.current.setPhoneDragging(true);
+      return true;
+    }
+    function movePhoneDragPreview() {
+      const drag = phoneDrag;
+      if (!drag?.preview || drag.frame) return;
+      drag.frame = requestAnimationFrame(() => {
+        drag.frame = 0;
+        drag.preview.style.transform = `translate3d(${drag.dx}px, ${drag.dy}px, 0)`;
+      });
+    }
+    function endPhoneDrag(commitMove) {
+      const drag = phoneDrag;
+      phoneDrag = null;
+      if (!drag?.started) return;
+      if (drag.frame) cancelAnimationFrame(drag.frame);
+      const scaleNow = scaleRef.current || 1;
+      const deltaX = drag.dx / scaleNow; // CSS px -> content units
+      const deltaY = drag.dy / scaleNow;
+      const moved = commitMove && (Math.abs(drag.dx) > 0.5 || Math.abs(drag.dy) > 0.5);
+      drag.nodes.forEach((node) => {
+        const start = drag.startPositions.get(node.id());
+        // Place the real node where the preview was dropped before showing
+        // it, so there's no frame of it at the old spot while React catches
+        // up with the committed position.
+        if (moved && start) node.position({ x: start.x + deltaX, y: start.y + deltaY });
+        node.visible(true);
+      });
+      const transformer = transformerRef.current;
+      transformer?.visible(true);
+      if (moved) {
+        phoneDragFnsRef.current.commitItemMove(drag.startPositions, deltaX, deltaY);
+        const expandedSelected = expandToLeafIds(itemsRef.current, selectedIdsRef.current);
+        if (!expandedSelected.includes(drag.id)) phoneDragFnsRef.current.handleSelect(drag.id, { additive: false });
+        lastPhoneDragEndRef.current = Date.now();
+      }
+      transformer?.forceUpdate?.();
+      drag.nodes[0]?.getLayer()?.batchDraw();
+      const preview = drag.preview;
+      requestAnimationFrame(() => preview.remove());
+      phoneDragFnsRef.current.setPhoneDragging(false);
+    }
+
     function touchIsOnStage(event) {
       const container = stageRef.current?.container();
       return Boolean(container && event.target instanceof Node && container.contains(event.target));
@@ -7506,16 +7687,29 @@ export default function App({ editorMode = "workspace", templateSession = null }
       stage.setPointersPositions(event);
       const pos = stage.getPointerPosition();
       if (!pos) return false;
-      let node = stage.getIntersection(pos);
+      const hit = stage.getIntersection(pos);
+      let node = hit;
       while (node && node !== stage) {
         if (node.draggable()) return true;
         node = node.getParent();
       }
+      if (isPhoneRef.current && !phoneDragBlocked()) {
+        // Phone items aren't Konva-draggable — claim them for preview drag.
+        const itemId = hit ? movableItemIdForNode(hit, stage) : null;
+        if (itemId) {
+          phoneDrag = { id: itemId, pending: true };
+          return true;
+        }
+      }
       const transformer = transformerRef.current;
-      if (isPhoneRef.current && transformer && transformer.nodes().length > 0 && transformer.isVisible()) {
-        const box = transformer.getClientRect();
-        const pad = 12;
-        if (pos.x >= box.x - pad && pos.x <= box.x + box.width + pad && pos.y >= box.y - pad && pos.y <= box.y + box.height + pad) {
+      if (isPhoneRef.current && transformer) {
+        if (isInsidePhoneSelectionBox(pos)) {
+          // A finger on a transparent part of the selection box (between a
+          // text's glyphs, say) drags the selection, like Canva.
+          const selectedNodeId = transformer.nodes()[0]?.id?.();
+          if (!phoneDragBlocked() && selectedNodeId && movableItemIdForNode(transformer.nodes()[0], stage)) {
+            phoneDrag = { id: selectedNodeId, pending: true };
+          }
           return true;
         }
       }
@@ -7524,21 +7718,41 @@ export default function App({ editorMode = "workspace", templateSession = null }
     function handleTouchStart(event) {
       if (event.touches.length !== 1) {
         claimedTouch = false; // second finger = pinch/pan
+        if (phoneDrag) endPhoneDrag(false); // a pinch cancels a preview drag
         return;
       }
       claimedTouch = false;
+      if (phoneDrag) endPhoneDrag(false);
       if (!event.cancelable || !touchIsOnStage(event)) return;
       const stage = stageRef.current;
       if (stage && shouldClaim(stage, event)) {
         claimedTouch = true;
         event.preventDefault();
+        if (phoneDrag) {
+          const touch = event.touches[0];
+          Object.assign(phoneDrag, { touchId: touch.identifier, startX: touch.clientX, startY: touch.clientY, dx: 0, dy: 0, started: false });
+        }
       }
     }
     function handleTouchMove(event) {
+      if (phoneDrag && event.touches.length === 1) {
+        const touch = Array.from(event.touches).find((t) => t.identifier === phoneDrag.touchId);
+        if (touch) {
+          phoneDrag.dx = touch.clientX - phoneDrag.startX;
+          phoneDrag.dy = touch.clientY - phoneDrag.startY;
+          if (!phoneDrag.started && Math.hypot(phoneDrag.dx, phoneDrag.dy) >= PHONE_DRAG_THRESHOLD) {
+            if (!beginPhoneDrag()) phoneDrag = null;
+          }
+          if (phoneDrag?.started) movePhoneDragPreview();
+        }
+      }
       if (!isPhoneRef.current || !event.cancelable || event.touches.length !== 1) return;
       if (claimedTouch || interactionModeRef.current === "dragging") event.preventDefault();
     }
     function handleTouchEnd(event) {
+      if (phoneDrag && !Array.from(event.touches).some((t) => t.identifier === phoneDrag.touchId)) {
+        endPhoneDrag(event.type === "touchend");
+      }
       if (event.touches.length === 0) claimedTouch = false;
     }
     document.addEventListener("touchstart", handleTouchStart, { passive: false, capture: true });
@@ -7550,6 +7764,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       document.removeEventListener("touchmove", handleTouchMove, { capture: true });
       document.removeEventListener("touchend", handleTouchEnd, { capture: true });
       document.removeEventListener("touchcancel", handleTouchEnd, { capture: true });
+      if (phoneDrag) endPhoneDrag(false);
     };
   }, []);
 
@@ -7723,10 +7938,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
                       <DesignNode
                         key={item.id}
                         item={item}
-                        isSpaceDown={isSpaceDown || isPreviewPlaying}
+                        isSpaceDown={isSpaceDown || isPreviewPlaying || isPhone}
                         isEditingText={editingTextId === item.id}
                         isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById) || activeSidebarSection === "brush"}
-                        onSelect={handleSelect}
+                        onSelect={isPhone ? handleItemTapSelect : handleSelect}
                         onContextMenu={handleItemContextMenu}
                         onDragStart={onItemDragStart}
                         onDragMove={onItemDragMove}
@@ -7743,10 +7958,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     <DesignNode
                       key={item.id}
                       item={item}
-                      isSpaceDown={isSpaceDown || isPreviewPlaying}
+                      isSpaceDown={isSpaceDown || isPreviewPlaying || isPhone}
                       isEditingText={editingTextId === item.id}
                       isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById) || activeSidebarSection === "brush"}
-                      onSelect={handleSelect}
+                      onSelect={isPhone ? handleItemTapSelect : handleSelect}
                       onContextMenu={handleItemContextMenu}
                       onDragStart={onItemDragStart}
                       onDragMove={onItemDragMove}
@@ -7965,7 +8180,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
               unit={activeUnit}
             />}
 
-            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && !(isPhone && ["dragging", "resizing", "rotating"].includes(interactionMode)) && (
+            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && !(isPhone && (phoneDragging || ["dragging", "resizing", "rotating"].includes(interactionMode))) && (
               <SelectionToolbar
                 selectionBoundsContent={selectedBoundsContent}
                 viewport={KONVA_VIEWPORT}
