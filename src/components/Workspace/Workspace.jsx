@@ -149,6 +149,17 @@ const Workspace = forwardRef(function Workspace(
     measurePageOrigin();
   }, [measurePageOrigin, scale, containerSize.width, containerSize.height, activePageId, activePage?.width, activePage?.height]);
 
+  // Phone: when the page fits the screen width there's nothing to pan to
+  // sideways, but the Stage's pasteboard margin still overhangs the page and
+  // hands the scroller a few px of horizontal range — enough for a finger to
+  // make the whole canvas slide/jiggle. Lock the X axis (no overflow, no
+  // horizontal touch-pan) until the user zooms past the screen width.
+  const phoneLockX = isMobile && !!activePage && containerSize.width > 0 && activePage.width * scale <= containerSize.width + 0.5;
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (phoneLockX && container && container.scrollLeft !== 0) container.scrollLeft = 0;
+  });
+
   const scrollToActivePage = useCallback(() => {
     const container = containerRef.current;
     const wrapper = activePageWrapperRef.current;
@@ -401,6 +412,9 @@ const Workspace = forwardRef(function Workspace(
   }
 
   function handleScroll() {
+    // Programmatic scrolls (focus, scrollIntoView) can still move a locked
+    // axis — snap it back; see phoneLockX.
+    if (phoneLockX && containerRef.current && containerRef.current.scrollLeft !== 0) containerRef.current.scrollLeft = 0;
     measurePageOrigin();
     if (programmaticScrollRef.current) return;
     onManualInteraction();
@@ -443,9 +457,10 @@ const Workspace = forwardRef(function Workspace(
         )}
         <div
           ref={containerRef}
-          className={`canvas-area flex-1 touch-pan-x touch-pan-y ${
+          className={`canvas-area flex-1 ${phoneLockX ? "" : "touch-pan-x"} touch-pan-y ${
             isPanning || isSpaceDown ? "cursor-grabbing select-none" : ""
           }`}
+          style={phoneLockX ? { overflowX: "hidden", overscrollBehavior: "contain" } : isMobile ? { overscrollBehavior: "contain" } : undefined}
           onMouseDown={handleMouseDown}
           onScroll={handleScroll}
           onContextMenu={(event) => {

@@ -311,6 +311,9 @@ import ExportAnimationDialog from "./components/ExportAnimationDialog";
 // itself is always exactly page-sized/positioned — content (0,0) is its
 // own local (0,0) — regardless of the pasteboard below, so x/y stay 0.
 const KONVA_VIEWPORT = { scale: RENDER_SCALE_CAP, x: 0, y: 0 };
+// Phone selection handles, in on-screen CSS px (see phoneHandlePx).
+const PHONE_ANCHOR_SIZE = 14;
+const PHONE_ANCHOR_HIT_PAD = 14;
 
 // content-space -> the live Stage's own ABSOLUTE pixel space. NOT the same
 // as KONVA_VIEWPORT above: the Stage is rendered PASTEBOARD_MARGIN_PX
@@ -7550,6 +7553,31 @@ export default function App({ editorMode = "workspace", templateSession = null }
     };
   }, []);
 
+  // Phone: behave like an installed app rather than a web page — no
+  // whole-page pinch zoom (the canvas has its own pinch), no auto-zoom when
+  // an input gets focus, and the .phone-editor CSS hooks in index.css (no
+  // tap flash, no long-press text selection on chrome, no rubber-band
+  // bounce). Tablet/desktop are left untouched.
+  useEffect(() => {
+    if (!isPhone) return undefined;
+    const root = document.documentElement;
+    root.classList.add("phone-editor");
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    const previousViewport = viewportMeta?.getAttribute("content");
+    if (viewportMeta && previousViewport && !/maximum-scale/.test(previousViewport)) {
+      viewportMeta.setAttribute("content", `${previousViewport}, maximum-scale=1`);
+    }
+    const blockPageZoom = (event) => event.preventDefault();
+    document.addEventListener("gesturestart", blockPageZoom, { passive: false });
+    document.addEventListener("gesturechange", blockPageZoom, { passive: false });
+    return () => {
+      root.classList.remove("phone-editor");
+      if (viewportMeta && previousViewport) viewportMeta.setAttribute("content", previousViewport);
+      document.removeEventListener("gesturestart", blockPageZoom);
+      document.removeEventListener("gesturechange", blockPageZoom);
+    };
+  }, [isPhone]);
+
   // TEMPORARY (?canvasDebug=1): dump viewport/stage/element numbers so the
   // phone can be compared against desktop with the same saved project.
   useEffect(() => {
@@ -7596,6 +7624,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const konvaWidth = page.width * RENDER_SCALE_CAP;
     const konvaHeight = page.height * RENDER_SCALE_CAP;
     const displayScale = scale / RENDER_SCALE_CAP;
+    // Phone-only: converts on-screen CSS px into Stage px. The Stage is
+    // CSS-scaled by displayScale (often ~0.15 on a phone), so anything that
+    // must stay finger-sized — handles, their hit pads — is sized through
+    // this instead of the desktop `n / scale` formulas.
+    const phoneHandlePx = (px) => px / displayScale;
     const pageGuides = guides.filter((g) => precisionPrefs.showGuides && (g.pageId === page.id || g.pageId === null));
 
     // Pasteboard: the Stage's own canvas is rendered PASTEBOARD_MARGIN_PX
@@ -7788,8 +7821,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
                   // step with GAP to keep clearing it at every zoom level
                   // rather than drifting into it the way a zoom-invariant
                   // offset would.
-                  rotateAnchorOffset={hasCoarsePointer ? 40 : 32}
-                  anchorSize={8 / scale}
+                  rotateAnchorOffset={isPhone ? phoneHandlePx(30) : hasCoarsePointer ? 40 : 32}
+                  anchorSize={isPhone ? phoneHandlePx(PHONE_ANCHOR_SIZE) : 8 / scale}
                   // Give the rotate handle its own look (round + amber)
                   // instead of the plain white squares every resize handle
                   // uses, so it actually reads as a distinct control. On
@@ -7802,7 +7835,51 @@ export default function App({ editorMode = "workspace", templateSession = null }
                   // and hit-testing to before.
                   anchorStyleFunc={(anchor) => {
                     const isRotater = anchor.hasName("rotater");
-                    if (isRotater) {
+                    if (isPhone) {
+                      // Phone: Canva-style handles — white round corners,
+                      // pill-shaped side handles, a bigger amber rotate
+                      // knob, all with a soft shadow so they read on any
+                      // background. Sized in on-screen px (phoneHandlePx)
+                      // because the whole canvas is CSS-scaled far below
+                      // 1:1 on a phone.
+                      const size = phoneHandlePx(PHONE_ANCHOR_SIZE);
+                      const name = anchor.name();
+                      // Selection box size, read off the corner anchors
+                      // (already positioned when this runs) — a thin text
+                      // line gets shorter side pills, and no top/bottom
+                      // pills at all, so the handles don't bury it.
+                      const transformer = anchor.getParent();
+                      const topLeft = transformer?.findOne(".top-left");
+                      const bottomRight = transformer?.findOne(".bottom-right");
+                      const boxWidth = topLeft && bottomRight ? Math.abs(bottomRight.x() - topLeft.x()) : Infinity;
+                      const boxHeight = topLeft && bottomRight ? Math.abs(bottomRight.y() - topLeft.y()) : Infinity;
+                      const minPillRoom = phoneHandlePx(44);
+                      let width = size;
+                      let height = size;
+                      if (isRotater) {
+                        width = height = phoneHandlePx(20);
+                      } else if (name.includes("middle-left") || name.includes("middle-right")) {
+                        width = size * 0.6;
+                        height = Math.max(width, Math.min(size * 1.7, boxHeight * 0.6));
+                        if (boxWidth < minPillRoom) anchor.visible(false);
+                      } else if (name.includes("top-center") || name.includes("bottom-center")) {
+                        height = size * 0.6;
+                        width = Math.max(height, Math.min(size * 1.7, boxWidth * 0.6));
+                        if (boxHeight < minPillRoom) anchor.visible(false);
+                      }
+                      anchor.width(width);
+                      anchor.height(height);
+                      anchor.offsetX(width / 2);
+                      anchor.offsetY(height / 2);
+                      anchor.cornerRadius(Math.min(width, height) / 2);
+                      anchor.fill(isRotater ? "#d97706" : "#ffffff");
+                      anchor.stroke(isRotater ? "#ffffff" : "#d4d4d8");
+                      anchor.strokeWidth(phoneHandlePx(1));
+                      anchor.shadowColor("rgba(0,0,0,0.35)");
+                      anchor.shadowBlur(phoneHandlePx(4));
+                      anchor.shadowOffsetY(phoneHandlePx(1));
+                      anchor.shadowForStrokeEnabled(false);
+                    } else if (isRotater) {
                       const size = (8 / scale) * 1.3;
                       anchor.width(size);
                       anchor.height(size);
@@ -7814,8 +7891,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
                       anchor.strokeWidth(1.5 / scale);
                     }
                     if (hasCoarsePointer) {
-                      const visualSize = anchor.width();
-                      const touchPad = TOUCH_ANCHOR_HIT_PAD / scale;
+                      const visualWidth = anchor.width();
+                      const visualHeight = anchor.height();
+                      const touchPad = isPhone ? phoneHandlePx(PHONE_ANCHOR_HIT_PAD) : TOUCH_ANCHOR_HIT_PAD / scale;
                       // The padded hit box sits centered on the anchor, so
                       // half of it reaches INTO the object. On a phone the
                       // page is zoomed out, so a selected text line is only
@@ -7833,17 +7911,18 @@ export default function App({ editorMode = "workspace", templateSession = null }
                       // the moment anchorStyleFunc runs.
                       anchor.hitFunc((context) => {
                         const box = anchor.getParent();
-                        const half = visualSize / 2;
+                        const halfW = visualWidth / 2;
+                        const halfH = visualHeight / 2;
                         const anchorName = anchor.name();
-                        const reach = (size) => (size > 0 ? Math.max(half, Math.min(touchPad + half, size / 4)) : touchPad + half);
+                        const reach = (size, half) => (size > 0 ? Math.max(half, Math.min(touchPad + half, size / 4)) : touchPad + half);
                         let left = -touchPad;
                         let top = -touchPad;
-                        let right = visualSize + touchPad;
-                        let bottom = visualSize + touchPad;
-                        if (anchorName.includes("top")) bottom = Math.min(bottom, half + reach(box?.height?.() || 0));
-                        if (anchorName.includes("bottom")) top = Math.max(top, half - reach(box?.height?.() || 0));
-                        if (anchorName.includes("left")) right = Math.min(right, half + reach(box?.width?.() || 0));
-                        if (anchorName.includes("right")) left = Math.max(left, half - reach(box?.width?.() || 0));
+                        let right = visualWidth + touchPad;
+                        let bottom = visualHeight + touchPad;
+                        if (anchorName.includes("top")) bottom = Math.min(bottom, halfH + reach(box?.height?.() || 0, halfH));
+                        if (anchorName.includes("bottom")) top = Math.max(top, halfH - reach(box?.height?.() || 0, halfH));
+                        if (anchorName.includes("left")) right = Math.min(right, halfW + reach(box?.width?.() || 0, halfW));
+                        if (anchorName.includes("right")) left = Math.max(left, halfW - reach(box?.width?.() || 0, halfW));
                         context.beginPath();
                         context.rect(left, top, right - left, bottom - top);
                         context.closePath();
@@ -7851,7 +7930,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                       });
                     }
                   }}
-                  borderStrokeWidth={1.5 / scale}
+                  borderStrokeWidth={isPhone ? phoneHandlePx(1.5) : 1.5 / scale}
                   boundBoxFunc={(oldBox, newBox) => {
                     if (newBox.width < 20 || newBox.height < 20) return oldBox;
                     return newBox;
@@ -7886,13 +7965,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
               unit={activeUnit}
             />}
 
-            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && (
+            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && !(isPhone && ["dragging", "resizing", "rotating"].includes(interactionMode)) && (
               <SelectionToolbar
                 selectionBoundsContent={selectedBoundsContent}
                 viewport={KONVA_VIEWPORT}
                 frameSize={{ width: konvaWidth, height: konvaHeight }}
                 isLocked={isSelectionLocked}
-                large={isPhone}
+                phoneScale={isPhone ? displayScale : null}
                 onCopy={copySelection}
                 onPaste={clipboardRef.current.length > 0 ? pasteClipboard : undefined}
                 onDuplicate={duplicateSelection}
@@ -8682,7 +8761,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
         </div>
       </main>
 
-      {isPhone && (mobileEditOpen || editingTextId || croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId) && propertiesToolbarElement}
+      {isPhone && (mobileEditOpen || editingTextId || croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId) && (
+        <div className="phone-panel-enter shrink-0">{propertiesToolbarElement}</div>
+      )}
 
       {isPhone && (
         <>
@@ -8690,6 +8771,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
             activeSection={activeSidebarSection}
             onSectionChange={(key) => {
               setMobileViewOpen(false);
+              if (key) setMobileEditOpen(false);
               setActiveSidebarSection(key);
             }}
             editOpen={mobileEditOpen}
@@ -8702,6 +8784,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
             viewOpen={mobileViewOpen}
             onToggleView={() => {
               setActiveSidebarSection(null);
+              setMobileEditOpen(false);
               setMobileViewOpen((v) => !v);
             }}
           />

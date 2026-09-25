@@ -25,13 +25,17 @@ export default function MobileBottomBar({ activeSection, onSectionChange, editOp
       {buttons.map(({ key, label, icon: Icon, active, dot, onClick }) => (
         <button
           key={key}
-          className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+          className={`group relative flex min-w-0 flex-1 select-none flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors duration-150 ${
             active ? "text-amber-700" : "text-gray-500"
           }`}
           onClick={onClick}
           aria-pressed={active}
         >
-          <span className={`flex h-7 w-12 items-center justify-center rounded-full ${active ? "bg-amber-50" : ""}`}>
+          <span
+            className={`flex h-7 w-12 items-center justify-center rounded-full transition-[background-color,transform] duration-150 group-active:scale-90 ${
+              active ? "bg-amber-100/70" : "group-active:bg-gray-100"
+            }`}
+          >
             <Icon size={19} />
           </span>
           <span className="leading-none">{label}</span>

@@ -4,6 +4,7 @@ import ToolbarPopover from "../PropertiesToolbar/ToolbarPopover";
 import { useBreakpoint } from "../../useBreakpoint";
 import { useLanguage } from "../../languageContext";
 import { MISC_STRINGS } from "../../i18n/misc";
+import { useLatchedWhileOpen, useSheetMotion } from "../Mobile/useSheetMotion";
 
 // Drop-in replacement for ToolbarPopover with the exact same
 // isOpen/anchorRef/onClose/align/children contract: at tablet/desktop it
@@ -18,7 +19,11 @@ export default function ResponsiveSheet({ isOpen, anchorRef, onClose, align, chi
   const t = MISC_STRINGS[language].responsiveSheet;
   const { tier } = useBreakpoint();
 
-  if (tier !== "mobile") {
+  const isMobile = tier === "mobile";
+  const { mounted, sheetStyle, backdropStyle, dragHandlers } = useSheetMotion(isMobile && isOpen, onClose);
+  const shownChildren = useLatchedWhileOpen(isOpen, children);
+
+  if (!isMobile) {
     return (
       <ToolbarPopover isOpen={isOpen} anchorRef={anchorRef} onClose={onClose} align={align}>
         {children}
@@ -26,19 +31,25 @@ export default function ResponsiveSheet({ isOpen, anchorRef, onClose, align, chi
     );
   }
 
-  if (!isOpen) return null;
+  if (!mounted) return null;
 
   return createPortal(
     <>
-      <button className="fixed inset-0 z-40 bg-black/20" aria-label={t.close} onClick={onClose} />
+      <button
+        className="fixed inset-0 z-40 bg-black/20"
+        style={{ ...backdropStyle, pointerEvents: isOpen ? "auto" : "none" }}
+        aria-label={t.close}
+        onClick={onClose}
+      />
       <div
         data-toolbar-popover
-        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl ${isOpen ? "" : "pointer-events-none"}`}
+        style={sheetStyle}
       >
-        <div className="flex shrink-0 justify-center pb-1 pt-2.5">
+        <div className="flex shrink-0 cursor-grab justify-center pb-2 pt-2.5" {...dragHandlers}>
           <div className="h-1 w-10 rounded-full bg-gray-300" />
         </div>
-        <div className="overflow-y-auto px-4 pb-[max(1rem,var(--safe-bottom))] pt-1">{children}</div>
+        <div className="overflow-y-auto overscroll-contain px-4 pb-[max(1rem,var(--safe-bottom))] pt-1">{shownChildren}</div>
       </div>
     </>,
     document.body

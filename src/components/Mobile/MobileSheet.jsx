@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, X } from "lucide-react";
 import { useLanguage } from "../../languageContext";
 import { MOBILE_STRINGS } from "../../i18n/mobile";
+import { useLatchedWhileOpen, useSheetMotion } from "./useSheetMotion";
 
 // Height of MobileBottomBar — sheets that sit "above the bar" are offset by
 // this plus the device's bottom safe area (the app root's own padding does
@@ -30,34 +31,56 @@ export default function MobileSheet({ isOpen, onClose, title, onBack, aboveBar =
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  const { mounted, sheetStyle, backdropStyle, dragHandlers } = useSheetMotion(isOpen, onClose);
+  const shownTitle = useLatchedWhileOpen(isOpen, title);
+  const shownChildren = useLatchedWhileOpen(isOpen, children);
+  const shownOnBack = useLatchedWhileOpen(isOpen, onBack);
+
+  if (!mounted) return null;
 
   return createPortal(
     <>
-      {modal && <button className="fixed inset-0 z-40 bg-black/30" aria-label={t.close} onClick={onClose} />}
-      <div
-        role="dialog"
-        aria-label={title}
-        data-mobile-sheet
-        className={`fixed inset-x-0 z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-gray-200 bg-white shadow-2xl ${
-          aboveBar ? "max-h-[min(60vh,520px)] landscape:max-h-[70vh]" : "max-h-[85vh]"
-        }`}
-        style={{ bottom: aboveBar ? "calc(3.5rem + var(--safe-bottom))" : 0 }}
-      >
-        <div className="flex shrink-0 items-center gap-1 border-b border-gray-100 px-2 py-1.5">
-          {onBack ? (
-            <button className="toolbar-hit-target rounded-lg p-2 text-gray-500 hover:bg-gray-100" onClick={onBack} aria-label={t.back}>
-              <ChevronLeft size={18} />
-            </button>
-          ) : (
-            <span className="w-2" />
-          )}
-          <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{title}</h2>
-          <button className="toolbar-hit-target rounded-lg p-2 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label={t.close}>
-            <X size={18} />
-          </button>
+      {modal && (
+        <button
+          className="fixed inset-0 z-40 bg-black/30"
+          style={{ ...backdropStyle, pointerEvents: isOpen ? "auto" : "none" }}
+          aria-label={t.close}
+          onClick={onClose}
+        />
+      )}
+      {/* Clips the sheet at its resting edge (the bottom bar's top for
+          aboveBar panels) so it slides in from behind the bar rather than
+          over it. */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-40 overflow-hidden" style={{ bottom: aboveBar ? MOBILE_BAR_OFFSET : 0 }}>
+        <div
+          role="dialog"
+          aria-label={shownTitle}
+          data-mobile-sheet
+          className={`absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-2xl border-t border-gray-200 bg-white shadow-2xl ${
+            isOpen ? "pointer-events-auto" : ""
+          } ${aboveBar ? "max-h-[min(60vh,520px)] landscape:max-h-[70vh]" : "max-h-[85vh]"}`}
+          style={sheetStyle}
+        >
+          <div className="shrink-0 cursor-grab border-b border-gray-100" {...dragHandlers}>
+            <div className="flex justify-center pt-2">
+              <div className="h-1 w-9 rounded-full bg-gray-300" />
+            </div>
+            <div className="flex items-center gap-1 px-2 pb-1">
+              {shownOnBack ? (
+                <button className="toolbar-hit-target rounded-lg p-2 text-gray-500 active:bg-gray-100" onClick={shownOnBack} aria-label={t.back}>
+                  <ChevronLeft size={18} />
+                </button>
+              ) : (
+                <span className="w-2" />
+              )}
+              <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{shownTitle}</h2>
+              <button className="toolbar-hit-target rounded-lg p-2 text-gray-400 active:bg-gray-100" onClick={onClose} aria-label={t.close}>
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 ${aboveBar ? "" : "pb-[max(1rem,var(--safe-bottom))]"}`}>{shownChildren}</div>
         </div>
-        <div className={`min-h-0 flex-1 overflow-y-auto p-4 ${aboveBar ? "" : "pb-[max(1rem,var(--safe-bottom))]"}`}>{children}</div>
       </div>
     </>,
     document.body
