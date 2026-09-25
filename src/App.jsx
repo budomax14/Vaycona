@@ -7476,35 +7476,79 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // an element (or a selection handle) just scrolled the page sideways and
   // the element never moved. touch-action can't be set per Konva node, so
   // instead cancel the native gesture at touchstart (non-passive listener)
-  // when — and only when — the finger lands on something draggable, or while
-  // the brush/eraser is drawing. A finger on empty canvas is left alone, so
-  // scrolling and the two-finger pinch/pan keep working exactly as before.
+  // when — and only when — the finger lands on something draggable, or (phone
+  // only) inside the current selection's box (so a drag that starts on a transparent part
+  // of a selected element still moves it), or while the brush/eraser is
+  // drawing. On phone, once a touch is claimed its touchmoves are cancelled
+  // too, as is any touchmove while an element drag is in progress — so the
+  // workspace can never scroll underneath a move. Tablet/desktop keep the
+  // original touchstart-only behavior. A finger on empty canvas is
+  // left alone, so scrolling and the two-finger pinch/pan keep working.
+  // Listeners live on `document` (capture) and resolve the Stage at event
+  // time, so they can't go stale if the Stage remounts (layout switch,
+  // recovery gate, page change) without these deps changing.
   const isBrushSectionActive = activeSidebarSection === "brush";
+  const isBrushSectionActiveRef = useRef(isBrushSectionActive);
+  isBrushSectionActiveRef.current = isBrushSectionActive;
+  const isPhoneRef = useRef(isPhone);
+  isPhoneRef.current = isPhone;
   useEffect(() => {
-    const stage = stageRef.current;
-    const container = stage?.container();
-    if (!stage || !container) return undefined;
-    function handleTouchStart(event) {
-      if (event.touches.length !== 1) return; // second finger = pinch/pan
-      if (!event.cancelable) return;
-      let block = isBrushSectionActive;
-      if (!block) {
-        stage.setPointersPositions(event);
-        const pos = stage.getPointerPosition();
-        let node = pos ? stage.getIntersection(pos) : null;
-        while (node && node !== stage) {
-          if (node.draggable()) {
-            block = true;
-            break;
-          }
-          node = node.getParent();
+    let claimedTouch = false;
+    function touchIsOnStage(event) {
+      const container = stageRef.current?.container();
+      return Boolean(container && event.target instanceof Node && container.contains(event.target));
+    }
+    function shouldClaim(stage, event) {
+      if (isBrushSectionActiveRef.current) return true;
+      stage.setPointersPositions(event);
+      const pos = stage.getPointerPosition();
+      if (!pos) return false;
+      let node = stage.getIntersection(pos);
+      while (node && node !== stage) {
+        if (node.draggable()) return true;
+        node = node.getParent();
+      }
+      const transformer = transformerRef.current;
+      if (isPhoneRef.current && transformer && transformer.nodes().length > 0 && transformer.isVisible()) {
+        const box = transformer.getClientRect();
+        const pad = 12;
+        if (pos.x >= box.x - pad && pos.x <= box.x + box.width + pad && pos.y >= box.y - pad && pos.y <= box.y + box.height + pad) {
+          return true;
         }
       }
-      if (block) event.preventDefault();
+      return false;
     }
-    container.addEventListener("touchstart", handleTouchStart, { passive: false });
-    return () => container.removeEventListener("touchstart", handleTouchStart);
-  }, [showHomePage, activePageId, isBrushSectionActive]);
+    function handleTouchStart(event) {
+      if (event.touches.length !== 1) {
+        claimedTouch = false; // second finger = pinch/pan
+        return;
+      }
+      claimedTouch = false;
+      if (!event.cancelable || !touchIsOnStage(event)) return;
+      const stage = stageRef.current;
+      if (stage && shouldClaim(stage, event)) {
+        claimedTouch = true;
+        event.preventDefault();
+      }
+    }
+    function handleTouchMove(event) {
+      if (!isPhoneRef.current || !event.cancelable || event.touches.length !== 1) return;
+      if (claimedTouch || interactionModeRef.current === "dragging") event.preventDefault();
+    }
+    function handleTouchEnd(event) {
+      if (event.touches.length === 0) claimedTouch = false;
+    }
+    document.addEventListener("touchstart", handleTouchStart, { passive: false, capture: true });
+    document.addEventListener("touchmove", handleTouchMove, { passive: false, capture: true });
+    document.addEventListener("touchend", handleTouchEnd, { capture: true });
+    document.addEventListener("touchcancel", handleTouchEnd, { capture: true });
+    return () => {
+      document.removeEventListener("touchstart", handleTouchStart, { capture: true });
+      document.removeEventListener("touchmove", handleTouchMove, { capture: true });
+      document.removeEventListener("touchend", handleTouchEnd, { capture: true });
+      document.removeEventListener("touchcancel", handleTouchEnd, { capture: true });
+    };
+  }, []);
 
   // TEMPORARY (?canvasDebug=1): dump viewport/stage/element numbers so the
   // phone can be compared against desktop with the same saved project.
