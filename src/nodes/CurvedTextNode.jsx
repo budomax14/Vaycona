@@ -51,8 +51,10 @@ export default function CurvedTextNode({ item, commonProps }) {
   // here is drawn at its own rotated position (see sceneFunc below), so the
   // pattern is re-anchored per character (imageFill.js's flowXOffset) to
   // make the image appear to bend continuously along the curve.
-  const { objectUrl: fillImageUrl } = useAsset(item.fillImage?.assetId);
-  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl);
+  // meta (the asset's recorded natural size) lets phones decode the fill
+  // straight to a safe size instead of full-resolution-then-shrink.
+  const { objectUrl: fillImageUrl, meta: fillImageMeta } = useAsset(item.fillImage?.assetId);
+  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl, { meta: fillImageMeta });
 
   // Text Effects → 3D — see text3D.js's header comment for why extrusion is
   // drawn inside this same sceneFunc (translated per arc-placed glyph)

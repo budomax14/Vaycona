@@ -5,6 +5,7 @@ import CropModePropertiesBar from "./CropModePropertiesBar";
 import GrabItModePropertiesBar from "./GrabItModePropertiesBar";
 import SelectionMoreMenu from "./SelectionMoreMenu";
 import { getPropertiesBar } from "../../objectRegistry";
+import { useBreakpoint } from "../../useBreakpoint";
 import { ensureRichText, measureAutoHeight } from "../../richText";
 
 // Mirrors App.jsx's own handleTransformEnd rule for a manual canvas
@@ -122,6 +123,10 @@ export default function PropertiesToolbar({
   hasAnimations,
 }) {
   const single = selectedItems.length === 1 ? selectedItems[0] : null;
+  // Phone: the Edit panel grows to show every control (OverflowToolbar
+  // wraps instead of hiding items behind "More"), capped and scrollable so
+  // it never swallows the canvas.
+  const { isMobile } = useBreakpoint();
 
   if (single && croppingItemId === single.id) {
     return (
@@ -209,7 +214,11 @@ export default function PropertiesToolbar({
   return (
     <div
       data-text-toolbar-safe
-      className="flex h-16 shrink-0 items-center gap-3 overflow-x-auto border-b border-gray-200 bg-white px-4"
+      className={
+        isMobile
+          ? "flex max-h-[40vh] shrink-0 items-start gap-3 overflow-y-auto overscroll-contain border-b border-gray-200 bg-white px-3 py-2"
+          : "flex h-16 shrink-0 items-center gap-3 overflow-x-auto border-b border-gray-200 bg-white px-4"
+      }
     >
       {selectedItems.length === 0 && (
         <CanvasPropertiesBar

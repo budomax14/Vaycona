@@ -59,7 +59,16 @@ export function useImageElement(src, { flipX = false, flipY = false, meta } = {}
         if (cancelled) return;
         const working = downscaleForMobile(img);
         // Drop the full-resolution decode once a smaller copy replaces it.
-        if (working !== img) img.src = "";
+        // Detach the handlers first: clearing src makes WebKit fire an
+        // "error" event, and the onerror below then wiped the downscaled
+        // copy we just adopted — on phone every image over the mobile size
+        // budget (i.e. any real camera photo used as a shape/text fill)
+        // silently never rendered.
+        if (working !== img) {
+          img.onload = null;
+          img.onerror = null;
+          img.src = "";
+        }
         setBaseImage(working);
       };
       img.onerror = () => {

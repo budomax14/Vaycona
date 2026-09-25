@@ -90,13 +90,21 @@ export function dragImageFillPosition(fillImage, layout, naturalWidth, naturalHe
 // pixels on every drag/zoom frame (those only touch the transform matrix
 // below). Cached per {image, opacity} — capped so undo/redo/duplicate
 // churn across many objects can't grow this unbounded.
-const preparedSourceCache = new Map();
+// Keyed by the image object itself (then by opacity), not image.src: on
+// phones the source is often a downscaled canvas or an ImageBitmap, which
+// have no src — a src-based key made every such image share one entry, so
+// a second shape at the same opacity showed the first shape's picture.
+const preparedSourceCache = new WeakMap();
 const MAX_CACHE_ENTRIES = 24;
 
 export function getPreparedFillSource(image, naturalWidth, naturalHeight, opacity) {
   if (!image || opacity >= 1) return image;
-  const key = `${image.src || ""}|${opacity}`;
-  const cached = preparedSourceCache.get(key);
+  let byOpacity = preparedSourceCache.get(image);
+  if (!byOpacity) {
+    byOpacity = new Map();
+    preparedSourceCache.set(image, byOpacity);
+  }
+  const cached = byOpacity.get(opacity);
   if (cached) return cached;
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, naturalWidth);
@@ -107,10 +115,11 @@ export function getPreparedFillSource(image, naturalWidth, naturalHeight, opacit
   if (!ctx) return image;
   ctx.globalAlpha = opacity;
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-  if (preparedSourceCache.size >= MAX_CACHE_ENTRIES) {
-    preparedSourceCache.delete(preparedSourceCache.keys().next().value);
+  // Opacity slider scrubbing would otherwise keep one canvas per value.
+  if (byOpacity.size >= MAX_CACHE_ENTRIES) {
+    byOpacity.delete(byOpacity.keys().next().value);
   }
-  preparedSourceCache.set(key, canvas);
+  byOpacity.set(opacity, canvas);
   return canvas;
 }
 

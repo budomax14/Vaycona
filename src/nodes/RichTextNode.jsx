@@ -132,8 +132,10 @@ export default function RichTextNode({ item, commonProps }) {
   // Image Fill — same descriptor resolved by SimpleTextNode.jsx, here
   // materialized as a raw CanvasPattern (see imageFill.js) since this
   // renderer draws via ctx.fillText instead of Konva's native Text fill.
-  const { objectUrl: fillImageUrl } = useAsset(item.fillImage?.assetId);
-  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl);
+  // meta (the asset's recorded natural size) lets phones decode the fill
+  // straight to a safe size instead of full-resolution-then-shrink.
+  const { objectUrl: fillImageUrl, meta: fillImageMeta } = useAsset(item.fillImage?.assetId);
+  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl, { meta: fillImageMeta });
   const isOverflowing = item.autoSize === "fixed" && layout.totalHeight > height - padding * 2;
 
   // Text Effects → 3D — see text3D.js's header comment for why extrusion is

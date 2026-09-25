@@ -44,8 +44,10 @@ export default function ShapeNode({ item, commonProps, shadowProps }) {
   // TextColorPanel/imageFill.js already established) — wins over gradient
   // exactly like gradient already wins over the plain fill color, same
   // precedence SimpleTextNode.jsx uses.
-  const { objectUrl: fillImageUrl } = useAsset(item.fillImage?.assetId);
-  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl);
+  // meta (the asset's recorded natural size) lets phones decode the fill
+  // straight to a safe size instead of full-resolution-then-shrink.
+  const { objectUrl: fillImageUrl, meta: fillImageMeta } = useAsset(item.fillImage?.assetId);
+  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl, { meta: fillImageMeta });
   const imageFill = resolveImageFillKonvaProps(item, fillImageEl, fillImageNaturalWidth, fillImageNaturalHeight);
   const width = item.width || 100;
   const height = item.height || 100;

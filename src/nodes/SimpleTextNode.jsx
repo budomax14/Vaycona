@@ -46,8 +46,10 @@ export default function SimpleTextNode({ item, commonProps }) {
   // negative pattern scale (imageFill.js's computePatternMatrix) instead of
   // a pre-flipped source image, since the pattern needs the raw decoded
   // image either way.
-  const { objectUrl: fillImageUrl } = useAsset(item.fillImage?.assetId);
-  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl);
+  // meta (the asset's recorded natural size) lets phones decode the fill
+  // straight to a safe size instead of full-resolution-then-shrink.
+  const { objectUrl: fillImageUrl, meta: fillImageMeta } = useAsset(item.fillImage?.assetId);
+  const { image: fillImageEl, naturalWidth: fillImageNaturalWidth, naturalHeight: fillImageNaturalHeight } = useImageElement(fillImageUrl, { meta: fillImageMeta });
   const imageFill = resolveImageFillKonvaProps(item, fillImageEl, fillImageNaturalWidth, fillImageNaturalHeight);
 
   const shouldClip = item.autoSize === "fixed" && (item.overflow || "clip") === "clip";

@@ -5,6 +5,7 @@ import { useResizeObserver } from "../../useResizeObserver";
 import { clampHorizontalShift } from "../../clampToViewport";
 import { useLanguage } from "../../languageContext";
 import { MISC_STRINGS } from "../../i18n/misc";
+import { useBreakpoint } from "../../useBreakpoint";
 
 const MORE_BUTTON_WIDTH = 40;
 
@@ -43,6 +44,10 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
   const [menuRect, setMenuRect] = useState(null);
   const [menuShift, setMenuShift] = useState(0);
   const { width: containerWidth } = useResizeObserver(containerRef);
+  // Phone: every control stays visible — the row wraps onto more lines
+  // (PropertiesToolbar lets the panel grow) rather than hiding items behind
+  // the "More" button, which people didn't find.
+  const { isMobile } = useBreakpoint();
 
   const items = Children.toArray(children).filter(Boolean);
 
@@ -81,8 +86,8 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
   // No measurement yet (first paint) — show everything inline rather than
   // guessing, avoids a flash of an empty/incomplete toolbar.
   const hasMeasurements = widths.length === items.length && widths.some((w) => w > 0);
-  const visibleItems = hasMeasurements ? items.filter((_, i) => included[i]) : items;
-  const overflowItems = hasMeasurements ? items.filter((_, i) => !included[i]) : [];
+  const visibleItems = isMobile || !hasMeasurements ? items : items.filter((_, i) => included[i]);
+  const overflowItems = isMobile || !hasMeasurements ? [] : items.filter((_, i) => !included[i]);
 
   // Portaled to document.body (not an ordinary absolutely-positioned child)
   // — the row this lives in (PropertiesToolbar.jsx etc.) is overflow-x-auto,
@@ -129,7 +134,7 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
     // shrinks the box, which shrinks the measured budget, which excludes
     // even more items on the next pass.
     <div ref={containerRef} className={`relative flex min-w-0 flex-1 ${className}`}>
-      <div ref={innerRef} className={`flex min-w-0 flex-1 items-center overflow-hidden ${innerClassName}`}>
+      <div ref={innerRef} className={`flex min-w-0 flex-1 items-center ${isMobile ? "flex-wrap gap-y-2" : "overflow-hidden"} ${innerClassName}`}>
         {visibleItems}
         {overflowItems.length > 0 && (
           <div className="relative shrink-0">
