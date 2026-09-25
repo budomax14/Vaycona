@@ -156,6 +156,13 @@ export function useImageElement(src, { flipX = false, flipY = false, meta } = {}
     canvas.height = height;
 
     const ctx = canvas.getContext("2d");
+    // iOS Safari returns null once the tab's canvas memory is exhausted;
+    // show the unflipped image rather than throwing out of this effect
+    // (which would unmount the whole editor).
+    if (!ctx) {
+      setRenderedImage(baseImage);
+      return;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, width, height);
     ctx.setTransform(flipX ? -1 : 1, 0, 0, flipY ? -1 : 1, flipX ? width : 0, flipY ? height : 0);

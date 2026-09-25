@@ -24,7 +24,13 @@ export function RecentColorsProvider({ children }) {
   const [recentColors, setRecentColors] = useState(loadRecentColors);
 
   useEffect(() => {
-    localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recentColors));
+    // Safari caps localStorage at ~5MB and the autosave can fill it; a
+    // throw here (inside an effect) would take the whole editor down.
+    try {
+      localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recentColors));
+    } catch {
+      // Recent colors just won't persist this session.
+    }
   }, [recentColors]);
 
   const recordColor = useCallback((hex) => {

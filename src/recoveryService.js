@@ -77,11 +77,28 @@ function requestToPromise(request) {
 // --- workspace ID (this app is single-project; a stable ID still lets
 // snapshots declare which project they belong to, per spec §4) ---
 
+// Storage can be full (Safari's ~5MB cap, filled by autosave) or blocked
+// outright; either must never throw out of these small bookkeeping writes.
+function trySetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Non-fatal — see above.
+  }
+}
+
+let fallbackWorkspaceId = null;
 export function getWorkspaceId() {
-  let id = localStorage.getItem(WORKSPACE_ID_KEY);
+  let id = null;
+  try {
+    id = localStorage.getItem(WORKSPACE_ID_KEY);
+  } catch {
+    id = fallbackWorkspaceId;
+  }
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem(WORKSPACE_ID_KEY, id);
+    fallbackWorkspaceId = id;
+    trySetItem(WORKSPACE_ID_KEY, id);
   }
   return id;
 }
@@ -93,7 +110,8 @@ export function getWorkspaceId() {
 // the Phase 7D completion notes).
 export function resetWorkspaceId() {
   const id = crypto.randomUUID();
-  localStorage.setItem(WORKSPACE_ID_KEY, id);
+  fallbackWorkspaceId = id;
+  trySetItem(WORKSPACE_ID_KEY, id);
   return id;
 }
 
@@ -395,10 +413,10 @@ const SKIP_RECOVERY_ONCE_KEY = "personal-canva-skip-recovery-once";
 const FORCE_RECOVERY_ONCE_KEY = "personal-canva-force-recovery-once";
 
 export function requestSkipRecoveryOnNextLoad() {
-  localStorage.setItem(SKIP_RECOVERY_ONCE_KEY, "1");
+  trySetItem(SKIP_RECOVERY_ONCE_KEY, "1");
 }
 export function requestForceRecoveryOnNextLoad() {
-  localStorage.setItem(FORCE_RECOVERY_ONCE_KEY, "1");
+  trySetItem(FORCE_RECOVERY_ONCE_KEY, "1");
 }
 export function consumeSkipRecoveryFlag() {
   const flag = localStorage.getItem(SKIP_RECOVERY_ONCE_KEY) === "1";

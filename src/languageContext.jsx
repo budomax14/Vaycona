@@ -7,10 +7,20 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 const LanguageContext = createContext(null);
 
 export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState(() => localStorage.getItem("appLanguage") || "en");
+  const [language, setLanguage] = useState(() => {
+    try {
+      return localStorage.getItem("appLanguage") || "en";
+    } catch {
+      return "en"; // storage blocked (Safari "Block all cookies")
+    }
+  });
 
   useEffect(() => {
-    localStorage.setItem("appLanguage", language);
+    try {
+      localStorage.setItem("appLanguage", language);
+    } catch {
+      // Storage full/blocked — the language still applies for this session.
+    }
   }, [language]);
 
   return <LanguageContext.Provider value={{ language, setLanguage }}>{children}</LanguageContext.Provider>;

@@ -15,6 +15,10 @@ export const SCALE_PRESETS = [0.5, 1, 2, 3, 4];
 // system's own memory pressure.
 export const MAX_EXPORT_DIMENSION_PX = 10000; // per side, any single page
 export const MAX_EXPORT_PIXELS_PER_PAGE = 40_000_000; // ~40MP per rendered page
+// iOS/iPadOS WebKit refuses any canvas over 16,777,216 px (4096²) — it comes
+// back blank/unencodable — and a 40MP canvas (~160MB) can get the tab killed
+// outright. exportRequest.js applies this cap instead on iOS devices.
+export const MAX_EXPORT_PIXELS_PER_PAGE_IOS = 16_777_216;
 export const MAX_EXPORT_TOTAL_PIXELS = 160_000_000; // across every page in one export run
 export const MAX_EXPORT_PAGE_COUNT = 60; // pages in a single export run (PDF page count included)
 export const MAX_ZIP_OUTPUT_BYTES = 500 * 1024 * 1024; // 500MB packaged archive

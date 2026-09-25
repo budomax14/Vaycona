@@ -21,7 +21,11 @@ function loadRecentFonts() {
 
 function recordRecentFont(name) {
   const next = [name, ...loadRecentFonts().filter((f) => f !== name)].slice(0, RECENT_FONTS_MAX);
-  localStorage.setItem(RECENT_FONTS_KEY, JSON.stringify(next));
+  try {
+    localStorage.setItem(RECENT_FONTS_KEY, JSON.stringify(next));
+  } catch {
+    // Storage full/blocked — recent fonts just won't persist.
+  }
 }
 
 function FontRow({ name, cssStack, onSelect }) {

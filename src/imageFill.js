@@ -102,6 +102,9 @@ export function getPreparedFillSource(image, naturalWidth, naturalHeight, opacit
   canvas.width = Math.max(1, naturalWidth);
   canvas.height = Math.max(1, naturalHeight);
   const ctx = canvas.getContext("2d");
+  // Null on iOS Safari under canvas-memory pressure — fall back to the
+  // untouched image (full opacity) instead of throwing mid-render.
+  if (!ctx) return image;
   ctx.globalAlpha = opacity;
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
   if (preparedSourceCache.size >= MAX_CACHE_ENTRIES) {

@@ -8,10 +8,20 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem("appTheme") || "light");
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("appTheme") || "light";
+    } catch {
+      return "light"; // storage blocked (Safari "Block all cookies")
+    }
+  });
 
   useEffect(() => {
-    localStorage.setItem("appTheme", theme);
+    try {
+      localStorage.setItem("appTheme", theme);
+    } catch {
+      // Storage full/blocked — the theme still applies for this session.
+    }
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 

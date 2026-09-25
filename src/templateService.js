@@ -677,5 +677,9 @@ async function seedBuiltInTemplatesOnce() {
     // eslint-disable-next-line no-await-in-loop
     await withStore("readwrite", (store) => store.put(template));
   }
-  localStorage.setItem(SEED_FLAG_KEY, String(BUILT_IN_SEED_VERSION));
+  try {
+    localStorage.setItem(SEED_FLAG_KEY, String(BUILT_IN_SEED_VERSION));
+  } catch {
+    // Storage full/blocked — seeding just re-checks next load (idempotent puts).
+  }
 }

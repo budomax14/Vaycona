@@ -4,12 +4,14 @@
 // UI components assemble their own ad hoc export options object.
 
 import { getUnit } from "../pageSizes";
+import { isIOSWebKit } from "../canvasPixelBudget";
 import {
   EXPORT_FORMATS,
   JPEG_QUALITY_PRESETS,
   DEFAULT_JPEG_QUALITY,
   MAX_EXPORT_DIMENSION_PX,
   MAX_EXPORT_PIXELS_PER_PAGE,
+  MAX_EXPORT_PIXELS_PER_PAGE_IOS,
   MAX_EXPORT_TOTAL_PIXELS,
   MAX_EXPORT_PAGE_COUNT,
 } from "./exportConstants";
@@ -151,7 +153,7 @@ export function buildExportRequest(raw, context) {
         `"${page.name || "A page"}" at this size would be ${w}×${h}px, over the ${MAX_EXPORT_DIMENSION_PX}px safety limit per side.`
       );
     }
-    if (w * h > MAX_EXPORT_PIXELS_PER_PAGE) {
+    if (w * h > (isIOSWebKit() ? MAX_EXPORT_PIXELS_PER_PAGE_IOS : MAX_EXPORT_PIXELS_PER_PAGE)) {
       errors.push(`"${page.name || "A page"}" at this size would exceed the safe per-page pixel limit. Try a lower scale.`);
     }
   }
