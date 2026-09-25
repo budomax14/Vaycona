@@ -789,6 +789,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const workspaceRef = useRef(null);
   const nodesMapRef = useRef(new Map());
   const clipboardRef = useRef([]);
+  // Marker written to the system clipboard on each in-app copy (see
+  // copySelection / handleWindowCopy) so paste can tell it apart from
+  // content copied in another app.
+  const clipboardTokenRef = useRef(null);
+  const internalCopyPendingRef = useRef(false);
+  const pasteFallbackTimerRef = useRef(null);
+  const pasteClipboardRef = useRef(null);
+  const windowPasteHandlerRef = useRef(null);
   const dragOriginsRef = useRef(null);
   // iOS-only: dragBoundFunc fires on every native touchmove — up to ~120/sec
   // on a ProMotion iPhone — and each call was pushing new alignment-line/
@@ -1882,7 +1890,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           height: height - margin * 2,
           text: "",
           fontFamily: "Arial",
-          fontSize: 18,
+          fontSize: 14,
           fontWeight: "normal",
           align: "left",
           // "top" keeps typed content anchored at the top margin from the
@@ -1891,7 +1899,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           // block after every line while typing into an almost-empty page,
           // since its box is a full page tall.
           verticalAlign: "top",
-          lineHeight: 1.4,
+          lineHeight: 2,
           // "fixed" keeps the box pinned to the margin width at all times —
           // the flexible auto-height/auto-width modes re-measure width to
           // fit content as you type (measureFlexibleTextBox), which made
@@ -3260,7 +3268,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
     return { x: activePage.width / 2 - width / 2, y: activePage.height / 2 - height / 2 };
   }
 
-  function addShape(shapeKind = "rectangle") {
+  // `outline`: the Elements panel's "Outline shapes" row — same shape,
+  // hollow (no fill) with a visible border instead.
+  function addShape(shapeKind = "rectangle", { outline = false } = {}) {
     const width = 200;
     const height = 200;
     addItem(
@@ -3270,6 +3280,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         width,
         height,
         ...getDefaultProps("shape", shapeKind),
+        ...(outline ? { fill: "transparent", stroke: "#111827", strokeWidth: 4 } : {}),
       },
       `Add ${shapeKind}`
     );
@@ -5025,6 +5036,20 @@ export default function App({ editorMode = "workspace", templateSession = null }
     }
     if (selectedIds.length === 0) return;
     clipboardRef.current = getExpandedSelectionItems(selectedItems).map((item) => ({ ...item }));
+    // Also stamps the system clipboard (via handleWindowCopy below) with a
+    // marker for this copy, so a later paste can tell whether the system
+    // clipboard still holds this in-app copy or something newer copied
+    // from another app/site — whichever was copied last wins.
+    clipboardTokenRef.current = crypto.randomUUID();
+    internalCopyPendingRef.current = true;
+    try {
+      document.execCommand("copy");
+    } catch {
+      // best-effort — the in-app clipboard above still works on its own
+    }
+    window.setTimeout(() => {
+      internalCopyPendingRef.current = false;
+    }, 0);
   }
 
   function cutSelection() {
@@ -5056,6 +5081,99 @@ export default function App({ editorMode = "workspace", templateSession = null }
       .filter((it) => !it.parentId || !clipboardRef.current.some((other) => other.id === it.parentId))
       .map((it) => it.id);
     setSelectedIds(rootOriginalIds.map((id) => idMap.get(id)).filter(Boolean));
+  }
+
+  // Text copied from another app/site becomes a new body-style text box,
+  // centered on the active page and sized to fit (wrapping at 80% of the
+  // page width).
+  function addPastedText(text) {
+    const preset = getPresetByKey("body");
+    const base = {
+      type: "text",
+      ...getDefaultProps("text"),
+      text,
+      fontSize: preset.fontSize,
+      fontWeight: preset.fontWeight,
+      align: preset.align,
+      lineHeight: preset.lineHeight,
+      letterSpacing: preset.letterSpacing,
+      autoSize: preset.autoSize,
+      fontFamily: "Arial",
+      fill: "#111827",
+    };
+    const { width, height } = measureFlexibleTextBox(base, ensureRichText(base), activePage.width * 0.8);
+    addItem({ ...base, width, height, ...centerPositionFor(width, height) }, "Paste text");
+  }
+
+  async function addPastedImageFiles(files) {
+    for (const file of files) {
+      const named = file.name && file.name !== "image.png" ? file : new File([file], `Pasted image ${new Date().toLocaleString()}.png`, { type: file.type });
+      const result = await uploadFileToLibrary(named);
+      if (!result.id) continue;
+      if (activeSidebarSection !== "uploads") {
+        await addImageItem(result.id);
+      }
+    }
+  }
+
+  function isInternalClipboardHtml(html) {
+    return !!html && !!clipboardTokenRef.current && html.includes(`data-vaycona-clipboard="${clipboardTokenRef.current}"`);
+  }
+
+  // Paste from the menus/toolbars (no keyboard paste event to read from):
+  // reads the system clipboard directly, so content copied in another app
+  // pastes here too. Falls back to the in-app clipboard when the browser
+  // blocks or doesn't support clipboard reads.
+  async function pasteFromSystemClipboard() {
+    if (editingTableIdRef.current) return;
+    try {
+      if (navigator.clipboard?.read) {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const clipboardItem of clipboardItems) {
+          if (clipboardItem.types.includes("text/html")) {
+            const html = await (await clipboardItem.getType("text/html")).text();
+            if (isInternalClipboardHtml(html)) {
+              pasteClipboard();
+              return;
+            }
+          }
+          const imageType = clipboardItem.types.find((type) => type.startsWith("image/"));
+          if (imageType) {
+            const blob = await clipboardItem.getType(imageType);
+            await addPastedImageFiles([new File([blob], "image.png", { type: imageType })]);
+            return;
+          }
+          if (clipboardItem.types.includes("text/plain")) {
+            const text = (await (await clipboardItem.getType("text/plain")).text()).trim();
+            if (text) {
+              addPastedText(text);
+              return;
+            }
+          }
+        }
+      } else if (navigator.clipboard?.readText) {
+        const text = (await navigator.clipboard.readText()).trim();
+        if (text) {
+          addPastedText(text);
+          return;
+        }
+      }
+    } catch {
+      // permission denied / unsupported — fall through to the in-app clipboard
+    }
+    pasteClipboard();
+  }
+
+  // Cmd/Ctrl+V: the real `paste` event (handleWindowPaste) carries the
+  // system clipboard and decides what to paste. This only covers browsers
+  // that don't fire a paste event when nothing editable is focused — if
+  // none arrives shortly, paste the in-app clipboard as before.
+  function schedulePasteFallback() {
+    window.clearTimeout(pasteFallbackTimerRef.current);
+    pasteFallbackTimerRef.current = window.setTimeout(() => {
+      pasteFallbackTimerRef.current = null;
+      pasteClipboardRef.current();
+    }, 150);
   }
 
   function duplicateSelection() {
@@ -6408,6 +6526,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // panel is the active sidebar section, registers the asset without
   // placing it on the page.
   function handleWindowPaste(event) {
+    window.clearTimeout(pasteFallbackTimerRef.current);
+    const hadPendingKeyboardPaste = pasteFallbackTimerRef.current != null;
+    pasteFallbackTimerRef.current = null;
     if (isTypingTarget(document.activeElement) || editingTextIdRef.current) return;
     // Table cell-edit mode with a cell range selected (not actively typing
     // into one cell — that case already returned above via isTypingTarget,
@@ -6424,26 +6545,56 @@ export default function App({ editorMode = "workspace", templateSession = null }
       if (grid) pasteIntoTableSelection(grid);
       return;
     }
+    // The system clipboard still holds Vaycona's own last copy → paste
+    // those objects (the in-app clipboard is the full-fidelity version).
+    if (isInternalClipboardHtml(event.clipboardData?.getData("text/html"))) {
+      event.preventDefault();
+      pasteClipboard();
+      return;
+    }
     const files = Array.from(event.clipboardData?.files || []).filter((f) => f.type.startsWith("image/"));
-    if (files.length === 0) return;
+    if (files.length > 0) {
+      event.preventDefault();
+      addPastedImageFiles(files);
+      return;
+    }
+    // Plain text copied from another app/site → new text box.
+    const text = (event.clipboardData?.getData("text/plain") || "").trim();
+    if (text) {
+      event.preventDefault();
+      addPastedText(text);
+      return;
+    }
+    if (hadPendingKeyboardPaste) pasteClipboard();
+  }
+  windowPasteHandlerRef.current = handleWindowPaste;
+  pasteClipboardRef.current = pasteClipboard;
+
+  // In-app copy (copySelection): puts a marker plus the selection's plain
+  // text on the system clipboard. Only acts on copies copySelection itself
+  // triggered, so normal copying of text in inputs/elsewhere is untouched.
+  function handleWindowCopy(event) {
+    if (!internalCopyPendingRef.current || !clipboardTokenRef.current || !event.clipboardData) return;
+    if (isTypingTarget(document.activeElement) || editingTextIdRef.current || editingTableIdRef.current) return;
+    const plain = clipboardRef.current
+      .filter((item) => item.type === "text")
+      .map((item) => plainTextOf(ensureRichText(item)))
+      .join("\n");
+    event.clipboardData.setData("text/plain", plain);
+    event.clipboardData.setData("text/html", `<span data-vaycona-clipboard="${clipboardTokenRef.current}">${plain.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</span>`);
     event.preventDefault();
-    (async () => {
-      for (const file of files) {
-        const named = file.name && file.name !== "image.png" ? file : new File([file], `Pasted image ${new Date().toLocaleString()}.png`, { type: file.type });
-        const result = await uploadFileToLibrary(named);
-        if (!result.id) continue;
-        if (activeSidebarSection !== "uploads") {
-          await addImageItem(result.id);
-        }
-      }
-    })();
   }
 
   useEffect(() => {
-    window.addEventListener("paste", handleWindowPaste);
-    return () => window.removeEventListener("paste", handleWindowPaste);
+    const onPaste = (event) => windowPasteHandlerRef.current?.(event);
+    window.addEventListener("paste", onPaste);
+    window.addEventListener("copy", handleWindowCopy);
+    return () => {
+      window.removeEventListener("paste", onPaste);
+      window.removeEventListener("copy", handleWindowCopy);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSidebarSection]);
+  }, []);
 
   // Stable handlers below are passed to the memoized DesignNode and must
   // never change identity across renders — they read live state via the
@@ -6885,7 +7036,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         copySelection();
         break;
       case "paste":
-        pasteClipboard();
+        pasteFromSystemClipboard();
         break;
       case "duplicate":
         duplicateSelection();
@@ -6989,7 +7140,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     onRedo: redo,
     onSaveNow: saveNow,
     onCopy: copySelection,
-    onPaste: pasteClipboard,
+    onPaste: schedulePasteFallback,
     onCut: cutSelection,
     onDuplicate: duplicateSelection,
     onDelete: () => {
@@ -8233,7 +8384,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 isLocked={isSelectionLocked}
                 phoneScale={isPhone ? displayScale : null}
                 onCopy={copySelection}
-                onPaste={clipboardRef.current.length > 0 ? pasteClipboard : undefined}
+                onPaste={clipboardRef.current.length > 0 ? pasteFromSystemClipboard : undefined}
                 onDuplicate={duplicateSelection}
                 onDelete={removeSelection}
                 onForward={() => reorderSelection("forward")}
@@ -8435,7 +8586,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 onClose={() => setContextMenu(null)}
                 onAction={handleContextMenuAction}
                 hasSelection={selectedIds.length > 0}
-                hasClipboard={clipboardRef.current.length > 0}
+                hasClipboard={clipboardRef.current.length > 0 || !!navigator.clipboard?.read || !!navigator.clipboard?.readText}
                 isLocked={isSelectionLocked}
                 canRemoveBackground={
                   selectedItems.length === 1 && selectedItems[0].type === "image" && !!selectedItems[0].assetId
@@ -8702,7 +8853,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onExportSvg={() => openExportDialog("svg")}
         onOpenExportAnimation={() => setIsExportAnimationOpen(true)}
         onCopy={copySelection}
-        onPaste={pasteClipboard}
+        onPaste={pasteFromSystemClipboard}
         onDuplicate={duplicateSelection}
         onDelete={removeSelection}
         onSelectAll={selectAll}

@@ -110,6 +110,7 @@ export const PANEL_STRINGS = {
         badge: "Badge",
         ring: "Ring",
       },
+      outlineShapes: "Outline shapes",
       linesAndArrows: "Lines & Arrows",
       charts: "Charts",
       table: "Table",
@@ -124,6 +125,7 @@ export const PANEL_STRINGS = {
       generateBarcode: "Generate barcode",
       frames: "Frames",
       addShapeAria: (label) => `Add ${label} shape`,
+      addOutlineShapeAria: (label) => `Add ${label} outline shape`,
       addAria: (label) => `Add ${label}`,
     },
     design: {
@@ -432,6 +434,7 @@ export const PANEL_STRINGS = {
         badge: "Badge",
         ring: "Anneau",
       },
+      outlineShapes: "Formes contour",
       linesAndArrows: "Lignes et flèches",
       charts: "Graphiques",
       table: "Tableau",
@@ -446,6 +449,7 @@ export const PANEL_STRINGS = {
       generateBarcode: "Générer le code-barres",
       frames: "Cadres",
       addShapeAria: (label) => `Ajouter la forme ${label}`,
+      addOutlineShapeAria: (label) => `Ajouter la forme ${label} (contour)`,
       addAria: (label) => `Ajouter ${label}`,
     },
     design: {

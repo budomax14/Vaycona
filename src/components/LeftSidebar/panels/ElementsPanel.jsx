@@ -144,6 +144,29 @@ export default function ElementsPanel({
       </div>
 
       <div className="flex flex-col gap-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.outlineShapes}</span>
+        <div className="grid grid-cols-3 gap-2">
+          {SHAPE_KIND_ORDER.map((kind) => {
+            const Icon = SHAPE_ICONS[kind];
+            const label = t.shapeLabels[kind];
+            return (
+              <button
+                key={kind}
+                type="button"
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-200 py-4 text-gray-600 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700"
+                onClick={() => onAddShape(kind, { outline: true })}
+                title={label}
+                aria-label={t.addOutlineShapeAria(label)}
+              >
+                <Icon size={20} />
+                <span className="text-[10px] font-medium">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.linesAndArrows}</span>
         <div className="grid grid-cols-3 gap-2">
           {LINE_KIND_ORDER.map((kind) => {
