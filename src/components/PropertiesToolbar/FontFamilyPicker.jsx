@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { FONT_CATEGORIES, FONT_LIBRARY } from "../../fontLibrary";
 import { useFontLoader } from "../../useFontLoader";
 import { useLanguage } from "../../languageContext";
 import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
-import ToolbarPopover from "./ToolbarPopover";
+import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
+import { useBreakpoint } from "../../useBreakpoint";
 
 const RECENT_FONTS_KEY = "personal-canva-recent-fonts-v1";
 const RECENT_FONTS_MAX = 6;
@@ -28,12 +29,36 @@ function recordRecentFont(name) {
   }
 }
 
-function FontRow({ name, cssStack, onSelect }) {
+// `lazy` (phone): only load this row's font once it scrolls into view.
+// Opening the picker used to start loading every library font at once —
+// dozens of stylesheet + font-file downloads, which stalled the sheet's
+// opening for over half a second and weighed on iOS memory.
+function FontRow({ name, cssStack, onSelect, lazy = false }) {
   const { language } = useLanguage();
   const t = TEXT_PROPERTIES_STRINGS[language].fontFamilyPicker;
-  const ready = useFontLoader(name);
+  const rowRef = useRef(null);
+  const [inView, setInView] = useState(!lazy);
+  useEffect(() => {
+    if (inView || !rowRef.current || typeof IntersectionObserver === "undefined") {
+      if (!inView) setInView(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "120px 0px" }
+    );
+    observer.observe(rowRef.current);
+    return () => observer.disconnect();
+  }, [inView]);
+  const ready = useFontLoader(inView ? name : null);
   return (
     <button
+      ref={rowRef}
       type="button"
       className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-gray-100"
       style={{ fontFamily: ready ? cssStack : undefined }}
@@ -58,6 +83,11 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState(loadRecentFonts);
   const anchorRef = useRef(null);
+  // Phone: a bottom sheet (ResponsiveSheet) instead of the anchored popover,
+  // and no search autofocus. Autofocus raised the iOS keyboard, whose
+  // viewport resize/scroll closed the popover the instant it opened — the
+  // font list never stayed up long enough to pick from.
+  const { isMobile } = useBreakpoint();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -77,19 +107,23 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
         ref={anchorRef}
         type="button"
         className="flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-700 hover:border-amber-400"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          // Phone: start each open with the full list, not the last search.
+          if (isMobile && !open) setQuery("");
+          setOpen((v) => !v);
+        }}
         aria-label={t.fontFamilyLabel}
       >
         <span className="max-w-[100px] truncate">{mixed ? t.mixed : value || "Arial"}</span>
         <ChevronDown size={14} />
       </button>
 
-      <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
-        <div className="w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg" data-text-toolbar-safe>
+      <ResponsiveSheet isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)}>
+        <div className={isMobile ? "w-full" : "w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg"} data-text-toolbar-safe>
           <div className="relative mb-2">
             <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
             <input
-              autoFocus
+              autoFocus={!isMobile}
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -98,14 +132,14 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto">
+          <div className={isMobile ? "max-h-[50vh] overflow-y-auto overscroll-contain" : "max-h-64 overflow-y-auto"}>
             {!query && recent.length > 0 && (
               <>
                 <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.recentlyUsed}</div>
                 {recent.map((name) => {
                   const entry = FONT_LIBRARY.find((f) => f.name === name);
                   if (!entry) return null;
-                  return <FontRow key={name} name={entry.name} cssStack={entry.cssStack} onSelect={() => select(entry.name)} />;
+                  return <FontRow key={name} name={entry.name} cssStack={entry.cssStack} onSelect={() => select(entry.name)} lazy={isMobile} />;
                 })}
               </>
             )}
@@ -116,7 +150,7 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
                 <div key={category}>
                   <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{category}</div>
                   {inCategory.map((entry) => (
-                    <FontRow key={entry.name} name={entry.name} cssStack={entry.cssStack} onSelect={() => select(entry.name)} />
+                    <FontRow key={entry.name} name={entry.name} cssStack={entry.cssStack} onSelect={() => select(entry.name)} lazy={isMobile} />
                   ))}
                 </div>
               );
@@ -124,7 +158,7 @@ export default function FontFamilyPicker({ value, mixed, onChange }) {
             {filtered.length === 0 && <p className="px-2 py-3 text-sm text-gray-400">{t.noFontsMatch(query)}</p>}
           </div>
         </div>
-      </ToolbarPopover>
+      </ResponsiveSheet>
     </div>
   );
 }

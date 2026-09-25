@@ -310,7 +310,8 @@ export default function TopNavBar({
           <MenuItem label={hasSavedProject ? t.saveProject : t.saveProjectFirst} onClick={onSaveProject} />
           {hasSavedProject && <MenuItem label={t.saveProjectAsNew} onClick={onSaveProjectAsNew} />}
           <MenuItem label={t.saveAsTemplate} onClick={onOpenSaveAsTemplate} />
-          <MenuItem label={t.print} shortcut="Ctrl/Cmd+P" onClick={onPrint} />
+          {/* Phone: Print sits at the top level of the Menu sheet instead. */}
+          {!isMobile && <MenuItem label={t.print} shortcut="Ctrl/Cmd+P" onClick={onPrint} />}
           <MenuSubmenu label={t.exportAs}>
             <MenuItem label={t.exportPng} onClick={onExportPng} />
             <MenuItem label={t.exportJpeg} onClick={onExportJpeg} />
@@ -456,24 +457,27 @@ export default function TopNavBar({
             <MobileMenuGroup label={t.fileMenu}>{fileMenuItems}</MobileMenuGroup>
             <MobileMenuGroup label={t.editMenu}>{editMenuItems}</MobileMenuGroup>
             <MobileMenuGroup label={t.viewMenu}>{viewMenuItems}</MobileMenuGroup>
+            <MenuItem label={t.print} onClick={onPrint} />
             <MenuItem label={t.previewMenu} onClick={onOpenPreview} />
             <MobileMenuGroup label={t.helpMenu}>{helpMenuItems}</MobileMenuGroup>
+            <MobileMenuGroup label={m.menu.settings}>
+              {tier === "free" && <MenuItem label={t.upgrade} onClick={onOpenPricing} />}
+              {/* Toggles change in place — tapping them must not close the sheet. */}
+              <div className="px-3 py-2" onClick={(event) => event.stopPropagation()}>
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">{STRINGS[language].common.language}</span>
+                  <LanguageToggle />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">{STRINGS[language].common.theme}</span>
+                  <ThemeToggle />
+                </div>
+              </div>
+            </MobileMenuGroup>
             <MenuDivider />
             <MenuItem label={t.shareDesign} onClick={onShareDesign} />
             {showMockupPreview && <MenuItem label={t.mockupPreviewButton} onClick={onOpenMockupPreview} />}
-            {tier === "free" && <MenuItem label={t.upgrade} onClick={onOpenPricing} />}
             {isAdmin && <MenuItem label={t.adminPanel} onClick={() => navigateTo("#/admin")} />}
-            <MenuDivider />
-            <div className="px-3 py-2" onClick={(event) => event.stopPropagation()}>
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">{STRINGS[language].common.language}</span>
-                <LanguageToggle />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">{STRINGS[language].common.theme}</span>
-                <ThemeToggle />
-              </div>
-            </div>
             <MenuDivider />
             <div className="px-3 py-2">
               <div className="truncate text-xs text-gray-500">{user?.email}</div>

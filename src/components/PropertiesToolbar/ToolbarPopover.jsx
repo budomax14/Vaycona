@@ -16,6 +16,18 @@ import { TEXT_PROPERTIES_STRINGS } from "../../i18n/textProperties";
 // regardless of that clipping ancestor.
 const VIEWPORT_MARGIN = 8;
 
+// Mirrors useBreakpoint's phone tier (read at event time, not via a hook,
+// so this effect's listeners don't need to re-bind on breakpoint changes).
+function isPhoneLayout() {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(max-width: 767px)").matches || window.matchMedia("(max-height: 500px) and (max-width: 1023px)").matches;
+}
+
+function isTextFieldFocused() {
+  const el = document.activeElement;
+  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+}
+
 export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "left", children }) {
   const { language } = useLanguage();
   const t = TEXT_PROPERTIES_STRINGS[language].toolbarPopover;
@@ -134,6 +146,12 @@ export default function ToolbarPopover({ isOpen, anchorRef, onClose, align = "le
     // the popover's own scrollable children, which don't bubble, so that
     // case needs an explicit exclusion rather than relying on bubbling.
     function handleScroll(event) {
+      // Phone: focusing a text field inside a popover raises the iOS
+      // keyboard, and Safari then resizes/scrolls the viewport to reveal
+      // the field — which read as "the page scrolled" and closed the
+      // popover out from under the user's typing.
+      if (isPhoneLayout() && document.activeElement?.closest?.("[data-toolbar-popover]")) return;
+      if (event.type === "resize" && isPhoneLayout() && isTextFieldFocused()) return;
       if (popoverRef.current && popoverRef.current.contains(event.target)) return;
       if (event.target.closest?.("[data-toolbar-popover]")) return;
       onClose();

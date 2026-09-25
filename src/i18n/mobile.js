@@ -8,7 +8,7 @@ export const MOBILE_STRINGS = {
     bottomBar: { aria: "Editor tools", add: "Add", edit: "Edit", layers: "Layers", pages: "Pages", view: "View" },
     sheet: { close: "Close", back: "Back" },
     addSheetTitle: "Add to your design",
-    menu: { button: "Menu", title: "Menu", account: "Account" },
+    menu: { button: "Menu", title: "Menu", account: "Account", settings: "Settings" },
     view: {
       title: "View",
       zoom: "Zoom",
@@ -26,7 +26,7 @@ export const MOBILE_STRINGS = {
     bottomBar: { aria: "Outils de l'éditeur", add: "Ajouter", edit: "Modifier", layers: "Calques", pages: "Pages", view: "Vue" },
     sheet: { close: "Fermer", back: "Retour" },
     addSheetTitle: "Ajouter à votre design",
-    menu: { button: "Menu", title: "Menu", account: "Compte" },
+    menu: { button: "Menu", title: "Menu", account: "Compte", settings: "Paramètres" },
     view: {
       title: "Vue",
       zoom: "Zoom",

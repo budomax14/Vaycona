@@ -6,10 +6,16 @@ import { isFontResolved, loadFont } from "./fontLibrary";
 // silently falls back to a default font at draw time with no error if the
 // named font isn't loaded yet, which is what causes permanent-wrong-
 // metrics/invisible-text bugs if this isn't accounted for.
+// A falsy fontFamily means "not yet" (e.g. a picker row still off screen):
+// nothing loads and it reports not-ready.
 export function useFontLoader(fontFamily) {
-  const [ready, setReady] = useState(() => isFontResolved(fontFamily));
+  const [ready, setReady] = useState(() => !!fontFamily && isFontResolved(fontFamily));
 
   useEffect(() => {
+    if (!fontFamily) {
+      setReady(false);
+      return undefined;
+    }
     if (isFontResolved(fontFamily)) {
       setReady(true);
       return undefined;
