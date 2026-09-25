@@ -248,6 +248,39 @@ export function applyCanvasPixelBudget(stage, { dragging = false } = {}) {
     sceneRatio
   );
 
+  /*
+   * Stage-level scratch buffers. Konva gives every Stage two extra
+   * full-Stage-size canvases that are never in the DOM: bufferCanvas (every
+   * frame, each shape with fill + stroke + opacity < 1, or fill + stroke +
+   * shadow, is drawn into it and composited back) and bufferHitCanvas (only
+   * used by Shape.intersects() / getAllIntersections(), which the editor
+   * never calls). They default to pixelRatio 1 regardless of the layer
+   * budget below, so on a 1080px page they alone were ~2 x 9.7M px (~78MB)
+   * next to a ~0.9M px visible layer, and they grow with the page size.
+   * That's what pushes a phone over its memory limit mid-drag.
+   * bufferCanvas is drawn back at (width / pixelRatio), so matching the
+   * layer's steady-state ratio keeps buffered shapes the same resolution
+   * as the layer. It deliberately ignores the drag budget: dropping it for
+   * the gesture would mean reallocating it at every drag start and end.
+   * Stage._resizeDOM keeps the ratio when it resizes these.
+   */
+  const bufferSceneRatio = dragging
+    ? calculateSafePixelRatio(width, height, MOBILE_MAX_SCENE_PIXELS)
+    : sceneRatio;
+  const bufferHitRatio = Math.min(MOBILE_HIT_PIXEL_RATIO, bufferSceneRatio);
+  for (const [buffer, ratio] of [
+    [stage.bufferCanvas, bufferSceneRatio],
+    [stage.bufferHitCanvas, bufferHitRatio],
+  ]) {
+    if (
+      buffer &&
+      typeof buffer.setPixelRatio === "function" &&
+      Math.abs(buffer.getPixelRatio() - ratio) > 0.01
+    ) {
+      buffer.setPixelRatio(ratio);
+    }
+  }
+
   const layers = stage.getLayers?.() || [];
 
   for (const layer of layers) {
