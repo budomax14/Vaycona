@@ -8241,7 +8241,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 onToggleLock={toggleLockSelection}
                 onOpenShapeFill={
                   selectedItems.length === 1 && selectedItems[0].type === "shape"
-                    ? () => setShapeFillOpenRequest((n) => n + 1)
+                    ? () => {
+                        // Phone: the fill panel lives in the Edit row, which
+                        // isn't mounted until opened — open it too, or the
+                        // request has nothing to land in.
+                        if (isPhone) {
+                          setActiveSidebarSection(null);
+                          setMobileViewOpen(false);
+                          setMobileEditOpen(true);
+                        }
+                        setShapeFillOpenRequest((n) => n + 1);
+                      }
                     : undefined
                 }
                 onOpenContextMenu={
@@ -8584,6 +8594,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onEnterImageFillEditMode={enterImageFillEditMode}
         onExitImageFillEditMode={applyImageFillEditModeAndCommit}
         shapeFillOpenRequest={shapeFillOpenRequest}
+        onShapeFillRequestHandled={() => setShapeFillOpenRequest(0)}
         onLiveAdjustments={liveAdjustmentsChange}
         onCommitAdjustments={commitAdjustmentsGesture}
         onRestoreOriginalRatio={restoreOriginalAspectRatio}

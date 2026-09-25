@@ -97,6 +97,7 @@ export default function PropertiesToolbar({
   onEnterImageFillEditMode,
   onExitImageFillEditMode,
   shapeFillOpenRequest,
+  onShapeFillRequestHandled,
   // Phase 11 — brand color/style linking (all optional; see App.jsx's
   // buildBrandBarProps). Bundled into one `brand` prop per selected item
   // rather than a dozen more individual props threaded through every Bar.
@@ -278,6 +279,7 @@ export default function PropertiesToolbar({
           }
           onExitImageFillEditMode={single.type === "text" || single.type === "shape" ? onExitImageFillEditMode : undefined}
           shapeFillOpenRequest={single.type === "shape" ? shapeFillOpenRequest : undefined}
+          onShapeFillRequestHandled={onShapeFillRequestHandled}
           onUngroup={single.type === "group" ? onUngroup : undefined}
           onMoveBy={single.type === "group" ? (dx, dy) => onMoveGroupBy(single.id, dx, dy) : undefined}
           onSetGroupOpacity={single.type === "group" ? (value) => onSetGroupOpacity(single.id, value) : undefined}

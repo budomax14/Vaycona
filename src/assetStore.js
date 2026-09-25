@@ -81,6 +81,47 @@ function withStore(mode, fn) {
   );
 }
 
+// Safari Private Browsing (and some WebKit builds) refuse to store Blob/File
+// values in IndexedDB — the put's transaction just errors, so every upload
+// failed with "storage error" and a shape could never be filled with an
+// image. When that happens the record is retried with its blobs stored as
+// plain {bytes, type} objects (ArrayBuffers store fine everywhere), and
+// reviveRecord turns them back into Blobs on the way out.
+const ENCODED_BLOB_MARKER = "__vayconaEncodedBlob";
+
+async function encodeBlob(value) {
+  if (!(value instanceof Blob)) return value;
+  return { [ENCODED_BLOB_MARKER]: true, type: value.type, name: value.name, bytes: await value.arrayBuffer() };
+}
+
+function decodeBlob(value) {
+  if (!value || value[ENCODED_BLOB_MARKER] !== true) return value;
+  return new Blob([value.bytes], { type: value.type || "" });
+}
+
+function reviveRecord(record) {
+  if (!record) return record;
+  const blob = decodeBlob(record.blob);
+  const thumbBlob = decodeBlob(record.thumbBlob);
+  if (blob === record.blob && thumbBlob === record.thumbBlob) return record;
+  return { ...record, blob, thumbBlob };
+}
+
+async function putRecord(record) {
+  try {
+    return await withStore("readwrite", (store) => store.put(record));
+  } catch (firstError) {
+    const [blob, thumbBlob] = await Promise.all([encodeBlob(record.blob), encodeBlob(record.thumbBlob)]);
+    if (blob === record.blob && thumbBlob === record.thumbBlob) throw firstError;
+    return withStore("readwrite", (store) => store.put({ ...record, blob, thumbBlob }));
+  }
+}
+
+async function getRecord(id) {
+  const record = await withStore("readonly", (store) => requestToPromise(store.get(id)));
+  return reviveRecord(await record);
+}
+
 function requestToPromise(request) {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -291,7 +332,7 @@ async function cacheCloudDocLocally(cloudDoc) {
     cloudUrl: cloudDoc.url,
     storagePath: cloudDoc.storagePath || null,
   };
-  await withStore("readwrite", (store) => store.put({ ...meta, blob, thumbBlob }));
+  await putRecord({ ...meta, blob, thumbBlob });
   upsertAssetIndexEntry({ ...meta, thumbDataUrl });
   assetEvents.emit(meta.id);
   return { meta, blob };
@@ -363,7 +404,7 @@ export async function putAsset(file, { name, sourceType = "upload", onProgress }
   meta = await attachCloudSync(meta, file, onProgress);
 
   try {
-    await withStore("readwrite", (store) => store.put({ ...meta, blob: file, thumbBlob }));
+    await putRecord({ ...meta, blob: file, thumbBlob });
   } catch (err) {
     return { id: null, status: "error", errorMessage: `Upload failed: ${err?.message || "storage error"}.` };
   }
@@ -419,7 +460,7 @@ export async function putAssetWithId(id, file, { name, sourceType = "import" } =
   meta = await attachCloudSync(meta, file);
 
   try {
-    await withStore("readwrite", (store) => store.put({ ...meta, blob: file, thumbBlob }));
+    await putRecord({ ...meta, blob: file, thumbBlob });
   } catch (err) {
     return { id: null, status: "error", errorMessage: `Import failed: ${err?.message || "storage error"}.` };
   }
@@ -438,8 +479,7 @@ export async function putAssetWithId(id, file, { name, sourceType = "import" } =
 // doesn't pay for a full image download it doesn't need.
 export async function getAssetMeta(id) {
   if (!id) return null;
-  const record = await withStore("readonly", (store) => requestToPromise(store.get(id)));
-  const resolved = await record;
+  const resolved = await getRecord(id);
   if (resolved) {
     const { blob, thumbBlob, ...meta } = resolved;
     return meta;
@@ -476,8 +516,7 @@ export async function getAssetMeta(id) {
 // IndexedDB is cleared, with no changes needed in either of those files.
 export async function getAssetBlob(id) {
   if (!id) return null;
-  const record = await withStore("readonly", (store) => requestToPromise(store.get(id)));
-  const resolved = await record;
+  const resolved = await getRecord(id);
   if (resolved?.blob) return resolved.blob;
   const uid = auth.currentUser?.uid;
   if (!uid) return null;
@@ -493,8 +532,7 @@ export async function getAssetBlob(id) {
 
 export async function getAssetThumbBlob(id) {
   if (!id) return null;
-  const record = await withStore("readonly", (store) => requestToPromise(store.get(id)));
-  const resolved = await record;
+  const resolved = await getRecord(id);
   return resolved?.thumbBlob || null;
 }
 
@@ -509,8 +547,7 @@ export async function listAssets() {
 // the original binary or any project metadata; skips safely (returns
 // false) if the asset or its source image can't be read.
 export async function regenerateAssetThumbnail(id) {
-  const record = await withStore("readonly", (store) => requestToPromise(store.get(id)));
-  const resolved = await record;
+  const resolved = await getRecord(id);
   if (!resolved?.blob) return false;
   let img;
   try {
@@ -521,7 +558,7 @@ export async function regenerateAssetThumbnail(id) {
   const { thumbBlob, thumbDataUrl } = await generateThumbnail(img);
   const { blob, ...meta } = resolved;
   try {
-    await withStore("readwrite", (store) => store.put({ ...meta, blob, thumbBlob }));
+    await putRecord({ ...meta, blob, thumbBlob });
   } catch {
     return false;
   }
@@ -576,11 +613,10 @@ export async function retryAsset(id, file) {
 // touching its blob/thumbnail — used by migrateLocalAssetsToCloud below
 // once an asset's cloud upload (or duplicate match) resolves.
 async function patchAssetCloudFields(id, fields) {
-  const record = await withStore("readonly", (store) => requestToPromise(store.get(id)));
-  const resolved = await record;
+  const resolved = await getRecord(id);
   if (!resolved) return;
   const next = { ...resolved, ...fields, updatedAt: Date.now() };
-  await withStore("readwrite", (store) => store.put(next));
+  await putRecord(next);
   const { blob, thumbBlob, ...meta } = next;
   const existingThumbDataUrl = readAssetIndex()[id]?.thumbDataUrl || null;
   upsertAssetIndexEntry({ ...meta, thumbDataUrl: existingThumbDataUrl });

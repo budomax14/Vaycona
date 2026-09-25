@@ -28,6 +28,7 @@ export default function ShapePropertiesBar({
   onEnterImageFillEditMode,
   onExitImageFillEditMode,
   shapeFillOpenRequest,
+  onShapeFillRequestHandled,
   onLiveFade,
   onCommitFade,
   onEnterFadeMode,
@@ -44,8 +45,15 @@ export default function ShapePropertiesBar({
   // SelectionToolbar's "Shape fill" button lives outside this component, so
   // it can't call setIsColorPanelOpen directly — it bumps shapeFillOpenRequest
   // instead, and this just opens the panel whenever that counter changes.
+  // The request is then cleared (back to 0) so it's consumed exactly once:
+  // on phone this bar unmounts whenever the Edit row closes, and a stale
+  // non-zero request would otherwise re-open the panel on every remount.
   useEffect(() => {
-    if (shapeFillOpenRequest) setIsColorPanelOpen(true);
+    if (shapeFillOpenRequest) {
+      setIsColorPanelOpen(true);
+      onShapeFillRequestHandled?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shapeFillOpenRequest]);
   // Brush strokes share this bar (color/thickness/opacity) and, like
   // lines, have no fill/border-style/corner-radius concept of their own.
