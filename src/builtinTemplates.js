@@ -10,6 +10,7 @@
 import { getDefaultProps } from "./objectRegistry";
 import { findIconByName } from "./iconCatalog";
 import { STARTER_PACK_TEMPLATES } from "./starterPackTemplates";
+import { GREETING_CARD_TEMPLATES } from "./print/greetingCardTemplates";
 
 function page(id, name, width, height, background = "#ffffff") {
   return { id, name, width, height, background };
@@ -289,4 +290,7 @@ export const BUILT_IN_TEMPLATES = [
   // 50 additional starter templates from personal_canva_template_starter_pack/,
   // converted to this same builtin-seed shape by starterPackTemplates.js.
   ...STARTER_PACK_TEMPLATES,
+  // Complete four-panel half-fold cards, one per Greeting Cards subcategory
+  // (print/greetingCardTemplates.js).
+  ...GREETING_CARD_TEMPLATES,
 ];

@@ -9,6 +9,7 @@ import { useAsset } from "../useAsset";
 import { useImageElement } from "../useImageElement";
 import { resolveText3D, getText3DSteps, getText3DBevelRim } from "../text3D";
 import { useText3DCache } from "../useText3DCache";
+import { useFontLoader } from "../useFontLoader";
 
 function buildFontStyle(item) {
   const parts = [];
@@ -62,6 +63,12 @@ export default function SimpleTextNode({ item, commonProps }) {
   // defaults), so this never runs for the common auto-height/auto-width path.
   const textNodeRef = useRef(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
+  // Canvas silently falls back to a default font if this one isn't loaded
+  // yet, and Konva.Text keeps the line-wrapping it computed with that
+  // fallback — so load it here and re-lay the text out once it's ready
+  // (the `fontReady` key/deps below), or the text wraps and sizes
+  // differently than it did while being typed.
+  const fontReady = useFontLoader(item.fontFamily || "Arial");
   const fontSize = item.fontSize || 42;
   const lineHeight = item.lineHeight || 1;
   const padding = item.padding ?? 4;
@@ -96,11 +103,11 @@ export default function SimpleTextNode({ item, commonProps }) {
       padding,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text3D.enabled, text3DSteps.length, !!bevelRim, text3DContent, width, height, fontSize, item.fontFamily, item.fontWeight, item.italic, item.letterSpacing, lineHeight, item.align, item.verticalAlign, padding]);
+  }, [text3D.enabled, text3DSteps.length, !!bevelRim, text3DContent, width, height, fontSize, item.fontFamily, item.fontWeight, item.italic, item.letterSpacing, lineHeight, item.align, item.verticalAlign, padding, fontReady]);
 
   const text3DCacheKey = JSON.stringify([
     text3DContent, item.fontFamily, fontSize, item.fontWeight, item.italic, item.letterSpacing, lineHeight,
-    item.align, item.verticalAlign, item.fill, item.fillGradient, item.fillImage, background, border,
+    item.align, item.verticalAlign, item.fill, item.fillGradient, item.fillImage, background, border, fontReady,
   ]);
   useText3DCache(ref, text3D, width, height, text3DCacheKey);
 
@@ -113,7 +120,7 @@ export default function SimpleTextNode({ item, commonProps }) {
     const lineCount = node?.textArr?.length || 0;
     const naturalHeight = fontSize * lineCount * lineHeight + padding * 2;
     setIsOverflowing(naturalHeight > height);
-  }, [item.autoSize, item.text, item.textTransform, fontSize, lineHeight, padding, width, height, item.align, item.letterSpacing, item.fontFamily, item.fontWeight, item.italic]);
+  }, [item.autoSize, item.text, item.textTransform, fontSize, lineHeight, padding, width, height, item.align, item.letterSpacing, item.fontFamily, item.fontWeight, item.italic, fontReady]);
 
   return (
     <Group
@@ -209,6 +216,7 @@ export default function SimpleTextNode({ item, commonProps }) {
           />
         )}
         <Text
+          key={fontReady ? "font-ready" : "font-loading"}
           ref={textNodeRef}
           text={textTransformContent(item)}
           width={width}

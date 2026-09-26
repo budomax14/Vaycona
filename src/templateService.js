@@ -55,7 +55,7 @@ async function syncTemplateAssetsToCloud(template) {
 const TEMPLATE_DB_NAME = "personal-canva-templates-v1";
 const TEMPLATE_STORE = "templates";
 export const TEMPLATE_FORMAT_VERSION = 1;
-export const BUILT_IN_SEED_VERSION = 3; // v3: migrates built-in ids to the stable `builtin-${builtInKey}` form (see seedBuiltInTemplatesOnce)
+export const BUILT_IN_SEED_VERSION = 4; // v3: migrates built-in ids to the stable `builtin-${builtInKey}` form (see seedBuiltInTemplatesOnce); v4: adds the Greeting Cards set
 const SEED_FLAG_KEY = "personal-canva-templates-seed-v1";
 const RECENT_TEMPLATES_KEY = "personal-canva-recent-templates-v1";
 export const MAX_RECENT_TEMPLATES = 15;
@@ -68,6 +68,7 @@ export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 500;
 export const TEMPLATE_CATEGORIES = [
   { key: "social", label: "Social media" },
   { key: "invitations", label: "Invitations" },
+  { key: "greeting-cards", label: "Greeting cards" },
   { key: "business", label: "Business" },
   { key: "marketing", label: "Marketing" },
   { key: "print", label: "Print" },
@@ -646,6 +647,7 @@ async function seedBuiltInTemplatesOnce() {
       name: seed.name,
       description: seed.description || null,
       category: seed.category,
+      subcategory: seed.subcategory ?? null,
       tags: normalizeTags(seed.tags),
       createdAt: now,
       updatedAt: now,

@@ -126,7 +126,10 @@ function computedRunStyle(el, inherited) {
 
 function walkInline(node, runs, style) {
   if (node.nodeType === 3) {
-    if (node.textContent) runs.push({ text: node.textContent, ...style });
+    // Zero-width spaces are TextEditOverlay's caret placeholder for "style
+    // the next typed letters" (see applyFormat) — never real content.
+    const text = node.textContent.replace(/\u200B/g, "");
+    if (text) runs.push({ text, ...style });
     return;
   }
   if (node.nodeType !== 1) return;
@@ -423,12 +426,38 @@ export function layoutRichText(paragraphs, opts) {
       line = { segments: [], width: 0, isFirst: false };
     };
 
+    // Like the browser (and Konva.Text) at a soft wrap: spaces at the end
+    // of a wrapped line hang past it and take no width, and the next line
+    // never starts with them — otherwise text drawn here lands a space
+    // off from where it sat while being typed in TextEditOverlay.
+    const trimTrailingSpace = () => {
+      while (line.segments.length) {
+        const seg = line.segments[line.segments.length - 1];
+        const trimmed = seg.text.replace(/\s+$/, "");
+        if (trimmed === seg.text) break;
+        const removed = seg.width - (trimmed ? measureRunText(ctx, seg.run, trimmed, letterSpacing) : 0);
+        line.width -= removed;
+        if (trimmed) {
+          seg.text = trimmed;
+          seg.width -= removed;
+          break;
+        }
+        line.segments.pop();
+      }
+    };
+
     tokens.forEach((token) => {
       if (token.forceBreak) {
         flushLine(false);
         return;
       }
-      if ((!autoWidth || autoWidthCapped) && line.segments.length && line.width + token.width > usableWidth) flushLine(false);
+      const isSpace = /^\s+$/.test(token.text);
+      const wrapping = (!autoWidth || autoWidthCapped) && line.segments.length && line.width + token.width > usableWidth;
+      if (wrapping && isSpace) return;
+      if (wrapping) {
+        trimTrailingSpace();
+        flushLine(false);
+      }
       const last = line.segments[line.segments.length - 1];
       if (last && last.run === token.run) {
         last.text += token.text;
@@ -482,18 +511,38 @@ export function measureAutoHeight(item, richText) {
 export function measureFlexibleTextBox(item, richText, availableWidth) {
   const padding = item.padding ?? 4;
   const maxContentWidth = Math.max(20, availableWidth - padding * 2);
-  const { totalWidth, totalHeight } = layoutRichText(richText, {
-    maxWidth: maxContentWidth,
+  const layoutOpts = {
     autoWidth: true,
-    maxAutoWidth: maxContentWidth,
     lineHeight: item.lineHeight || 1,
     align: item.align || "left",
     letterSpacing: item.letterSpacing || 0,
     paragraphSpacing: item.paragraphSpacing || 0,
     textTransform: item.textTransform || "none",
-  });
+  };
+  const { totalWidth, totalHeight } = layoutRichText(richText, { ...layoutOpts, maxWidth: maxContentWidth, maxAutoWidth: maxContentWidth });
+  // Once the text has to wrap, the box has reached the page edge — keep it
+  // there (not shrunk to the widest wrapped line). That's the width the
+  // TextEditOverlay's fit-content box has while typing, so leaving edit
+  // mode doesn't re-center/re-wrap the text in a narrower box.
+  const { totalWidth: unwrappedWidth } = layoutRichText(richText, { ...layoutOpts, maxWidth: Infinity, maxAutoWidth: Infinity });
+  let contentWidth = unwrappedWidth > maxContentWidth ? maxContentWidth : Math.min(maxContentWidth, totalWidth);
+  // Plain single-style text is drawn by SimpleTextNode's Konva.Text, which
+  // wraps at the box width using its OWN measurement: each whole line
+  // (with kerning) plus letterSpacing after every character. The per-letter
+  // sum above comes out a few px narrower whenever letter spacing is set
+  // (and sometimes from kerning alone), so the last word dropped to a new
+  // line once editing ended. Size the box with Konva's formula instead.
+  if (!isRichText({ ...item, richText }) && !(unwrappedWidth > maxContentWidth)) {
+    const ctx = getMeasureContext();
+    ctx.font = fontString(baseRunFromItem(item));
+    const letterSpacing = item.letterSpacing || 0;
+    const lines = applyTextTransform(plainTextOf(richText), item.textTransform || "none").split("\n");
+    const konvaWidth = Math.max(0, ...lines.map((line) => ctx.measureText(line).width + letterSpacing * line.length));
+    contentWidth = Math.min(maxContentWidth, konvaWidth);
+  }
   return {
-    width: Math.max(20, Math.min(maxContentWidth, totalWidth) + padding * 2),
+    // +1px: headroom so sub-pixel rounding can never make it wrap either.
+    width: Math.max(20, contentWidth + padding * 2 + 1),
     height: Math.max(20, totalHeight + padding * 2),
   };
 }

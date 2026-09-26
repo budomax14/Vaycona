@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
 } from "react";
 import { contentToScreen } from "../viewport";
@@ -14,8 +15,34 @@ import {
   richTextToHTML,
 } from "../richText";
 import { usePointerCapability } from "../usePointerCapability";
+import { useFontLoader } from "../useFontLoader";
 
 const TYPING_COMMIT_DEBOUNCE_MS = 1000;
+
+let baselineMeasureCtx = null;
+
+// How far (document px, + = down) the canvas draws a line of plain text
+// (SimpleTextNode's Konva.Text: "middle" baseline at the line box's center)
+// from where the browser draws the same line in this overlay (CSS: the
+// font's ascent/descent centered in the line box). Shifting the overlay's
+// text by this keeps it from jumping up/down when editing ends.
+function konvaBaselineShift(item) {
+  try {
+    if (!baselineMeasureCtx) baselineMeasureCtx = document.createElement("canvas").getContext("2d");
+    const ctx = baselineMeasureCtx;
+    const style = [item.italic && "italic", item.fontWeight === "bold" && "bold"].filter(Boolean).join(" ") || "normal";
+    ctx.font = `${style} normal ${item.fontSize || 24}px "${item.fontFamily || "Arial"}"`;
+    ctx.textBaseline = "alphabetic";
+    const alpha = ctx.measureText("M");
+    ctx.textBaseline = "middle";
+    const middle = ctx.measureText("M");
+    const { fontBoundingBoxAscent: ascent, fontBoundingBoxDescent: descent } = alpha;
+    if (!Number.isFinite(ascent) || !Number.isFinite(descent)) return 0;
+    return alpha.actualBoundingBoxAscent - middle.actualBoundingBoxAscent - (ascent - descent) / 2;
+  } catch {
+    return 0;
+  }
+}
 
 function caretRangeFromClientPoint(x, y) {
   if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
@@ -136,7 +163,22 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   const dirtyRef = useRef(false);
   const debounceRef = useRef(null);
   const dragRef = useRef(null);
+  // Last caret/selection inside the box, as character offsets — tapping a
+  // toolbar control (font size field, color picker, phone sheet) can move
+  // focus/selection out of the box before applyFormat runs.
+  const lastSelectionRef = useRef(null);
+  // Standard Document: the empty styled span (holding one zero-width
+  // space) that a format change with no highlighted letters leaves at the
+  // caret, so only the letters typed next get that style.
+  const pendingStyleSpanRef = useRef(null);
   const fontSizeScale = viewport.scale;
+  const fontReady = useFontLoader(item.fontFamily || "Arial");
+  // Plain-text path only — see konvaBaselineShift.
+  const baselineShift = useMemo(
+    () => (item.curve || isRichText(item) ? 0 : konvaBaselineShift(item)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [item.curve, item.richText, item.fontFamily, item.fontSize, item.fontWeight, item.italic, fontReady]
+  );
   const { hasCoarsePointer } = usePointerCapability();
 
   // On iOS/Android, focusing this contentEditable (see the mount effect
@@ -227,6 +269,44 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    function rememberSelection() {
+      const root = rootRef.current;
+      const sel = window.getSelection();
+      if (!root || !sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      if (!root.contains(range.commonAncestorContainer)) return;
+      lastSelectionRef.current = getCharacterOffsets(root, range);
+      // Caret moved away from an unused pending-style span → drop it.
+      const pending = pendingStyleSpanRef.current;
+      if (pending && !pending.contains(range.startContainer)) {
+        if (pending.isConnected && pending.textContent.replace(/\u200B/g, "") === "") pending.remove();
+        pendingStyleSpanRef.current = null;
+      }
+    }
+    document.addEventListener("selectionchange", rememberSelection);
+    return () => document.removeEventListener("selectionchange", rememberSelection);
+  }, []);
+
+  // Once real letters are typed into a pending-style span, drop its
+  // zero-width placeholder so it doesn't linger as an invisible character.
+  function cleanupPendingStyleSpan() {
+    const span = pendingStyleSpanRef.current;
+    if (!span) return;
+    const textNode = span.firstChild;
+    if (!span.isConnected || !textNode || textNode.nodeType !== 3) {
+      pendingStyleSpanRef.current = null;
+      return;
+    }
+    if (textNode.data.length <= 1 || !textNode.data.includes("\u200B")) return;
+    const sel = window.getSelection();
+    const caretInNode = sel && sel.rangeCount > 0 && sel.anchorNode === textNode ? sel.anchorOffset : null;
+    const zwspIndex = textNode.data.indexOf("\u200B");
+    textNode.data = textNode.data.replace(/\u200B/g, "");
+    if (caretInNode !== null) sel.collapse(textNode, Math.max(0, caretInNode - (zwspIndex < caretInNode ? 1 : 0)));
+    pendingStyleSpanRef.current = null;
+  }
+
   // Reports which list type (bullet/numbered/none) the caret currently
   // sits inside, so TextListMenu's toggle buttons can show accurate
   // active state instead of always reading as "off" — see toggleList's
@@ -251,6 +331,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
 
   function handleInput(event) {
     if (isComposingRef.current) return;
+    cleanupPendingStyleSpan();
     serializeAndSync();
     const inputType = event.nativeEvent?.inputType;
     if (inputType === "insertFromPaste" || inputType === "insertFromDrop" || inputType === "deleteByCut") {
@@ -262,6 +343,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
 
   function handleCompositionEnd() {
     isComposingRef.current = false;
+    cleanupPendingStyleSpan();
     serializeAndSync();
     scheduleFlush();
   }
@@ -335,8 +417,22 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   function applyFormat(styleKey, explicitValue) {
     const root = rootRef.current;
     const sel = window.getSelection();
-    if (!root || !sel || sel.rangeCount === 0) return;
-    if (!root.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
+    if (!root || !sel) return;
+    // Focus/selection left the box (a toolbar control took it) → put back
+    // the letters that were selected in the box before applying.
+    if (sel.rangeCount === 0 || !root.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      if (!lastSelectionRef.current) return;
+      root.focus();
+      restoreSelectionFromOffsets(root, lastSelectionRef.current);
+      if (sel.rangeCount === 0 || !root.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
+    }
+
+    // Standard Document, nothing highlighted: leave every existing letter
+    // alone — the change applies only to what gets typed next at the caret.
+    if (item.documentBody && sel.isCollapsed) {
+      applyFormatAtCaret(styleKey, explicitValue);
+      return;
+    }
 
     // A collapsed selection (just a caret, nothing highlighted) has no
     // "style the next typed character" state machine in this direct-DOM
@@ -379,7 +475,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
         : undefined;
 
     textNodes.forEach((textNode) => {
-      const current = collectRunStyleAt(textNode.parentElement);
+      const current = collectUnscaledRunStyleAt(textNode.parentElement);
       const next = { ...current };
       if (explicitValue !== undefined) {
         next[styleKey] = explicitValue;
@@ -400,6 +496,39 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     serializeAndSync();
     flush(); // formatting is always its own undo step, never coalesced with typing
     root.focus();
+  }
+
+  // collectRunStyleAt reads font-size off the DOM, where it's in on-screen
+  // (fontSizeScale-multiplied) px — convert back to document px before
+  // applyRunStyleToSpan scales it again, or every reformatted letter's
+  // size gets multiplied by fontSizeScale.
+  function collectUnscaledRunStyleAt(el) {
+    const style = collectRunStyleAt(el);
+    if (style.fontSize) style.fontSize /= fontSizeScale;
+    return style;
+  }
+
+  function applyFormatAtCaret(styleKey, explicitValue) {
+    const root = rootRef.current;
+    const sel = window.getSelection();
+    const range = sel.getRangeAt(0);
+    const existing = pendingStyleSpanRef.current;
+    const reuse = existing && existing.isConnected && existing.contains(range.startContainer);
+    const container = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
+    const current = collectUnscaledRunStyleAt(reuse ? existing : container);
+    const isBooleanToggle = ["bold", "italic", "underline", "strikethrough"].includes(styleKey);
+    const next = { ...current, [styleKey]: explicitValue !== undefined ? explicitValue : isBooleanToggle ? !current[styleKey] : explicitValue };
+
+    let span = existing;
+    if (!reuse) {
+      span = document.createElement("span");
+      span.appendChild(document.createTextNode("\u200B"));
+      range.insertNode(span);
+      pendingStyleSpanRef.current = span;
+    }
+    applyRunStyleToSpan(span, next, fontSizeScale);
+    root.focus();
+    sel.collapse(span.firstChild, span.firstChild.length);
   }
 
   function toggleList(listType) {
@@ -578,8 +707,11 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           position: "absolute",
           left: overlayLeft,
           top: overlayTop,
-          width: isFlexibleWidth ? "fit-content" : overlayWidth,
-          maxWidth: isFlexibleWidth ? flexibleMaxWidth * viewport.scale : undefined,
+          // max-content (not fit-content): with no page-edge cap, a
+          // fit-content box would still wrap wherever the editor viewport
+          // happens to end — a flexible box only breaks lines on Enter.
+          width: isFlexibleWidth ? (Number.isFinite(flexibleMaxWidth) ? "fit-content" : "max-content") : overlayWidth,
+          maxWidth: isFlexibleWidth && Number.isFinite(flexibleMaxWidth) ? flexibleMaxWidth * viewport.scale : undefined,
           minWidth: isFlexibleWidth ? 20 * viewport.scale : undefined,
           minHeight: overlayHeight,
           padding: (item.padding ?? 4) * viewport.scale,
@@ -593,11 +725,17 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           // text — see objectRegistry.js) skip this box entirely, so the
           // page reads as a plain Word-like document with no visible text
           // frame — every other text item keeps the usual edit-mode border.
-          border: item.documentBody ? "none" : "1px solid #0ea5e9",
+          // Drawn as an inset shadow, not a border: a border-box border
+          // would take 2px from the text's wrap width, so words could wrap
+          // differently here than on the canvas once editing ends.
+          boxShadow: item.documentBody ? "none" : "inset 0 0 0 1px #0ea5e9",
           fontFamily: item.fontFamily || "Arial",
           fontSize: (item.fontSize || 24) * viewport.scale,
           lineHeight: item.lineHeight || 1,
           letterSpacing: (item.letterSpacing || 0) * viewport.scale,
+          // Same case the canvas draws (SimpleTextNode's textTransform), so
+          // UPPERCASE text isn't narrower here and then grows on exit.
+          textTransform: item.textTransform || "none",
           color: item.fill || "#111827",
           textAlign: item.align || "left",
           // Matches the Konva Text's verticalAlign (SimpleTextNode.jsx) so the
@@ -624,6 +762,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           zIndex: 25,
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
+          "--text-baseline-shift": `${baselineShift * viewport.scale}px`,
         }}
       />
     </>

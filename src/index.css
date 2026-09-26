@@ -26,6 +26,14 @@
   padding-left: 1.2em;
 }
 
+/* Lines up the text being typed with where the canvas draws it once
+   editing ends (TextEditOverlay.jsx konvaBaselineShift) — a visual offset
+   only, so the box, frame and wrapping are unaffected. */
+.text-edit-overlay > * {
+  position: relative;
+  top: var(--text-baseline-shift, 0px);
+}
+
 /* App-wide dark mode (themeContext.jsx toggles the dark class on html).
    Tailwind v4 compiles bg-gray-N, text-gray-N, border-gray-N utilities to
    CSS custom properties, so remapping those properties here re-themes
@@ -396,6 +404,21 @@ a:focus-visible {
   stroke-dasharray: 3 2;
   vector-effect: non-scaling-stroke;
 }
+.print-fold-line {
+  fill: none;
+  stroke: #d97706;
+  stroke-width: 2;
+  stroke-dasharray: 8 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.print-trim-rect {
+  fill: none;
+  stroke: #64748b;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .safe-area-rect {
   fill: none;
   stroke: #f59e0b;

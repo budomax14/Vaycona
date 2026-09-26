@@ -154,6 +154,13 @@ import ExportDialog from "./components/ExportDialog";
 import MockupPreviewDialog from "./components/MockupPreviewDialog";
 import PreviewDialog from "./components/PreviewDialog";
 import { hasAnyMockupPage } from "./mockup/mockupRegistry";
+import { isFontResolved, loadFont } from "./fontLibrary";
+import CardPanelBar from "./components/PrintLayout/CardPanelBar";
+import PrintSettingsDialog from "./components/PrintLayout/PrintSettingsDialog";
+import CardPreviewDialog from "./components/PrintLayout/CardPreviewDialog";
+import { adaptCardToPaper, createCardPages, getCardProject, isPanelPage, withCardSettings } from "./print/cardProject";
+import { BLEED_IN, SAFE_MARGIN_IN, panelEdges } from "./print/printProducts";
+import { defaultPaperSizeKey, inchesToPx } from "./print/paperSizes";
 import { buildExportRequest } from "./export/exportRequest";
 import { runExport, downloadExportResult } from "./export/exportService";
 import {
@@ -1218,6 +1225,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [removingBackgroundId, setRemovingBackgroundId] = useState(null);
 
   const activePage = pages.find((page) => page.id === activePageId) || pages[0];
+  // Print Layout (greeting cards): the card-level view of this project's
+  // panel pages, or null for an ordinary design. See print/cardProject.js.
+  const cardProject = useMemo(() => getCardProject(pages), [pages]);
+  const [isCardPrintOpen, setIsCardPrintOpen] = useState(false);
+  const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
+  // Static (animation-resolved) items for the card dialogs — memoized so
+  // their panel previews only re-render when content actually changes.
+  const cardDialogItems = useMemo(
+    () => (cardProject && (isCardPrintOpen || isCardPreviewOpen) ? resolveStaticExportItems(items, pages) : null),
+    [cardProject, isCardPrintOpen, isCardPreviewOpen, items, pages]
+  );
   // Background is a per-page field now (Phase 5) — kept as a same-named
   // local so every existing consumer (CanvasPropertiesBar, BackgroundsPanel)
   // keeps working with zero prop-shape changes.
@@ -1355,7 +1373,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // (an IndexedDB read + a localStorage version flag), never reseeds
   // duplicates, and never blocks the editor becoming interactive.
   useEffect(() => {
-    ensureBuiltInTemplatesSeeded();
+    // Refresh once seeding lands so newly added built-ins (e.g. a seed
+    // version bump) show up without a reload — the mount-time
+    // refreshTemplateLists above usually runs before seeding finishes.
+    ensureBuiltInTemplatesSeeded().then(() => {
+      if (editorMode === "workspace") refreshTemplateLists();
+    });
   }, []);
 
   // Centralized autosave service (Phase 7B) — the single writer of the
@@ -1860,6 +1883,29 @@ export default function App({ editorMode = "workspace", templateSession = null }
     window.setTimeout(() => setStatus(""), 2500);
   }
 
+  // Greeting Card (HomePage / New design): a blank half-fold card — four
+  // panel pages (Front, Inside Left, Inside Right, Back) on the user's
+  // default paper size. Everything else about it is a normal project.
+  async function createGreetingCard() {
+    const cardPages = createCardPages({ settings: { paperSize: defaultPaperSizeKey() }, extraPageFields: () => defaultPagePrecision() });
+    const data = {
+      pages: cardPages,
+      activePageId: cardPages[0].id,
+      scale: 1,
+      items: [],
+      guides: [],
+      snapToGuides: true,
+      pageNumbers: { ...DEFAULT_PAGE_NUMBERS },
+      preferredUnit,
+    };
+    const result = await replaceWorkspaceWith(data, { projectName: "Greeting Card" });
+    setHasManualZoomOrPan(false);
+    setIsTemplateBrowserOpen(false);
+    setShowHomePage(false);
+    setStatus(result.status === SAVE_STATUS.SAVED ? "Greeting card created." : "Created, but saving failed.");
+    window.setTimeout(() => setStatus(""), 2500);
+  }
+
   // "Standard Document" (Start a new design box, HomePage.jsx only) — a
   // Word-like page: US Letter size with 1" margins, pre-populated with one
   // full-page-width text box that's immediately put into edit mode, so
@@ -1988,7 +2034,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
     // Every page/object/group ID is regenerated together (spec §16/§17) —
     // the template record itself is never mutated by this.
-    const { data: cloned } = cloneWorkspaceDataWithNewIds(normalized);
+    let { data: cloned } = cloneWorkspaceDataWithNewIds(normalized);
+    // Card templates are designed on US Letter; re-fit to A4 for users
+    // whose paper is A4 (print/cardProject.js adaptCardToPaper).
+    const templateCard = getCardProject(cloned.pages);
+    if (templateCard && templateCard.paperSize !== defaultPaperSizeKey()) {
+      const adapted = adaptCardToPaper(cloned.pages, cloned.items, defaultPaperSizeKey());
+      cloned = { ...cloned, pages: adapted.pages, items: adapted.items };
+    }
     const result = await replaceWorkspaceWith(cloned, { projectName: template.name });
 
     if (result.status === SAVE_STATUS.SAVED) {
@@ -3658,13 +3711,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
     return !!item && !item.curve && item.autoSize !== "fixed";
   }
 
-  // How far a flexible text box is allowed to grow before it must wrap —
-  // the remaining room out to the page's own right edge from the item's
-  // (page-relative) left edge, per the user's explicit spec: "only move
-  // text to the next line once the box has expanded all the way to the
-  // right side border of the canvas."
-  function availableTextWidth(item) {
-    return Math.max(20, (activePageRef.current?.width || 0) - (item.x || 0));
+  // How far a flexible text box is allowed to grow before it must wrap:
+  // without limit — per the user's spec, a flexible box just keeps growing
+  // as they type and only starts a new line when they press Enter (or
+  // deliberately narrow the box with its handles).
+  function availableTextWidth() {
+    return Infinity;
   }
 
   function updateEditingTextLive(richText) {
@@ -4467,6 +4519,15 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // response to that deliberate choice, never the other way around.
     if (["fontSize", "fontFamily", "bold", "italic"].includes(styleKey) && textIsFlexibleBox(item)) {
       const nextItem = { ...item, ...updates };
+      // Measuring before the font has loaded would size the box with the
+      // browser's fallback font — then the real font draws wider/narrower
+      // and words wrap onto a different line. Wait for it (fonts are
+      // bundled locally, so this is near-instant), then apply as normal.
+      const family = nextItem.fontFamily || "Arial";
+      if (!isFontResolved(family)) {
+        loadFont(family).then(() => applyTextFormat(itemId, styleKey, value));
+        return;
+      }
       const fit = measureFlexibleTextBox(nextItem, ensureRichText(nextItem), availableTextWidth(nextItem));
       updates.width = fit.width;
       updates.height = fit.height;
@@ -5792,6 +5853,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   async function handlePrint() {
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
+    // A card has to be imposed onto the sheet (and printed double-sided),
+    // which is what the Print Settings dialog does.
+    if (cardProject) {
+      setIsCardPrintOpen(true);
+      return;
+    }
 
     // iOS Safari: the desktop path below (open a blank tab, navigate it to
     // a blob: PDF URL, call print() on that tab) is unreliable there —
@@ -7474,7 +7541,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const source = pages.find((page) => page.id === id);
     if (!source) return;
     const newPageId = crypto.randomUUID();
-    const newPage = { ...source, id: newPageId, name: `${source.name || "Page"} copy` };
+    // A copy of a card panel is an ordinary page — the card keeps exactly
+    // one page per panel.
+    const newPage = { ...source, id: newPageId, name: `${source.name || "Page"} copy`, printLayout: undefined };
     const index = pages.findIndex((page) => page.id === id);
     const nextPages = renumberAutoPageNames([...pages.slice(0, index + 1), newPage, ...pages.slice(index + 1)]);
 
@@ -7573,6 +7642,25 @@ export default function App({ editorMode = "workspace", templateSession = null }
   function goToNextPage() {
     const index = pages.findIndex((page) => page.id === activePageId);
     if (index < pages.length - 1) activatePage(pages[index + 1].id);
+  }
+
+  // Print Settings changes are ordinary undoable page edits. A paper-size
+  // change also re-fits every panel's content, so pages+items commit
+  // together as one step.
+  function updateCardSettings(patch) {
+    const card = getCardProject(pagesRef.current);
+    if (!card) return;
+    const { paperSize, ...rest } = patch;
+    if (paperSize && paperSize !== card.paperSize) {
+      const adapted = adaptCardToPaper(pagesRef.current, itemsRef.current, paperSize);
+      commitBoth(adapted.items, withCardSettings(adapted.pages, rest), {
+        type: "card-paper-size",
+        label: "Change paper size",
+        pageIds: Object.values(card.panels).map((p) => p.id),
+      });
+      return;
+    }
+    commitPages((prev) => withCardSettings(prev, rest), { type: "card-print-settings", label: "Change print settings" });
   }
 
   function resizeActivePage(width, height) {
@@ -8031,6 +8119,18 @@ export default function App({ editorMode = "workspace", templateSession = null }
     workspaceRef.current?.fitToScreen({ force: true });
   }
 
+  // A card's paper size change (or its undo) resizes every panel at once —
+  // re-fit and re-center on the active panel once the new sizes are laid out.
+  const cardPaperSize = cardProject?.paperSize ?? null;
+  const previousCardPaperSizeRef = useRef(cardPaperSize);
+  useEffect(() => {
+    const previous = previousCardPaperSizeRef.current;
+    previousCardPaperSizeRef.current = cardPaperSize;
+    if (!previous || !cardPaperSize || previous === cardPaperSize) return;
+    requestAnimationFrame(() => handleFitToScreen());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardPaperSize]);
+
   function renderActivePage(page) {
     const konvaWidth = page.width * RENDER_SCALE_CAP;
     const konvaHeight = page.height * RENDER_SCALE_CAP;
@@ -8374,6 +8474,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
               equalSpacing={precisionPrefs.showSmartGuides ? equalSpacing : { horizontal: null, vertical: null }}
               distanceLabels={distanceLabels}
               unit={activeUnit}
+              printGuides={
+                cardProject && isPanelPage(page)
+                  ? {
+                      edges: panelEdges(cardProject.product, page.printLayout.panel),
+                      safeInsetPx: inchesToPx(SAFE_MARGIN_IN),
+                      bleedPx: inchesToPx(BLEED_IN),
+                      show: cardProject.settings.guides,
+                    }
+                  : null
+              }
             />}
 
             {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && !(isPhone && (phoneDragging || ["dragging", "resizing", "rotating"].includes(interactionMode))) && (
@@ -8645,6 +8755,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           onSelectTemplate={handleSelectTemplate}
           onCreateBlank={createBlankDesign}
           onCreateStandardDocument={createStandardDocument}
+          onCreateGreetingCard={createGreetingCard}
           onContinue={() => setShowHomePage(false)}
           hasExistingDesign={items.length > 0 || pages.length > 1 || !!saveStatus.lastSavedAt}
           projectName={projectName}
@@ -9077,6 +9188,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
         </LeftSidebar>
 
         <div className="relative flex flex-1 flex-col overflow-hidden">
+          {cardProject && !templateSession && (
+            <CardPanelBar
+              card={cardProject}
+              activePageId={activePageId}
+              onActivatePanel={activatePage}
+              onOpenPreview={() => setIsCardPreviewOpen(true)}
+              onOpenPrint={() => setIsCardPrintOpen(true)}
+              compact={isPhone}
+            />
+          )}
           <div className="relative flex flex-1 overflow-hidden">
             {status && (
               <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">
@@ -9405,6 +9526,29 @@ export default function App({ editorMode = "workspace", templateSession = null }
         items={items}
       />
 
+      <PrintSettingsDialog
+        isOpen={isCardPrintOpen && !!cardProject}
+        onClose={() => setIsCardPrintOpen(false)}
+        card={cardProject}
+        pages={pages}
+        items={cardDialogItems || items}
+        projectName={projectName}
+        watermark={subscriptionTier === "free"}
+        onUpdateSettings={updateCardSettings}
+        onBeforeExport={() => {
+          if (editingTextIdRef.current) exitTextEdit();
+          if (editingTableIdRef.current) exitTableEditMode();
+          autosaveRef.current.flush();
+        }}
+      />
+
+      <CardPreviewDialog
+        isOpen={isCardPreviewOpen && !!cardProject}
+        onClose={() => setIsCardPreviewOpen(false)}
+        card={cardProject}
+        items={cardDialogItems || items}
+      />
+
       <PreviewDialog
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
@@ -9472,6 +9616,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onDeleteTemplate={handleDeleteTemplateAction}
         onDuplicateTemplate={handleDuplicateTemplateAction}
         onCreateBlank={createBlankDesign}
+        onCreateGreetingCard={createGreetingCard}
         onInsertPage={insertReusablePage}
         onDeletePage={handleDeleteReusablePage}
         onInsertSection={insertReusableSection}

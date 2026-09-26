@@ -6,6 +6,8 @@ import { TEMPLATE_CATEGORIES } from "../templateService";
 import { TIER_RANK } from "../subscriptionContext";
 import { useLanguage } from "../languageContext";
 import { DIALOG_STRINGS } from "../i18n/dialogs";
+import { PRINT_STRINGS } from "../i18n/print";
+import { GREETING_CARD_CATEGORIES } from "../print/cardProject";
 
 function toUnit(px, unitKey) {
   return Math.round(getUnit(unitKey).fromPx(px) * 100) / 100;
@@ -39,6 +41,7 @@ export default function TemplateBrowser({
   onDeleteTemplate,
   onDuplicateTemplate,
   onCreateBlank,
+  onCreateGreetingCard,
   onInsertPage,
   onDeletePage,
   onInsertSection,
@@ -50,6 +53,7 @@ export default function TemplateBrowser({
 }) {
   const { language } = useLanguage();
   const t = DIALOG_STRINGS[language].templateBrowser;
+  const pt = PRINT_STRINGS[language];
   const SORT_OPTIONS = [
     { key: "recommended", label: t.sortRecommended },
     { key: "recent-used", label: t.sortRecentUsed },
@@ -61,6 +65,8 @@ export default function TemplateBrowser({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [category, setCategory] = useState(null);
+  // Only used by categories that have subcategories (Greeting cards).
+  const [subcategory, setSubcategory] = useState(null);
   const [orientation, setOrientation] = useState(null);
   const [scope, setScope] = useState("all"); // all | favorites | recent | mine
   const [sort, setSort] = useState("recommended");
@@ -137,6 +143,7 @@ export default function TemplateBrowser({
     else if (scope === "recent") list = list.filter((t) => t.lastUsedAt);
     else if (scope === "mine") list = list.filter((t) => !t.builtIn);
     if (category) list = list.filter((t) => t.category === category);
+    if (category === "greeting-cards" && subcategory) list = list.filter((t) => t.subcategory === subcategory);
     if (orientation) list = list.filter((t) => orientationOf(t.pageWidth, t.pageHeight) === orientation);
     list = list.filter((t) => matchesSearch(t, debouncedQuery));
 
@@ -149,7 +156,7 @@ export default function TemplateBrowser({
     // templateSummaries sorts by sortOrder, the admin's drag-to-reorder order
     // from the Template Admin dashboard — so no extra sort is applied here.
     return sorted;
-  }, [templates, scope, category, orientation, debouncedQuery, sort]);
+  }, [templates, scope, category, subcategory, orientation, debouncedQuery, sort]);
 
   if (!isOpen) return null;
 
@@ -220,6 +227,15 @@ export default function TemplateBrowser({
                 </div>
 
                 <div className="mb-2.5 flex flex-wrap gap-1.5">
+                  {onCreateGreetingCard && (
+                    <button
+                      className="rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-left text-xs text-amber-800 hover:border-amber-300"
+                      onClick={onCreateGreetingCard}
+                    >
+                      <span className="block font-medium">{pt.home.greetingCard}</span>
+                      <span className="block text-[10px] text-amber-700/70">{pt.bar.cardSize("Letter / A4")}</span>
+                    </button>
+                  )}
                   {PAGE_SIZE_PRESETS.slice(0, 6).map((preset) => {
                     const unitDef = getUnit(customUnit);
                     const displayWidth = Math.round(unitDef.fromPx(preset.width) * 100) / 100;
@@ -351,7 +367,10 @@ export default function TemplateBrowser({
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                       category === c.key ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                     }`}
-                    onClick={() => setCategory((cur) => (cur === c.key ? null : c.key))}
+                    onClick={() => {
+                      setCategory((cur) => (cur === c.key ? null : c.key));
+                      setSubcategory(null);
+                    }}
                   >
                     {c.label}
                   </button>
@@ -381,6 +400,21 @@ export default function TemplateBrowser({
                   </button>
                 )}
               </div>
+              {category === "greeting-cards" && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={pt.templates.category}>
+                  {[null, ...GREETING_CARD_CATEGORIES].map((key) => (
+                    <button
+                      key={key || "all"}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        subcategory === key ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 text-gray-500 hover:border-amber-200"
+                      }`}
+                      onClick={() => setSubcategory(key)}
+                    >
+                      {key ? pt.categories[key] : pt.templates.all}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-5">

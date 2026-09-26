@@ -98,6 +98,101 @@ export function drawQuadWarp(ctx, source, destQuad) {
   drawTriangleWarp(ctx, source, [s1, s2, s3], [d1, d2, d3]);
 }
 
+// Projective map from the unit square onto `quad` ([TL, TR, BR, BL]) —
+// Heckbert's square-to-quad homography. Unlike the two-triangle affine
+// split above, straight lines in the design stay straight and spacing
+// foreshortens the way a real tilted surface does.
+function squareToQuad(quad) {
+  const [p0, p1, p2, p3] = quad;
+  const dx1 = p1.x - p2.x;
+  const dx2 = p3.x - p2.x;
+  const dx3 = p0.x - p1.x + p2.x - p3.x;
+  const dy1 = p1.y - p2.y;
+  const dy2 = p3.y - p2.y;
+  const dy3 = p0.y - p1.y + p2.y - p3.y;
+  let g = 0;
+  let h = 0;
+  if (Math.abs(dx3) > 1e-9 || Math.abs(dy3) > 1e-9) {
+    const det = dx1 * dy2 - dx2 * dy1;
+    g = (dx3 * dy2 - dx2 * dy3) / det;
+    h = (dx1 * dy3 - dx3 * dy1) / det;
+  }
+  const a = p1.x - p0.x + g * p1.x;
+  const b = p3.x - p0.x + h * p3.x;
+  const d = p1.y - p0.y + g * p1.y;
+  const e = p3.y - p0.y + h * p3.y;
+  return (u, v) => {
+    const w = g * u + h * v + 1;
+    return { x: (a * u + b * v + p0.x) / w, y: (d * u + e * v + p0.y) / w };
+  };
+}
+
+// One mesh triangle: exact affine map for that small piece, clipped to the
+// destination triangle grown by ~0.75px (so neighbouring pieces overlap
+// instead of leaving anti-aliased hairline seams), drawing only the
+// source pixels that piece actually needs.
+function drawMeshTriangle(ctx, source, srcTri, dstTri) {
+  const srcUnit = affineFromUnitTriangle(...srcTri);
+  const dstUnit = affineFromUnitTriangle(...dstTri);
+  const det = srcUnit.a * srcUnit.d - srcUnit.b * srcUnit.c;
+  if (Math.abs(det) < 1e-9) return;
+  const m = composeAffine(dstUnit, invertAffine(srcUnit));
+  const cx = (dstTri[0].x + dstTri[1].x + dstTri[2].x) / 3;
+  const cy = (dstTri[0].y + dstTri[1].y + dstTri[2].y) / 3;
+  const grown = dstTri.map((p) => {
+    const len = Math.hypot(p.x - cx, p.y - cy) || 1;
+    return { x: p.x + ((p.x - cx) / len) * 0.75, y: p.y + ((p.y - cy) / len) * 0.75 };
+  });
+  const xs = srcTri.map((p) => p.x);
+  const ys = srcTri.map((p) => p.y);
+  const sx = Math.max(0, Math.floor(Math.min(...xs)) - 2);
+  const sy = Math.max(0, Math.floor(Math.min(...ys)) - 2);
+  const sw = Math.min(source.width, Math.ceil(Math.max(...xs)) + 2) - sx;
+  const sh = Math.min(source.height, Math.ceil(Math.max(...ys)) + 2) - sy;
+  if (sw <= 0 || sh <= 0) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(grown[0].x, grown[0].y);
+  ctx.lineTo(grown[1].x, grown[1].y);
+  ctx.lineTo(grown[2].x, grown[2].y);
+  ctx.closePath();
+  ctx.clip();
+  ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+  ctx.drawImage(source, sx, sy, sw, sh, sx, sy, sw, sh);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.restore();
+}
+
+// Perspective-correct version of drawQuadWarp: the quad is split into a
+// `subdivisions` × `subdivisions` mesh whose corners follow the true
+// homography, each cell small enough that drawing it affinely is exact to
+// well under a pixel.
+export function drawQuadWarpProjective(ctx, source, destQuad, subdivisions = 24) {
+  const map = squareToQuad(destQuad);
+  const n = subdivisions;
+  const w = source.width;
+  const h = source.height;
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const u0 = i / n;
+      const u1 = (i + 1) / n;
+      const v0 = j / n;
+      const v1 = (j + 1) / n;
+      const s00 = { x: u0 * w, y: v0 * h };
+      const s10 = { x: u1 * w, y: v0 * h };
+      const s01 = { x: u0 * w, y: v1 * h };
+      const s11 = { x: u1 * w, y: v1 * h };
+      const d00 = map(u0, v0);
+      const d10 = map(u1, v0);
+      const d01 = map(u0, v1);
+      const d11 = map(u1, v1);
+      drawMeshTriangle(ctx, source, [s00, s10, s01], [d00, d10, d01]);
+      drawMeshTriangle(ctx, source, [s10, s11, s01], [d10, d11, d01]);
+    }
+  }
+}
+
 function quadBoundingBox(quad, maxWidth, maxHeight) {
   const xs = quad.map((p) => p.x);
   const ys = quad.map((p) => p.y);
@@ -156,7 +251,9 @@ export function drawShadingOverlay(ctx, mockupImage, quad) {
 // Composites any number of flat design canvases onto their measured quads on
 // one base photo. `slots`: [{ quad, canvas }] — a falsy `canvas` skips that
 // slot (base photo shows through unchanged). Returns a detached canvas at
-// the mockup photo's native resolution.
+// the mockup photo's native resolution. A slot with `projective: true`
+// (opt-in, used by greetingCardMockup.js's inside panels) uses the
+// perspective-correct mesh warp instead of the two-triangle warp.
 export async function compositeMockup({ imageUrl, slots }) {
   const mockupImage = await loadMockupImage(imageUrl);
   const canvas = document.createElement("canvas");
@@ -168,7 +265,8 @@ export async function compositeMockup({ imageUrl, slots }) {
 
   for (const slot of slots) {
     if (!slot?.canvas) continue;
-    drawQuadWarp(ctx, slot.canvas, slot.quad);
+    if (slot.projective) drawQuadWarpProjective(ctx, slot.canvas, slot.quad);
+    else drawQuadWarp(ctx, slot.canvas, slot.quad);
     drawShadingOverlay(ctx, mockupImage, slot.quad);
   }
 

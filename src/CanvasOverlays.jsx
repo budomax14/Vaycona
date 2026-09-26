@@ -24,6 +24,55 @@ import { formatMeasurement } from "./measurement";
 // separately for SNAP TARGETS — see that file's header). None of this ever
 // renders inside the exported Stage (see offscreenRenderer.jsx) — export
 // fidelity is guaranteed structurally, not by a runtime flag here.
+// Print Layout guides for one panel of a folded product (see
+// print/printProducts.js panelEdges): `edges` says which of the panel's
+// edges is a fold vs the sheet's outer edge, so bleed only extends past
+// outer edges and the fold line lands on the right side. Editor-only like
+// everything else here.
+function renderPrintGuides({ edges, safeInsetPx, bleedPx, show }, pageWidth, pageHeight) {
+  const shapes = [];
+  const ext = (edge) => (edges[edge] === "outer" ? bleedPx : 0);
+  if (show.bleed) {
+    shapes.push(
+      <rect key="pg-bleed" x={-ext("left")} y={-ext("top")} width={pageWidth + ext("left") + ext("right")} height={pageHeight + ext("top") + ext("bottom")} className="bleed-rect" />
+    );
+  }
+  if (show.trim) {
+    shapes.push(<rect key="pg-trim" x={0} y={0} width={pageWidth} height={pageHeight} className="print-trim-rect" />);
+    const tick = 14;
+    const gap = bleedPx + 4;
+    [
+      [0, 0, -1, -1],
+      [pageWidth, 0, 1, -1],
+      [0, pageHeight, -1, 1],
+      [pageWidth, pageHeight, 1, 1],
+    ].forEach(([x, y, dx, dy], i) => {
+      shapes.push(<line key={`pg-th${i}`} x1={x + dx * gap} y1={y} x2={x + dx * (gap + tick)} y2={y} className="print-trim-rect" />);
+      shapes.push(<line key={`pg-tv${i}`} x1={x} y1={y + dy * gap} x2={x} y2={y + dy * (gap + tick)} className="print-trim-rect" />);
+    });
+  }
+  if (show.safe) {
+    shapes.push(
+      <rect key="pg-safe" x={safeInsetPx} y={safeInsetPx} width={Math.max(0, pageWidth - safeInsetPx * 2)} height={Math.max(0, pageHeight - safeInsetPx * 2)} className="safe-area-rect" />
+    );
+  }
+  if (show.fold) {
+    const foldLines = {
+      left: [0, 0, 0, pageHeight],
+      right: [pageWidth, 0, pageWidth, pageHeight],
+      top: [0, 0, pageWidth, 0],
+      bottom: [0, pageHeight, pageWidth, pageHeight],
+    };
+    Object.entries(edges)
+      .filter(([, kind]) => kind === "fold")
+      .forEach(([edge]) => {
+        const [x1, y1, x2, y2] = foldLines[edge];
+        shapes.push(<line key={`pg-fold-${edge}`} x1={x1} y1={y1} x2={x2} y2={y2} className="print-fold-line" />);
+      });
+  }
+  return shapes;
+}
+
 export default function CanvasOverlays({
   pageWidth,
   pageHeight,
@@ -44,6 +93,7 @@ export default function CanvasOverlays({
   equalSpacing,
   distanceLabels,
   unit = "px",
+  printGuides = null,
 }) {
   const topLeft = contentToScreen({ x: 0, y: 0 }, viewport);
   const bottomRight = contentToScreen({ x: pageWidth, y: pageHeight }, viewport);
@@ -88,6 +138,8 @@ export default function CanvasOverlays({
   const marginBox = margins?.visible ? marginRect(margins, pageWidth, pageHeight) : null;
   const safeBox = safeArea?.visible ? safeAreaRect(safeArea, pageWidth, pageHeight) : null;
   const bleedBox = bleed?.visible ? bleedRect(bleed, pageWidth, pageHeight) : null;
+
+  const printGuideShapes = printGuides ? renderPrintGuides(printGuides, pageWidth, pageHeight) : null;
 
   const marqueeScreen = marquee ? contentToScreen({ x: marquee.x, y: marquee.y }, viewport) : null;
 
@@ -135,6 +187,7 @@ export default function CanvasOverlays({
         {baselineLines}
         {marginBox && <rect x={marginBox.x} y={marginBox.y} width={marginBox.width} height={marginBox.height} className="margin-rect" />}
         {safeBox && <rect x={safeBox.x} y={safeBox.y} width={safeBox.width} height={safeBox.height} className="safe-area-rect" />}
+        {printGuideShapes}
         {alignmentLines.vertical.map((x) => (
           <line key={`av${x}`} x1={x} y1={-50} x2={x} y2={pageHeight + 50} className={`alignment-line ${x === pageWidth / 2 ? "page-center-line" : ""}`} />
         ))}

@@ -95,7 +95,9 @@ export async function exportPdf({ pages, items, request, availableAssetIds, proj
 
     const geo = pageGeometry(page, request);
     if (i === 0) {
-      pdf = new jsPDF({ unit: "px", format: [geo.pdfWidth, geo.pdfHeight], compress: true });
+      // "px_scaling": without it jsPDF treats 1px as 96/72 pt (not 72/96),
+      // making every PDF — and so every print — 1.78x the real page size.
+      pdf = new jsPDF({ unit: "px", format: [geo.pdfWidth, geo.pdfHeight], compress: true, hotfixes: ["px_scaling"] });
     } else {
       pdf.addPage([geo.pdfWidth, geo.pdfHeight]);
     }

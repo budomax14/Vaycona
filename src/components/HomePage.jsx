@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FileText, LogOut, Plus, Search, Settings, User, X } from "lucide-react";
+import { BookOpen, FileText, LogOut, Plus, Search, Settings, User, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
 import { useLanguage } from "../languageContext";
@@ -7,6 +7,7 @@ import ThemeToggle from "./ThemeToggle";
 import LanguageToggle from "./LanguageToggle";
 import { useAuth } from "../authContext";
 import { STRINGS } from "../i18n";
+import { PRINT_STRINGS } from "../i18n/print";
 
 function toUnit(px, unitKey) {
   return Math.round(getUnit(unitKey).fromPx(px) * 100) / 100;
@@ -22,7 +23,7 @@ function toUnit(px, unitKey) {
 // Dark mode itself needs no per-element styling here: index.css remaps
 // Tailwind's gray/white CSS variables under `.dark` on <html>, so the plain
 // bg-gray-*/text-gray-*/bg-white classes below already re-theme globally.
-export default function HomePage({ templates, onSelectTemplate, onCreateBlank, onCreateStandardDocument, onContinue, hasExistingDesign, projectName, lastSavedAt }) {
+export default function HomePage({ templates, onSelectTemplate, onCreateBlank, onCreateStandardDocument, onCreateGreetingCard, onContinue, hasExistingDesign, projectName, lastSavedAt }) {
   const [query, setQuery] = useState("");
   // Defaults stay the same physical size as before (1080x1080px), just
   // expressed in inches to match the default unit below.
@@ -174,6 +175,14 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
                 onClick={onCreateStandardDocument}
               >
                 <FileText size={14} /> {t.standardDocument}
+              </button>
+            )}
+            {onCreateGreetingCard && (
+              <button
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-semibold text-gray-700 hover:border-amber-300 hover:text-amber-700"
+                onClick={onCreateGreetingCard}
+              >
+                <BookOpen size={14} /> {PRINT_STRINGS[language].home.greetingCard}
               </button>
             )}
             <span className="text-xs text-gray-400">{t.orCustomSize}</span>

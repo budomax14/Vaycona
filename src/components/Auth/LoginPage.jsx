@@ -23,7 +23,13 @@ function friendlyAuthError(error, t) {
     case "auth/too-many-requests":
       return t.errorTooManyRequests;
     case "auth/popup-closed-by-user":
-      return null; // user just closed the Google popup — not a real error
+    case "auth/cancelled-popup-request":
+      return null; // user just closed the Google popup (or clicked twice) — not a real error
+    case "auth/popup-blocked":
+    case "auth/operation-not-supported-in-this-environment":
+      // Pop-up blockers, and in-app browsers (Instagram, Facebook, etc.)
+      // that can't open Google's sign-in window.
+      return t.errorGooglePopupBlocked;
     default:
       return t.errorGeneric;
   }

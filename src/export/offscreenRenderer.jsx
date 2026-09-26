@@ -44,16 +44,17 @@ function delay(ms) {
 // those are editor-only overlays that were never part of this tree even on
 // the live canvas (see App.jsx's renderActivePage), so excluding them here
 // requires no special-casing (spec §9/§24).
-function ExportPageStage({ page, items, pixelScale, backgroundFill, stageRef }) {
-  const width = Math.max(1, Math.round(page.width * pixelScale));
-  const height = Math.max(1, Math.round(page.height * pixelScale));
+function ExportPageStage({ page, items, pixelScale, backgroundFill, region, stageRef }) {
+  const area = region || { x: 0, y: 0, width: page.width, height: page.height };
+  const width = Math.max(1, Math.round(area.width * pixelScale));
+  const height = Math.max(1, Math.round(area.height * pixelScale));
   const itemsById = new Map(items.map((it) => [it.id, it]));
   const visibleItems = items.filter((item) => item.pageId === page.id && item.type !== "group" && !isEffectivelyHidden(item, itemsById));
 
   return (
     <Stage ref={stageRef} width={width} height={height} scaleX={pixelScale} scaleY={pixelScale} listening={false}>
-      <Layer>
-        {backgroundFill && <Rect x={0} y={0} width={page.width} height={page.height} fill={backgroundFill} />}
+      <Layer x={-area.x} y={-area.y}>
+        {backgroundFill && <Rect x={area.x} y={area.y} width={area.width} height={area.height} fill={backgroundFill} />}
         {visibleItems.map((item) => (
           <DesignNode
             key={item.id}
@@ -131,7 +132,10 @@ async function waitForImagesReady(stage, expectedCount, { timeoutMs = 8000, sign
 // detached HTMLCanvasElement. `availableAssetIds` (a Set) comes from the
 // export preflight pass so this never re-derives asset availability itself.
 // `backgroundFill`: a CSS color string, or null for a transparent canvas.
-export async function renderPageToCanvas({ page, items, pixelScale, backgroundFill, availableAssetIds, signal }) {
+// `region` (optional, page px): render this rectangle instead of exactly the
+// page — it may extend past the page edges, which is how print bleed
+// captures content that runs off the page (see print/printPdf.js).
+export async function renderPageToCanvas({ page, items, pixelScale, backgroundFill, availableAssetIds, signal, region }) {
   throwIfCancelled(signal);
   const container = document.createElement("div");
   container.style.position = "fixed";
@@ -150,6 +154,7 @@ export async function renderPageToCanvas({ page, items, pixelScale, backgroundFi
         items={items}
         pixelScale={pixelScale}
         backgroundFill={backgroundFill}
+        region={region}
         stageRef={(node) => {
           stageInstance = node;
         }}
