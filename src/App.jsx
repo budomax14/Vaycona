@@ -3715,7 +3715,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // without limit — per the user's spec, a flexible box just keeps growing
   // as they type and only starts a new line when they press Enter (or
   // deliberately narrow the box with its handles).
-  function availableTextWidth() {
+  // Exception: text pasted from another app (addPastedText, flagged
+  // `wrapAtPageEdge`) wraps once it reaches the page's right edge, so its
+  // words never run off the canvas — while typing and on format changes too.
+  function availableTextWidth(item) {
+    if (item?.wrapAtPageEdge) return Math.max(20, (activePageRef.current?.width || 0) - (item.x || 0));
     return Infinity;
   }
 
@@ -5145,8 +5149,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   // Text copied from another app/site becomes a new body-style text box,
-  // centered on the active page and sized to fit (wrapping at 80% of the
-  // page width).
+  // sized to fit and wrapping at the page's right edge (`wrapAtPageEdge`,
+  // see availableTextWidth). Short text is centered on the page; text that
+  // has to wrap starts at a small left margin and runs to the right edge.
   function addPastedText(text) {
     const preset = getPresetByKey("body");
     const base = {
@@ -5161,9 +5166,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
       autoSize: preset.autoSize,
       fontFamily: "Arial",
       fill: "#111827",
+      wrapAtPageEdge: true,
     };
-    const { width, height } = measureFlexibleTextBox(base, ensureRichText(base), activePage.width * 0.8);
-    addItem({ ...base, width, height, ...centerPositionFor(width, height) }, "Paste text");
+    const margin = Math.round(activePage.width * 0.1);
+    const { width, height } = measureFlexibleTextBox(base, ensureRichText(base), activePage.width - margin);
+    const position = width < activePage.width - margin * 2
+      ? centerPositionFor(width, height)
+      : { x: margin, y: activePage.height / 2 - height / 2 };
+    addItem({ ...base, width, height, ...position }, "Paste text");
   }
 
   async function addPastedImageFiles(files) {
