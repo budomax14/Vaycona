@@ -5882,7 +5882,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (isIOSWebKit()) {
       const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName };
       const { request, errors } = buildExportRequest(
-        { format: "pdf", pageSelection: "current", pdfMode: "standard", filenameBase: projectName },
+        { format: "pdf", pageSelection: "all", pdfMode: "standard", filenameBase: projectName },
         context
       );
       if (errors.length) {
@@ -5924,7 +5924,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     const printWindow = window.open("", "_blank");
     const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName };
     const { request, errors } = buildExportRequest(
-      { format: "pdf", pageSelection: "current", pdfMode: "standard", filenameBase: projectName },
+      { format: "pdf", pageSelection: "all", pdfMode: "standard", filenameBase: projectName },
       context
     );
     if (errors.length) {
