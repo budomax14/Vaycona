@@ -3711,16 +3711,38 @@ export default function App({ editorMode = "workspace", templateSession = null }
     return !!item && !item.curve && item.autoSize !== "fixed";
   }
 
-  // How far a flexible text box is allowed to grow before it must wrap:
-  // without limit — per the user's spec, a flexible box just keeps growing
-  // as they type and only starts a new line when they press Enter (or
-  // deliberately narrow the box with its handles).
-  // Exception: text pasted from another app (addPastedText, flagged
-  // `wrapAtPageEdge`) wraps once it reaches the page's right edge, so its
-  // words never run off the canvas — while typing and on format changes too.
+  // Which point of a flexible text box stays put while it grows/shrinks to
+  // fit its text — the side its alignment reads from, so the words
+  // themselves never shift: left-aligned text keeps its left edge,
+  // centered text its center, right-aligned text its right edge. As a
+  // fraction of the box width (0 / 0.5 / 1).
+  function textAnchorFraction(item) {
+    return item?.align === "center" ? 0.5 : item?.align === "right" ? 1 : 0;
+  }
+
+  // How far a flexible text box is allowed to grow before it must wrap: up
+  // to the page edge on whichever side(s) it grows toward from its anchor
+  // (see textAnchorFraction), so a line that reaches the edge continues on
+  // the next line instead of running off the canvas — while typing and on
+  // format changes too.
   function availableTextWidth(item) {
-    if (item?.wrapAtPageEdge) return Math.max(20, (activePageRef.current?.width || 0) - (item.x || 0));
-    return Infinity;
+    const pageWidth = activePageRef.current?.width || 0;
+    const fraction = textAnchorFraction(item);
+    const anchor = (item?.x || 0) + (item?.width || 0) * fraction;
+    // A box whose anchor is already off the page (dragged there, or saved
+    // before this cap existed) has no room toward the edge to measure —
+    // let it wrap at a page's width rather than crushing it to nothing.
+    if (anchor < 0 || anchor > pageWidth) return Math.max(20, pageWidth);
+    const room = fraction === 0.5 ? 2 * Math.min(anchor, pageWidth - anchor) : fraction === 1 ? anchor : pageWidth - anchor;
+    return Math.max(20, room);
+  }
+
+  // x/y for a flexible box re-fitted from item.width to `width`, keeping
+  // its anchor point where it was (along the box's own rotated top edge).
+  function anchoredTextPosition(item, width) {
+    const shift = ((item.width || 0) - width) * textAnchorFraction(item);
+    const radians = ((item.rotation || 0) * Math.PI) / 180;
+    return { x: item.x + shift * Math.cos(radians), y: item.y + shift * Math.sin(radians) };
   }
 
   function updateEditingTextLive(richText) {
@@ -3735,6 +3757,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // control changes it, see applyTextFormat).
     if (textIsFlexibleBox(item)) {
       const fit = measureFlexibleTextBox({ ...item, ...changes }, richText, availableTextWidth(item));
+      Object.assign(changes, anchoredTextPosition(item, fit.width));
       changes.width = fit.width;
       changes.height = fit.height;
     }
@@ -4533,6 +4556,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         return;
       }
       const fit = measureFlexibleTextBox(nextItem, ensureRichText(nextItem), availableTextWidth(nextItem));
+      Object.assign(updates, anchoredTextPosition(nextItem, fit.width));
       updates.width = fit.width;
       updates.height = fit.height;
     }
@@ -5149,9 +5173,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   // Text copied from another app/site becomes a new body-style text box,
-  // sized to fit and wrapping at the page's right edge (`wrapAtPageEdge`,
-  // see availableTextWidth). Short text is centered on the page; text that
-  // has to wrap starts at a small left margin and runs to the right edge.
+  // sized to fit and wrapping at the page's right edge (like every
+  // flexible text box, see availableTextWidth). Short text is centered on
+  // the page; text that has to wrap starts at a small left margin and runs
+  // to the right edge.
   function addPastedText(text) {
     const preset = getPresetByKey("body");
     const base = {
@@ -5166,7 +5191,6 @@ export default function App({ editorMode = "workspace", templateSession = null }
       autoSize: preset.autoSize,
       fontFamily: "Arial",
       fill: "#111827",
-      wrapAtPageEdge: true,
     };
     const margin = Math.round(activePage.width * 0.1);
     const { width, height } = measureFlexibleTextBox(base, ensureRichText(base), activePage.width - margin);

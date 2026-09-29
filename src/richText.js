@@ -510,7 +510,10 @@ export function measureAutoHeight(item, richText) {
 // boundBoxFunc minimum so a just-cleared text box doesn't collapse to 0.
 export function measureFlexibleTextBox(item, richText, availableWidth) {
   const padding = item.padding ?? 4;
-  const maxContentWidth = Math.max(20, availableWidth - padding * 2);
+  // -1: the +1px headroom added to the returned width below comes out of
+  // the available room, so a box that has grown to the page edge ends
+  // exactly at it rather than 1px past it.
+  const maxContentWidth = Math.max(20, availableWidth - padding * 2 - 1);
   const layoutOpts = {
     autoWidth: true,
     lineHeight: item.lineHeight || 1,
@@ -519,32 +522,62 @@ export function measureFlexibleTextBox(item, richText, availableWidth) {
     paragraphSpacing: item.paragraphSpacing || 0,
     textTransform: item.textTransform || "none",
   };
-  const { totalWidth, totalHeight } = layoutRichText(richText, { ...layoutOpts, maxWidth: maxContentWidth, maxAutoWidth: maxContentWidth });
+  const { totalWidth, totalHeight, lines: layoutLines } = layoutRichText(richText, { ...layoutOpts, maxWidth: maxContentWidth, maxAutoWidth: maxContentWidth });
   // Once the text has to wrap, the box has reached the page edge — keep it
   // there (not shrunk to the widest wrapped line). That's the width the
   // TextEditOverlay's fit-content box has while typing, so leaving edit
   // mode doesn't re-center/re-wrap the text in a narrower box.
   const { totalWidth: unwrappedWidth } = layoutRichText(richText, { ...layoutOpts, maxWidth: Infinity, maxAutoWidth: Infinity });
   let contentWidth = unwrappedWidth > maxContentWidth ? maxContentWidth : Math.min(maxContentWidth, totalWidth);
+  let height = totalHeight;
   // Plain single-style text is drawn by SimpleTextNode's Konva.Text, which
   // wraps at the box width using its OWN measurement: each whole line
   // (with kerning) plus letterSpacing after every character. The per-letter
   // sum above comes out a few px narrower whenever letter spacing is set
   // (and sometimes from kerning alone), so the last word dropped to a new
-  // line once editing ended. Size the box with Konva's formula instead.
-  if (!isRichText({ ...item, richText }) && !(unwrappedWidth > maxContentWidth)) {
+  // line once editing ended. Size the box with Konva's formula instead —
+  // and when that wraps into more (or fewer) lines than the per-letter
+  // layout, grow the height to match what's actually drawn.
+  if (!isRichText({ ...item, richText })) {
     const ctx = getMeasureContext();
     ctx.font = fontString(baseRunFromItem(item));
     const letterSpacing = item.letterSpacing || 0;
+    const measure = (line) => ctx.measureText(line).width + letterSpacing * line.length;
     const lines = applyTextTransform(plainTextOf(richText), item.textTransform || "none").split("\n");
-    const konvaWidth = Math.max(0, ...lines.map((line) => ctx.measureText(line).width + letterSpacing * line.length));
-    contentWidth = Math.min(maxContentWidth, konvaWidth);
+    if (!(unwrappedWidth > maxContentWidth)) {
+      contentWidth = Math.min(maxContentWidth, Math.max(0, ...lines.map(measure)));
+    }
+    const konvaLineCount = countKonvaWrappedLines(lines, measure, contentWidth + 1);
+    height += (konvaLineCount - layoutLines.length) * (item.fontSize || 24) * (item.lineHeight || 1);
   }
   return {
     // +1px: headroom so sub-pixel rounding can never make it wrap either.
     width: Math.max(20, contentWidth + padding * 2 + 1),
-    height: Math.max(20, totalHeight + padding * 2),
+    height: Math.max(20, height + padding * 2),
   };
+}
+
+// How many lines Konva.Text (wrap: "word") breaks plain text into at
+// `wrapWidth`: each "\n" line wraps greedily at spaces, a word fitting when
+// the line through its end (trailing spaces trimmed) measures within the
+// width; a single word wider than the line gets a line to itself.
+function countKonvaWrappedLines(lines, measure, wrapWidth) {
+  let count = 0;
+  lines.forEach((line) => {
+    const words = line.split(/(?<=\s)(?=\S)/);
+    let current = "";
+    count += 1;
+    words.forEach((word) => {
+      const candidate = current + word;
+      if (current && measure(candidate.trimEnd()) > wrapWidth) {
+        count += 1;
+        current = word;
+      } else {
+        current = candidate;
+      }
+    });
+  });
+  return count;
 }
 
 export { fontString, measureRunText, getMeasureContext, LIST_INDENT_PER_LEVEL };

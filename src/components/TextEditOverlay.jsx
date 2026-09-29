@@ -662,6 +662,11 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   // still wraps at the page edge exactly like `measureFlexibleTextBox` does
   // (its `maxAutoWidth` cap), via `max-width` here.
   const isFlexibleWidth = flexibleMaxWidth != null;
+  // A flexible box grows/shrinks around the side its alignment reads from
+  // (App.jsx's textAnchorFraction): pinned at that point via left +
+  // translateX, so centered/right-aligned words stay put while the box
+  // resizes instead of the box growing rightward from its old left edge.
+  const anchorFraction = !isFlexibleWidth ? 0 : item.align === "center" ? 0.5 : item.align === "right" ? 1 : 0;
   const DRAG_MARGIN = 14; // internal (pre-displayScale) px — see handleFrameMouseDown
 
   return (
@@ -705,12 +710,13 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
         className="text-edit-overlay cursor-text outline-none"
         style={{
           position: "absolute",
-          left: overlayLeft,
+          left: overlayLeft + overlayWidth * anchorFraction,
           top: overlayTop,
-          // max-content (not fit-content): with no page-edge cap, a
-          // fit-content box would still wrap wherever the editor viewport
-          // happens to end — a flexible box only breaks lines on Enter.
-          width: isFlexibleWidth ? (Number.isFinite(flexibleMaxWidth) ? "fit-content" : "max-content") : overlayWidth,
+          // max-content (not fit-content), capped by maxWidth below: a
+          // fit-content box would wrap wherever the editor viewport happens
+          // to end — or, pinned at its center/right edge, at half the room —
+          // instead of exactly at the page edge like the canvas does.
+          width: isFlexibleWidth ? "max-content" : overlayWidth,
           maxWidth: isFlexibleWidth && Number.isFinite(flexibleMaxWidth) ? flexibleMaxWidth * viewport.scale : undefined,
           minWidth: isFlexibleWidth ? 20 * viewport.scale : undefined,
           minHeight: overlayHeight,
@@ -756,7 +762,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
                   : "center",
           // Temporarily un-rotated during edit (see plan rationale) —
           // item.rotation is re-applied once editing exits.
-          transform: "none",
+          transform: anchorFraction ? `translateX(${-anchorFraction * 100}%)` : "none",
           transformOrigin: "0 0",
           background: item.background?.enabled ? item.background.color : "transparent",
           zIndex: 25,
