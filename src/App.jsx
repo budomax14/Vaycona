@@ -159,6 +159,22 @@ import CardPanelBar from "./components/PrintLayout/CardPanelBar";
 import PrintSettingsDialog from "./components/PrintLayout/PrintSettingsDialog";
 import CardPreviewDialog from "./components/PrintLayout/CardPreviewDialog";
 import { adaptCardToPaper, createCardPages, getCardProject, isPanelPage, withCardSettings } from "./print/cardProject";
+import LabelSheetBar from "./components/LabelSheet/LabelSheetBar";
+import LabelSheetNavigator from "./components/LabelSheet/LabelSheetNavigator";
+import LabelPrintDialog from "./components/LabelSheet/LabelPrintDialog";
+import LabelTemplatePicker from "./components/LabelSheet/LabelTemplatePicker";
+import { LABEL_STRINGS } from "./i18n/labels";
+import {
+  addLabelPage,
+  clearAllLabels,
+  createLabelSheetPages,
+  fillAllLabels,
+  getLabelSheetProject,
+  makeLabelsIndividual,
+  makeLabelsSame,
+  withLabelSettings,
+} from "./print/labelProject";
+import { traceLabelShape } from "./print/labelSheet";
 import { BLEED_IN, SAFE_MARGIN_IN, panelEdges } from "./print/printProducts";
 import { defaultPaperSizeKey, inchesToPx } from "./print/paperSizes";
 import { buildExportRequest } from "./export/exportRequest";
@@ -1144,9 +1160,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // button still opens the full panel on demand (see its onToggleEdit), and
   // entering text-edit/crop/etc. still opens it directly (see the
   // propertiesToolbarElement render condition below). Deselecting still
-  // closes it.
+  // closes it — only on an actual selection → no-selection change (not
+  // when isPhone flickers during a rotation), and not when the panel was
+  // opened with nothing selected: then deselecting returns to the canvas
+  // options the user asked for.
+  const hadSelectionRef = useRef(hasSelection);
+  const mobileEditForCanvasRef = useRef(false);
   useEffect(() => {
-    if (isPhone && !hasSelection) setMobileEditOpen(false);
+    const hadSelection = hadSelectionRef.current;
+    hadSelectionRef.current = hasSelection;
+    if (isPhone && hadSelection && !hasSelection && !mobileEditForCanvasRef.current) setMobileEditOpen(false);
   }, [isPhone, hasSelection]);
   const { hasCoarsePointer } = usePointerCapability();
   useEffect(() => {
@@ -1202,6 +1225,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Phone layout (see useBreakpoint's `isMobile`): the properties row and the
   // View panel only show when asked for, instead of always sitting on screen.
   const [mobileEditOpen, setMobileEditOpen] = useState(false);
+  useEffect(() => {
+    if (!mobileEditOpen) mobileEditForCanvasRef.current = false;
+  }, [mobileEditOpen]);
   // True while a phone preview drag is in flight (hides the selection pill).
   const [phoneDragging, setPhoneDragging] = useState(false);
   const lastPhoneDragEndRef = useRef(0);
@@ -1236,6 +1262,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
     () => (cardProject && (isCardPrintOpen || isCardPreviewOpen) ? resolveStaticExportItems(items, pages) : null),
     [cardProject, isCardPrintOpen, isCardPreviewOpen, items, pages]
   );
+  // Label sheets: the sheet-level view of this project's label pages, or
+  // null. See print/labelProject.js.
+  const labelSheet = useMemo(() => getLabelSheetProject(pages), [pages]);
+  const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
+  const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
+  const [isLabelMapOpen, setIsLabelMapOpen] = useState(true);
+  const labelDialogItems = useMemo(
+    () => (labelSheet && isLabelPrintOpen ? resolveStaticExportItems(items, pages) : null),
+    [labelSheet, isLabelPrintOpen, items, pages]
+  );
+  const activeLabelIndex = labelSheet && labelSheet.pageIds.has(activePage?.id) && labelSheet.mode === "individual" ? activePage.printLayout.labelIndex : null;
   // Background is a per-page field now (Phase 5) — kept as a same-named
   // local so every existing consumer (CanvasPropertiesBar, BackgroundsPanel)
   // keeps working with zero prop-shape changes.
@@ -1903,6 +1940,30 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setIsTemplateBrowserOpen(false);
     setShowHomePage(false);
     setStatus(result.status === SAVE_STATUS.SAVED ? "Greeting card created." : "Created, but saving failed.");
+    window.setTimeout(() => setStatus(""), 2500);
+  }
+
+  // Labels & Stickers (HomePage / New design → template picker): one label
+  // design page in "same on every label" mode, sized for the chosen sheet.
+  async function createLabelSheet(templateId) {
+    const labelPages = createLabelSheetPages({ templateId, extraPageFields: defaultPagePrecision() });
+    const data = {
+      pages: labelPages,
+      activePageId: labelPages[0].id,
+      scale: 1,
+      items: [],
+      guides: [],
+      snapToGuides: true,
+      pageNumbers: { ...DEFAULT_PAGE_NUMBERS },
+      preferredUnit,
+    };
+    const result = await replaceWorkspaceWith(data, { projectName: "Labels" });
+    setHasManualZoomOrPan(false);
+    setIsLabelPickerOpen(false);
+    setIsTemplateBrowserOpen(false);
+    setShowHomePage(false);
+    setIsLabelMapOpen(true);
+    setStatus(result.status === SAVE_STATUS.SAVED ? LABEL_STRINGS[language].status.created : "Created, but saving failed.");
     window.setTimeout(() => setStatus(""), 2500);
   }
 
@@ -3291,22 +3352,32 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setSelectedIds([newId]);
   }
 
+  // Default insert sizes are made for full-size pages; a label is about
+  // 1in tall, so on a label page they're scaled down to fit within 80% of
+  // it (the same rule addImageItem already applies to images). Ordinary
+  // pages keep the normal sizes (k = 1).
+  function labelInsertScale(width, height) {
+    if (!labelSheet?.pageIds.has(activePageId)) return 1;
+    return Math.min(1, (activePage.width * 0.8) / Math.max(1, width), (activePage.height * 0.8) / Math.max(1, height));
+  }
+
   function addText(presetKey = "heading") {
     const preset = getPresetByKey(presetKey) || getPresetByKey("heading");
     const presetText = PANEL_STRINGS[language].text.presets[preset.key]?.text ?? preset.text;
+    const k = labelInsertScale(preset.width, preset.height);
     addItem({
       type: "text",
       ...getDefaultProps("text"),
-      ...centerPositionFor(preset.width, preset.height),
+      ...centerPositionFor(preset.width * k, preset.height * k),
       text: presetText,
-      width: preset.width,
-      height: preset.height,
-      fontSize: preset.fontSize,
+      width: preset.width * k,
+      height: preset.height * k,
+      fontSize: Math.max(4, Math.round(preset.fontSize * k)),
       fontWeight: preset.fontWeight,
       italic: !!preset.italic,
       align: preset.align,
       lineHeight: preset.lineHeight,
-      letterSpacing: preset.letterSpacing,
+      letterSpacing: preset.letterSpacing * k,
       textTransform: preset.textTransform || "none",
       autoSize: preset.autoSize,
       fontFamily: "Arial",
@@ -3324,8 +3395,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // `outline`: the Elements panel's "Outline shapes" row — same shape,
   // hollow (no fill) with a visible border instead.
   function addShape(shapeKind = "rectangle", { outline = false } = {}) {
-    const width = 200;
-    const height = 200;
+    const k = labelInsertScale(200, 200);
+    const width = 200 * k;
+    const height = 200 * k;
     addItem(
       {
         type: "shape",
@@ -3333,14 +3405,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
         width,
         height,
         ...getDefaultProps("shape", shapeKind),
-        ...(outline ? { fill: "transparent", stroke: "#111827", strokeWidth: 4 } : {}),
+        ...(outline ? { fill: "transparent", stroke: "#111827", strokeWidth: Math.max(1, Math.round(4 * k)) } : {}),
       },
       `Add ${shapeKind}`
     );
   }
 
   function addLine(lineKind = "straight") {
-    const width = 260;
+    const width = 260 * labelInsertScale(260, 1);
     addItem(
       {
         type: "line",
@@ -3353,8 +3425,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function addIcon(iconName) {
-    const width = 80;
-    const height = 80;
+    const k = labelInsertScale(80, 80);
+    const width = 80 * k;
+    const height = 80 * k;
     addItem(
       {
         type: "icon",
@@ -3368,8 +3441,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
   }
 
   function addFrame(frameKind = "rectangle") {
-    const width = 240;
-    const height = 240;
+    const k = labelInsertScale(240, 240);
+    const width = 240 * k;
+    const height = 240 * k;
     addItem(
       {
         type: "frame",
@@ -5893,6 +5967,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
       setIsCardPrintOpen(true);
       return;
     }
+    // Same for label sheets: every label has to land on its position.
+    if (labelSheet) {
+      setIsLabelPrintOpen(true);
+      return;
+    }
 
     // iOS Safari: the desktop path below (open a blank tab, navigate it to
     // a blob: PDF URL, call print() on that tab) is unreliable there —
@@ -7697,6 +7776,85 @@ export default function App({ editorMode = "workspace", templateSession = null }
     commitPages((prev) => withCardSettings(prev, rest), { type: "card-print-settings", label: "Change print settings" });
   }
 
+  // Label-sheet actions. Each is one undoable step over pages + items (see
+  // print/labelProject.js); the ones that throw away designs ask first,
+  // the same way other destructive actions here do.
+  function flashStatus(message) {
+    setStatus(message);
+    window.setTimeout(() => setStatus(""), 2500);
+  }
+
+  function labelHasDesign(page) {
+    return itemsRef.current.some((it) => it.pageId === page.id) || (page.background && page.background.toLowerCase() !== "#ffffff");
+  }
+
+  function setLabelMode(mode) {
+    const sheet = getLabelSheetProject(pagesRef.current);
+    if (!sheet || sheet.mode === mode) return;
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
+    const t = LABEL_STRINGS[language];
+    if (mode === "individual") {
+      const next = makeLabelsIndividual(pagesRef.current, itemsRef.current);
+      commitBoth(next.items, next.pages, { type: "label-mode", label: "Edit labels individually" });
+      activatePage(sheet.designPage.id);
+      flashStatus(t.status.individual);
+      return;
+    }
+    const sourceId = sheet.pageIds.has(activePageId) ? activePageId : sheet.labelPages.get(0)?.id;
+    const source = pagesRef.current.find((p) => p.id === sourceId);
+    const others = pagesRef.current.filter((p) => sheet.pageIds.has(p.id) && p.id !== sourceId);
+    if (others.some(labelHasDesign) && !window.confirm(t.confirm.makeSame((source?.printLayout.labelIndex ?? 0) + 1))) return;
+    const next = makeLabelsSame(pagesRef.current, itemsRef.current, sourceId);
+    commitBoth(next.items, next.pages, { type: "label-mode", label: "Same design on all labels" });
+    activatePage(sourceId);
+    flashStatus(t.status.same);
+  }
+
+  function fillAllLabelsFromActive() {
+    const sheet = getLabelSheetProject(pagesRef.current);
+    if (!sheet || sheet.mode !== "individual" || !sheet.pageIds.has(activePageId)) return;
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
+    const t = LABEL_STRINGS[language];
+    const source = pagesRef.current.find((p) => p.id === activePageId);
+    const others = pagesRef.current.filter((p) => sheet.pageIds.has(p.id) && p.id !== activePageId);
+    if (others.some(labelHasDesign) && !window.confirm(t.confirm.fillAll(source.printLayout.labelIndex + 1))) return;
+    const next = fillAllLabels(pagesRef.current, itemsRef.current, activePageId);
+    commitBoth(next.items, next.pages, { type: "label-fill-all", label: "Fill all labels" });
+    flashStatus(t.status.filled(sheet.count));
+  }
+
+  function clearAllLabelsAction() {
+    const sheet = getLabelSheetProject(pagesRef.current);
+    if (!sheet) return;
+    if (editingTextIdRef.current) exitTextEdit();
+    if (editingTableIdRef.current) exitTableEditMode();
+    const t = LABEL_STRINGS[language];
+    const labelPagesNow = pagesRef.current.filter((p) => sheet.pageIds.has(p.id));
+    if (labelPagesNow.some(labelHasDesign) && !window.confirm(t.confirm.clearAll)) return;
+    const next = clearAllLabels(pagesRef.current, itemsRef.current);
+    setSelectedIds([]);
+    commitBoth(next.items, next.pages, { type: "label-clear-all", label: "Clear all labels" });
+    flashStatus(t.status.cleared);
+  }
+
+  function selectLabel(index) {
+    const page = labelSheet?.pageForSlot(index);
+    if (page && page.id !== activePageId) activatePage(page.id);
+  }
+
+  function addLabel(index) {
+    const { pages: nextPages, page } = addLabelPage(pagesRef.current, index, { extraPageFields: defaultPagePrecision() });
+    if (!page) return;
+    commitPages(nextPages, { type: "add-page", label: "Add label", pageIds: [page.id] });
+    activatePage(page.id);
+  }
+
+  function updateLabelSettings(patch) {
+    commitPages((prev) => withLabelSettings(prev, patch), { type: "label-print-settings", label: "Change label settings" });
+  }
+
   function resizeActivePage(width, height) {
     commitPages((prev) => prev.map((page) => (page.id === activePageId ? { ...page, width, height } : page)), {
       type: "resize-page",
@@ -8165,6 +8323,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardPaperSize]);
 
+  // A label is far smaller than the screen, and auto-fit only ever shrinks
+  // a page — zoom the label up to fill the workspace when a label sheet
+  // opens (new, loaded, or restored by undo).
+  const labelTemplateId = labelSheet?.templateId ?? null;
+  useEffect(() => {
+    if (!labelTemplateId) return;
+    requestAnimationFrame(() => handleFitToScreen());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelTemplateId]);
+
   function renderActivePage(page) {
     const konvaWidth = page.width * RENDER_SCALE_CAP;
     const konvaHeight = page.height * RENDER_SCALE_CAP;
@@ -8195,6 +8363,14 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // and captureStagePng() explicitly crops this stage back to the page
     // rect for template thumbnails.
     const pasteboardMarginPx = PASTEBOARD_MARGIN_PX * RENDER_SCALE_CAP;
+    // A label page clips to the label's own die-cut shape (rounded corners,
+    // circle, oval) rather than the page rectangle, so the canvas shows
+    // what will actually be on the sticker.
+    const labelShape = labelSheet && labelSheet.pageIds.has(page.id) ? labelSheet.template.label : null;
+    const pageClipProps =
+      labelShape && labelShape.shape !== "rectangle"
+        ? { clipFunc: (ctx) => traceLabelShape(ctx, labelShape, page.width, page.height, page.width / labelShape.widthIn) }
+        : { clipX: 0, clipY: 0, clipWidth: page.width, clipHeight: page.height };
     const pasteboardWidth = konvaWidth + pasteboardMarginPx * 2;
     const pasteboardHeight = konvaHeight + pasteboardMarginPx * 2;
 
@@ -8261,7 +8437,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     exactly one of the two groups at a time (never both), so
                     there's no double-registration of its Konva node against
                     registerNode/nodesMapRef. */}
-                <Group name="page-clip-group" clipX={0} clipY={0} clipWidth={page.width} clipHeight={page.height}>
+                <Group name="page-clip-group" {...pageClipProps}>
                   {displayPageItems
                     .filter((item) => item.type !== "group" && !isEffectivelyHidden(item, displayItemsById) && !unclippedRenderIds.has(item.id) && !erasePreviewIds.has(item.id))
                     .map((item) => (
@@ -8515,6 +8691,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
                       safeInsetPx: inchesToPx(SAFE_MARGIN_IN),
                       bleedPx: inchesToPx(BLEED_IN),
                       show: cardProject.settings.guides,
+                    }
+                  : null
+              }
+              labelGuides={
+                labelShape
+                  ? {
+                      label: labelShape,
+                      pxPerInch: page.width / labelShape.widthIn,
+                      safeInsetPx: (labelSheet.template.safeInsetIn || 0) * (page.width / labelShape.widthIn),
+                      show: labelSheet.settings.guides,
                     }
                   : null
               }
@@ -8790,6 +8976,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           onCreateBlank={createBlankDesign}
           onCreateStandardDocument={createStandardDocument}
           onCreateGreetingCard={createGreetingCard}
+          onCreateLabelSheet={() => setIsLabelPickerOpen(true)}
           onContinue={() => setShowHomePage(false)}
           hasExistingDesign={items.length > 0 || pages.length > 1 || !!saveStatus.lastSavedAt}
           projectName={projectName}
@@ -8803,6 +8990,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           onToggleFavorite={() => previewTemplate?.id && handleToggleTemplateFavorite(previewTemplate.id)}
           onExport={() => previewTemplate?.id && handleExportTemplate(previewTemplate.id)}
         />
+        <LabelTemplatePicker isOpen={isLabelPickerOpen} onClose={() => setIsLabelPickerOpen(false)} onCreate={createLabelSheet} />
       </>
     );
   }
@@ -9232,6 +9420,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
               compact={isPhone}
             />
           )}
+          {labelSheet && !templateSession && (
+            <LabelSheetBar
+              sheet={labelSheet}
+              activeLabelIndex={activeLabelIndex}
+              onSetMode={setLabelMode}
+              onFillAll={fillAllLabelsFromActive}
+              onClearAll={clearAllLabelsAction}
+              onOpenPrint={() => setIsLabelPrintOpen(true)}
+              mapOpen={isLabelMapOpen}
+              onToggleMap={() => setIsLabelMapOpen((open) => !open)}
+              compact={isPhone}
+            />
+          )}
           <div className="relative flex flex-1 overflow-hidden">
             {status && (
               <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">
@@ -9247,11 +9448,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onActivatePage={activatePage}
               scale={scale}
               onScaleChange={setScale}
-              autoFit={!hasManualZoomOrPan}
               onManualInteraction={() => setHasManualZoomOrPan(true)}
               isSpaceDown={isSpaceDown}
               renderActivePage={renderActivePage}
-              onAddPageAfter={addPage}
+              onAddPageAfter={labelSheet ? undefined : addPage}
               pageNumbers={pageNumbers}
               // Rulers are editor chrome, not part of the page/canvas-frame —
               // Workspace positions them around the workspace viewport itself.
@@ -9272,6 +9472,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
                   : null
               }
             />
+
+            {labelSheet && !templateSession && isLabelMapOpen && !isPhone && (
+              <LabelSheetNavigator
+                sheet={labelSheet}
+                pages={pages}
+                items={items}
+                activePageId={activePageId}
+                onSelectLabel={selectLabel}
+                onAddLabel={addLabel}
+                onUpdateSettings={updateLabelSettings}
+                onClose={() => setIsLabelMapOpen(false)}
+              />
+            )}
 
             {animationPanelOpen && selectedItems.length >= 1 && (
               <AnimationPanel
@@ -9355,6 +9568,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
             onToggleEdit={() => {
               setActiveSidebarSection(null);
               setMobileViewOpen(false);
+              mobileEditForCanvasRef.current = !mobileEditOpen && !hasSelection;
               setMobileEditOpen((v) => !v);
             }}
             hasSelection={hasSelection}
@@ -9576,6 +9790,24 @@ export default function App({ editorMode = "workspace", templateSession = null }
         }}
       />
 
+      <LabelPrintDialog
+        isOpen={isLabelPrintOpen && !!labelSheet}
+        onClose={() => setIsLabelPrintOpen(false)}
+        sheet={labelSheet}
+        pages={pages}
+        items={labelDialogItems || items}
+        projectName={projectName}
+        watermark={subscriptionTier === "free"}
+        onUpdateSettings={updateLabelSettings}
+        onBeforeExport={() => {
+          if (editingTextIdRef.current) exitTextEdit();
+          if (editingTableIdRef.current) exitTableEditMode();
+          autosaveRef.current.flush();
+        }}
+      />
+
+      <LabelTemplatePicker isOpen={isLabelPickerOpen} onClose={() => setIsLabelPickerOpen(false)} onCreate={createLabelSheet} />
+
       <CardPreviewDialog
         isOpen={isCardPreviewOpen && !!cardProject}
         onClose={() => setIsCardPreviewOpen(false)}
@@ -9651,6 +9883,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onDuplicateTemplate={handleDuplicateTemplateAction}
         onCreateBlank={createBlankDesign}
         onCreateGreetingCard={createGreetingCard}
+        onCreateLabelSheet={() => setIsLabelPickerOpen(true)}
         onInsertPage={insertReusablePage}
         onDeletePage={handleDeleteReusablePage}
         onInsertSection={insertReusableSection}

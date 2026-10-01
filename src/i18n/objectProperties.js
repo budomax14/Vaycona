@@ -175,12 +175,14 @@ export const OBJECT_PROPERTIES_STRINGS = {
     },
     canvas: {
       background: "Background",
+      border: "Border",
       removePageBorder: "Remove page border",
       addPageBorder: "Add page border",
       borderColor: "Border color",
       width: "Width",
       borderStyle: "Border style",
       selectHint: "Select an element to edit its properties, or shift-click / drag a selection box to select multiple.",
+      selectHintTouch: "Tap an element to edit its properties.",
     },
     cropMode: {
       cropping: "Cropping",
@@ -389,12 +391,14 @@ export const OBJECT_PROPERTIES_STRINGS = {
     },
     canvas: {
       background: "Arrière-plan",
+      border: "Contour",
       removePageBorder: "Supprimer le contour de la page",
       addPageBorder: "Ajouter un contour à la page",
       borderColor: "Couleur du contour",
       width: "Épaisseur",
       borderStyle: "Style de contour",
       selectHint: "Sélectionnez un élément pour modifier ses propriétés, ou maj-cliquez / faites glisser un cadre de sélection pour en sélectionner plusieurs.",
+      selectHintTouch: "Touchez un élément pour modifier ses propriétés.",
     },
     cropMode: {
       cropping: "Recadrage",

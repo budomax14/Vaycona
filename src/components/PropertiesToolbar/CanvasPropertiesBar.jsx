@@ -1,10 +1,11 @@
 import React from "react";
-import { ColorField, IconToggleButton, NumberField, ToolbarDivider } from "./toolbarUi";
+import { ColorField, IconToggleButton, LabeledField, NumberField, ToolbarDivider } from "./toolbarUi";
 import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import { Square } from "lucide-react";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
 import { useLanguage } from "../../languageContext";
 import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
+import { useBreakpoint } from "../../useBreakpoint";
 
 // Shown when nothing is selected — the page/canvas's own properties.
 // Border is additive, like page background before it (see App.jsx's
@@ -15,6 +16,9 @@ export default function CanvasPropertiesBar({ background, onBackgroundChange, bo
   const { language } = useLanguage();
   const t = OBJECT_PROPERTIES_STRINGS[language].canvas;
   const pageBorder = border || {};
+  // Phone: the row wraps onto several lines, where a divider would dangle at
+  // a line's end, and the hint gets its own full-width, wrapping line.
+  const { isMobile } = useBreakpoint();
 
   return (
     <OverflowToolbar className="w-full" innerClassName="justify-start gap-3">
@@ -29,13 +33,15 @@ export default function CanvasPropertiesBar({ background, onBackgroundChange, bo
 
       <OverflowToolbar.Item>
         <>
-          <ToolbarDivider />
-          <IconToggleButton
-            icon={Square}
-            active={!!pageBorder.enabled}
-            onClick={() => onBorderChange({ enabled: !pageBorder.enabled })}
-            title={pageBorder.enabled ? t.removePageBorder : t.addPageBorder}
-          />
+          {!isMobile && <ToolbarDivider />}
+          <LabeledField label={t.border}>
+            <IconToggleButton
+              icon={Square}
+              active={!!pageBorder.enabled}
+              onClick={() => onBorderChange({ enabled: !pageBorder.enabled })}
+              title={pageBorder.enabled ? t.removePageBorder : t.addPageBorder}
+            />
+          </LabeledField>
           {pageBorder.enabled && (
             <>
               <ColorField
@@ -69,9 +75,9 @@ export default function CanvasPropertiesBar({ background, onBackgroundChange, bo
 
       <OverflowToolbar.Item>
         <>
-          <ToolbarDivider />
-          <span className="shrink-0 text-sm text-gray-400">
-            {t.selectHint}
+          {!isMobile && <ToolbarDivider />}
+          <span className={isMobile ? "w-full text-sm text-gray-400" : "shrink-0 text-sm text-gray-400"}>
+            {isMobile ? t.selectHintTouch : t.selectHint}
           </span>
         </>
       </OverflowToolbar.Item>

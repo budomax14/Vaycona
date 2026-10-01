@@ -181,18 +181,22 @@ export default function OverflowToolbar({ className = "", innerClassName = "just
       </div>
 
       {/* Off-screen measurement pass: laid out (not display:none, so
-          offsetWidth is real) but invisible and non-interactive. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-0 flex items-center gap-3 opacity-0"
-        style={{ visibility: "hidden", zIndex: -1 }}
-      >
-        {items.map((item, i) => (
-          <div key={i} ref={(el) => (measureRefs.current[i] = el)} className="flex shrink-0 items-center">
-            {item}
-          </div>
-        ))}
-      </div>
+          offsetWidth is real) but invisible and non-interactive. Skipped on
+          phone, where nothing overflows into "More" — its unwrapped copy of
+          the row would only widen the toolbar's scroll area. */}
+      {!isMobile && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 flex items-center gap-3 opacity-0"
+          style={{ visibility: "hidden", zIndex: -1 }}
+        >
+          {items.map((item, i) => (
+            <div key={i} ref={(el) => (measureRefs.current[i] = el)} className="flex shrink-0 items-center">
+              {item}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

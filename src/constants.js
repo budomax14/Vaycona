@@ -21,7 +21,8 @@ export const ZOOM_PRESETS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 4, 8];
 export const TOUCH_ANCHOR_HIT_PAD = 10;
 
 export const WORKSPACE_PAGE_GAP = 60;
-export const WORKSPACE_FIT_PADDING = 48;
+// Fit: the gap left between a too-tall page and the workspace's top/bottom.
+export const WORKSPACE_FIT_GAP_Y = 4;
 
 // Ruler strip thickness (editor chrome, not project content) — shared by
 // Ruler.jsx (canvas sizing) and Workspace.jsx (gutter/corner sizing) so the

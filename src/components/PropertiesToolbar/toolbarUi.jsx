@@ -102,7 +102,7 @@ export function NumberField({ label, value, onChange, min, max, step = 1, width 
   return (
     <LabeledField label={label} width={width}>
       <div
-        className={`flex items-stretch overflow-hidden rounded-lg border bg-gray-50 focus-within:border-amber-400 focus-within:bg-white ${
+        className={`number-field-box flex items-stretch overflow-hidden rounded-lg border bg-gray-50 focus-within:border-amber-400 focus-within:bg-white ${
           mixed ? "border-dashed border-gray-300" : "border-gray-200"
         }`}
       >
@@ -133,7 +133,7 @@ export function NumberField({ label, value, onChange, min, max, step = 1, width 
           <button
             type="button"
             tabIndex={-1}
-            className="flex h-1/2 w-4 items-center justify-center text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+            className="number-spinner-btn flex h-1/2 w-4 items-center justify-center text-gray-400 hover:bg-gray-200 hover:text-gray-700"
             onClick={() => bump(step)}
             aria-label={t.increaseLabel(label)}
           >
@@ -142,7 +142,7 @@ export function NumberField({ label, value, onChange, min, max, step = 1, width 
           <button
             type="button"
             tabIndex={-1}
-            className="flex h-1/2 w-4 items-center justify-center border-t border-gray-200 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+            className="number-spinner-btn flex h-1/2 w-4 items-center justify-center border-t border-gray-200 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
             onClick={() => bump(-step)}
             aria-label={t.decreaseLabel(label)}
           >

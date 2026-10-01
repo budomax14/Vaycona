@@ -104,6 +104,16 @@ body {
 .phone-editor body {
   overscroll-behavior: none;
 }
+/* The editor root is exactly the visible viewport (h-dvh), but body's
+   min-height: 100vh is taller than that on mobile Safari while its URL bar
+   shows — enough for the whole site to scroll under the bars. The phone
+   editor never scrolls the document itself; only its panels scroll. */
+.phone-editor,
+.phone-editor body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 .phone-editor body {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
@@ -115,6 +125,15 @@ body {
 .phone-editor select,
 .phone-editor label {
   touch-action: manipulation;
+}
+/* Number fields' up/down steppers are 16px squares on desktop — too small
+   to hit with a finger, so the phone editor widens them and gives the
+   field enough height for each half to be a usable target. */
+.phone-editor .number-field-box {
+  min-height: 40px;
+}
+.phone-editor .number-spinner-btn {
+  width: 28px;
 }
 .phone-editor input,
 .phone-editor textarea,
@@ -417,6 +436,19 @@ a:focus-visible {
   stroke: #64748b;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+.label-outline {
+  fill: none;
+  stroke: #0ea5e9;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.label-outside-mask {
+  fill: rgba(100, 116, 139, 0.35);
+  stroke: none;
 }
 
 .safe-area-rect {

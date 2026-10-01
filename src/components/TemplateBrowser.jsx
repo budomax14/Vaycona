@@ -7,6 +7,7 @@ import { TIER_RANK } from "../subscriptionContext";
 import { useLanguage } from "../languageContext";
 import { DIALOG_STRINGS } from "../i18n/dialogs";
 import { PRINT_STRINGS } from "../i18n/print";
+import { LABEL_STRINGS } from "../i18n/labels";
 import { GREETING_CARD_CATEGORIES } from "../print/cardProject";
 
 function toUnit(px, unitKey) {
@@ -42,6 +43,7 @@ export default function TemplateBrowser({
   onDuplicateTemplate,
   onCreateBlank,
   onCreateGreetingCard,
+  onCreateLabelSheet,
   onInsertPage,
   onDeletePage,
   onInsertSection,
@@ -234,6 +236,15 @@ export default function TemplateBrowser({
                     >
                       <span className="block font-medium">{pt.home.greetingCard}</span>
                       <span className="block text-[10px] text-amber-700/70">{pt.bar.cardSize("Letter / A4")}</span>
+                    </button>
+                  )}
+                  {onCreateLabelSheet && (
+                    <button
+                      className="rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-left text-xs text-amber-800 hover:border-amber-300"
+                      onClick={onCreateLabelSheet}
+                    >
+                      <span className="block font-medium">{LABEL_STRINGS[language].home.labels}</span>
+                      <span className="block text-[10px] text-amber-700/70">{LABEL_STRINGS[language].home.labelsHint}</span>
                     </button>
                   )}
                   {PAGE_SIZE_PRESETS.slice(0, 6).map((preset) => {

@@ -7,15 +7,16 @@ import { clamp } from "../../viewport";
 import { isMobileDevice } from "../../canvasPixelBudget";
 import { usePageThumbnails } from "../LeftSidebar/panels/usePageThumbnails";
 import ThumbnailStage from "../LeftSidebar/panels/ThumbnailStage";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useLanguage } from "../../languageContext";
 import { STATUS_BAR_STRINGS } from "../../i18n/statusBarAndMenus";
+import { PANEL_STRINGS } from "../../i18n/panels";
 import {
   BUTTON_ZOOM_STEP,
   MAX_SCALE,
   MIN_SCALE,
   RULER_THICKNESS,
-  WORKSPACE_FIT_PADDING,
+  WORKSPACE_FIT_GAP_Y,
   WORKSPACE_PAGE_GAP,
   ZOOM_STEP,
 } from "../../constants";
@@ -58,7 +59,6 @@ const Workspace = forwardRef(function Workspace(
     items,
     scale,
     onScaleChange,
-    autoFit,
     onManualInteraction,
     isSpaceDown,
     renderActivePage,
@@ -83,6 +83,7 @@ const Workspace = forwardRef(function Workspace(
   isMobileRef.current = isMobile;
   const { language } = useLanguage();
   const pagerText = STATUS_BAR_STRINGS[language].statusBar;
+  const pagesText = PANEL_STRINGS[language].pages;
   const isMobileDeviceOnce = useMemo(() => isMobileDevice(), []);
   const iosStaticPreviews = isMobileDeviceOnce && !isMobile;
   const { thumbnails: iosPagePreviews, renderingPageId: iosPreviewRenderingId, handleCapture: handleIosPreviewCapture } = usePageThumbnails(pages, items, {
@@ -113,8 +114,8 @@ const Workspace = forwardRef(function Workspace(
   const [pageOrigin, setPageOrigin] = useState({ x: 0, y: 0 });
 
   const containerSize = useResizeObserver(containerRef);
-  // Last page id a phone-size fit was applied for — see the effect below.
-  const phoneFitPageIdRef = useRef(null);
+  // The page id and scale of the last automatic fit — see the effect below.
+  const lastFitRef = useRef({ pageId: null, scale: null });
   const activePage = pages.find((page) => page.id === activePageId) || pages[0];
 
   const showRulersRef = useRef(showRulers);
@@ -198,16 +199,46 @@ const Workspace = forwardRef(function Workspace(
     measurePageOrigin();
   }, [measurePageOrigin, scale, containerSize.width, containerSize.height, activePageId, activePage?.width, activePage?.height, showRulers]);
 
-  // Phone: when the page fits the screen width there's nothing to pan to
-  // sideways, but the Stage's pasteboard margin still overhangs the page and
-  // hands the scroller a few px of horizontal range — enough for a finger to
-  // make the whole canvas slide/jiggle. Lock the X axis (no overflow, no
-  // horizontal touch-pan) until the user zooms past the screen width.
-  const phoneLockX = isMobile && !!activePage && containerSize.width > 0 && activePage.width * scale <= containerSize.width + 0.5;
-  useLayoutEffect(() => {
+  // The page can only be moved along an axis it doesn't fit on. When it fits
+  // (width, height, or both), that axis has nothing to pan to — but the
+  // Stage's pasteboard margin and the stack's padding still hand the
+  // scroller some range, enough for a wheel/finger/space-drag to make the
+  // whole canvas slide. Lock each fitting axis (no overflow, no touch-pan)
+  // and keep the page centered on it until it's zoomed past the workspace.
+  const lockX = !!activePage && containerSize.width > 0 && activePage.width * scale <= containerSize.width + 0.5;
+  const lockY = !!activePage && containerSize.height > 0 && activePage.height * scale <= containerSize.height + 0.5;
+  const lockRef = useRef({ lockX, lockY });
+  lockRef.current = { lockX, lockY };
+  const pinLockedAxes = useCallback(() => {
     const container = containerRef.current;
-    if (phoneLockX && container && container.scrollLeft !== 0) container.scrollLeft = 0;
-  });
+    const wrapper = activePageWrapperRef.current;
+    // A phone pinch shows as a transform on the page stack until it
+    // commits — re-centering mid-gesture would fight it.
+    if (!container || !wrapper || gestureStateRef.current?.phone || pendingPinchAnchorRef.current) return;
+    const { lockX: pinX, lockY: pinY } = lockRef.current;
+    if (!pinX && !pinY) return;
+    const containerRect = container.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    let nextLeft = container.scrollLeft;
+    let nextTop = container.scrollTop;
+    if (pinX) {
+      const offset = wrapperRect.left - containerRect.left - container.clientLeft;
+      nextLeft = Math.max(0, container.scrollLeft + offset - (container.clientWidth - wrapperRect.width) / 2);
+    }
+    if (pinY) {
+      const offset = wrapperRect.top - containerRect.top - container.clientTop;
+      nextTop = Math.max(0, container.scrollTop + offset - (container.clientHeight - wrapperRect.height) / 2);
+    }
+    const moveX = Math.abs(nextLeft - container.scrollLeft) > 0.5;
+    const moveY = Math.abs(nextTop - container.scrollTop) > 0.5;
+    if (!moveX && !moveY) return;
+    programmaticScrollRef.current = true;
+    if (moveX) container.scrollLeft = nextLeft;
+    if (moveY) container.scrollTop = nextTop;
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+  }, []);
 
   const scrollToActivePage = useCallback(() => {
     const container = containerRef.current;
@@ -233,8 +264,11 @@ const Workspace = forwardRef(function Workspace(
       // to MIN_SCALE), and since that tiny page then "already fits" it would
       // never be corrected. Defer: the effects below re-run this once the
       // ResizeObserver reports real dimensions.
-      const availableWidth = container.clientWidth - WORKSPACE_FIT_PADDING * 2;
-      const availableHeight = container.clientHeight - WORKSPACE_FIT_PADDING * 2;
+      // The page is shown as large as it can be while still whole: its
+      // left/right edges touch the workspace's, or — if it's too tall for
+      // that — its top/bottom sit a hair inside the workspace's instead.
+      const availableWidth = container.clientWidth;
+      const availableHeight = container.clientHeight - WORKSPACE_FIT_GAP_Y * 2;
       if (container.clientWidth <= 0 || container.clientHeight <= 0 || availableWidth <= 0 || availableHeight <= 0) return;
       // If the page already fits fully within the available space at the
       // current zoom, leave scale and scroll position alone. Without this,
@@ -251,33 +285,34 @@ const Workspace = forwardRef(function Workspace(
         MIN_SCALE,
         MAX_SCALE
       );
+      lastFitRef.current = { pageId: activePage.id, scale: nextScale };
       onScaleChange(nextScale);
       requestAnimationFrame(() => scrollToActivePage());
     },
     [activePage, scale, onScaleChange, scrollToActivePage]
   );
 
+  // Every page opens fitted (see fitToScreen), whatever zoom the project was
+  // saved with — `scale` is view state, not document state. The fit is
+  // re-applied whenever the space changes (window resize, rotation, a panel
+  // opening or closing, a page resize) — unless the user has zoomed in or
+  // out since, which is kept until they fit again or switch pages. Waits
+  // for a valid container.
   useEffect(() => {
-    if (!autoFit) return;
-    fitToScreen();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoFit, containerSize.width, containerSize.height, activePageId, activePage?.width, activePage?.height]);
-
-  // Phones: the saved project carries the `scale` it was last viewed at (a
-  // desktop session's zoom, typically ~1.0), and loading marks it as a manual
-  // zoom, so autoFit never runs — a 1000px page then sits at 1:1 inside a
-  // ~390px viewport. `scale` is view state, not document state, so on phones
-  // re-derive it once per page from the real container size
-  // (displayScale = available viewport / document). Waits for a valid
-  // container; desktop/tablet keep their saved zoom exactly as before.
-  useEffect(() => {
-    if (!isMobile || !activePage) return;
+    if (!activePage) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
-    if (phoneFitPageIdRef.current === activePage.id) return;
-    phoneFitPageIdRef.current = activePage.id;
+    const last = lastFitRef.current;
+    const stillAtFit = last.scale !== null && Math.abs(scale - last.scale) < 1e-6;
+    if (last.pageId === activePage.id && !stillAtFit) return;
     fitToScreen({ force: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, containerSize.width, containerSize.height, activePage?.id]);
+  }, [isMobile, containerSize.width, containerSize.height, activePage?.id, activePage?.width, activePage?.height]);
+
+  // Runs after every commit (zoom, resize, page switch, pinch settle) so a
+  // fitting axis always ends up centered — see lockX/lockY above.
+  useLayoutEffect(() => {
+    pinLockedAxes();
+  });
 
   useImperativeHandle(
     ref,
@@ -522,9 +557,9 @@ const Workspace = forwardRef(function Workspace(
   }
 
   function handleScroll() {
-    // Programmatic scrolls (focus, scrollIntoView) can still move a locked
-    // axis — snap it back; see phoneLockX.
-    if (phoneLockX && containerRef.current && containerRef.current.scrollLeft !== 0) containerRef.current.scrollLeft = 0;
+    // Programmatic scrolls (focus, scrollIntoView, space-drag) can still move
+    // a locked axis — snap it back; see lockX/lockY.
+    pinLockedAxes();
     measurePageOrigin();
     if (programmaticScrollRef.current) return;
     onManualInteraction();
@@ -567,10 +602,14 @@ const Workspace = forwardRef(function Workspace(
         )}
         <div
           ref={containerRef}
-          className={`canvas-area flex-1 ${phoneLockX ? "" : "touch-pan-x"} touch-pan-y ${
+          className={`canvas-area flex-1 ${lockX && lockY ? "touch-none" : `${lockX ? "" : "touch-pan-x"} ${lockY ? "" : "touch-pan-y"}`} ${
             isPanning || isSpaceDown ? "cursor-grabbing select-none" : ""
           }`}
-          style={phoneLockX ? { overflowX: "hidden", overscrollBehavior: "contain" } : isMobile ? { overscrollBehavior: "contain" } : undefined}
+          style={{
+            ...(lockX ? { overflowX: "hidden" } : null),
+            ...(lockY ? { overflowY: "hidden" } : null),
+            ...(isMobile ? { overscrollBehavior: "contain" } : null),
+          }}
           onMouseDown={handleMouseDown}
           onScroll={handleScroll}
           onContextMenu={(event) => {
@@ -583,8 +622,11 @@ const Workspace = forwardRef(function Workspace(
             style={{ gap: WORKSPACE_PAGE_GAP, alignItems: "safe center", justifyContent: "safe center" }}
           >
             {pages.map((page, index) => {
+              // Only the selected page is shown (phone and desktop alike);
+              // the others are reached through the page arrows, status bar,
+              // or Pages panel.
               const isActive = page.id === activePageId;
-              if (isMobile && !isActive) return null;
+              if (!isActive) return null;
               return (
                 <div key={page.id} ref={isActive ? activePageWrapperRef : undefined}>
                   <PageSlot
@@ -595,7 +637,6 @@ const Workspace = forwardRef(function Workspace(
                     items={items}
                     pageNumbers={pageNumbers}
                     onActivate={() => onActivatePage(page.id)}
-                    onAddPage={onAddPageAfter ? () => onAddPageAfter(page.id) : undefined}
                     previewImageUrl={!isActive && iosStaticPreviews ? iosPagePreviews.get(page.id) : undefined}
                   >
                     {isActive ? renderActivePage(page, scale) : null}
@@ -605,18 +646,53 @@ const Workspace = forwardRef(function Workspace(
             })}
           </div>
         </div>
-        {isMobile && pages.length > 1 && (() => {
+        {/* The page's name and "add page after" button float at the
+            bottom of the workspace rather than sitting under the page, so
+            they stay reachable while a fitting page can't be scrolled. */}
+        {activePage && (() => {
+          const activeIndex = pages.findIndex((p) => p.id === activePage.id);
+          const pageName = activePage.name || pagesText.pageDefaultName(activeIndex + 1);
+          return (
+            <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-200 bg-white/90 py-1 pl-3 pr-1 shadow-sm">
+              <span className={`text-xs font-medium text-gray-500 ${onAddPageAfter ? "" : "pr-2"}`}>{pageName}</span>
+              {onAddPageAfter && (
+                <button
+                  type="button"
+                  className="pointer-events-auto flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-500 transition-colors hover:border-amber-400 hover:text-amber-600 active:scale-95"
+                  onClick={() => onAddPageAfter(activePage.id)}
+                  title={pagesText.addPage}
+                  aria-label={pagesText.addPageAfterAria(pageName)}
+                >
+                  <Plus size={16} />
+                </button>
+              )}
+            </div>
+          );
+        })()}
+        {/* Previous/next page buttons, one beside each side of the page:
+            just outside its left/right border when there's room, else at
+            the workspace edges (a phone page touches the screen edges, and a
+            zoomed-in page overflows the workspace). Both are always shown
+            once there's another page; the one with nowhere to go is dimmed. */}
+        {pages.length > 1 && (() => {
           const activeIndex = pages.findIndex((p) => p.id === activePageId);
           const prevPage = activeIndex > 0 ? pages[activeIndex - 1] : null;
           const nextPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
+          const ARROW_SIZE = 36;
+          const ARROW_GAP = 8;
+          const sideSpace = lockX && activePage ? (containerSize.width - activePage.width * scale) / 2 : 0;
+          const inset = Math.max(ARROW_GAP, sideSpace - ARROW_GAP - ARROW_SIZE);
+          const rulerOffset = showRulers ? RULER_THICKNESS : 0;
           const arrowClass =
-            "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-md transition-opacity active:scale-95 disabled:pointer-events-none disabled:opacity-0";
+            "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-md transition-opacity hover:bg-white active:scale-95 disabled:pointer-events-none disabled:opacity-30";
           return (
             <>
               <button
                 type="button"
-                className={`${arrowClass} left-2`}
+                className={arrowClass}
+                style={{ left: rulerOffset + inset }}
                 aria-label={pagerText.previousPage}
+                title={pagerText.previousPage}
                 disabled={!prevPage}
                 onClick={() => prevPage && onActivatePage(prevPage.id)}
               >
@@ -624,8 +700,10 @@ const Workspace = forwardRef(function Workspace(
               </button>
               <button
                 type="button"
-                className={`${arrowClass} right-2`}
+                className={arrowClass}
+                style={{ right: rulerOffset + inset }}
                 aria-label={pagerText.nextPage}
+                title={pagerText.nextPage}
                 disabled={!nextPage}
                 onClick={() => nextPage && onActivatePage(nextPage.id)}
               >

@@ -14,6 +14,7 @@ import {
   baselinePositions,
 } from "./precisionOverlayGeometry";
 import { formatMeasurement } from "./measurement";
+import { labelShapeSvgPath } from "./print/labelSheet";
 
 // Phase 10 — every editor-only canvas overlay (guides, grids, margins,
 // safe area, bleed preview, layout grid, baseline grid, smart-alignment
@@ -73,6 +74,28 @@ function renderPrintGuides({ edges, safeInsetPx, bleedPx, show }, pageWidth, pag
   return shapes;
 }
 
+// Label-sheet guides for one label page (see print/labelSheet.js): the
+// label's die-cut outline (rounded corners, circle, oval), a "keep text
+// inside" safe line, and — for shapes that don't fill the page — a dimmed
+// area outside the label, which is clipped away when printed. Editor-only
+// like everything else here; nothing in this file is ever exported.
+function renderLabelGuides({ label, safeInsetPx, pxPerInch, show }, pageWidth, pageHeight) {
+  const shapes = [];
+  const outline = labelShapeSvgPath(label, pageWidth, pageHeight, pxPerInch);
+  if (label.shape !== "rectangle") {
+    shapes.push(<path key="lg-outside" d={`M0,0h${pageWidth}v${pageHeight}h${-pageWidth}Z ${outline}`} fillRule="evenodd" className="label-outside-mask" />);
+  }
+  if (show.outline) shapes.push(<path key="lg-outline" d={outline} className="label-outline" />);
+  if (show.safe && safeInsetPx > 0) {
+    const w = Math.max(0, pageWidth - safeInsetPx * 2);
+    const h = Math.max(0, pageHeight - safeInsetPx * 2);
+    // The safe line follows the label's shape, inset evenly.
+    const insetLabel = { ...label, cornerRadiusIn: Math.max(0, (label.cornerRadiusIn || 0) - safeInsetPx / pxPerInch) };
+    shapes.push(<path key="lg-safe" d={labelShapeSvgPath(insetLabel, w, h, pxPerInch, safeInsetPx, safeInsetPx)} className="safe-area-rect" />);
+  }
+  return shapes;
+}
+
 export default function CanvasOverlays({
   pageWidth,
   pageHeight,
@@ -94,6 +117,7 @@ export default function CanvasOverlays({
   distanceLabels,
   unit = "px",
   printGuides = null,
+  labelGuides = null,
 }) {
   const topLeft = contentToScreen({ x: 0, y: 0 }, viewport);
   const bottomRight = contentToScreen({ x: pageWidth, y: pageHeight }, viewport);
@@ -140,6 +164,7 @@ export default function CanvasOverlays({
   const bleedBox = bleed?.visible ? bleedRect(bleed, pageWidth, pageHeight) : null;
 
   const printGuideShapes = printGuides ? renderPrintGuides(printGuides, pageWidth, pageHeight) : null;
+  const labelGuideShapes = labelGuides ? renderLabelGuides(labelGuides, pageWidth, pageHeight) : null;
 
   const marqueeScreen = marquee ? contentToScreen({ x: marquee.x, y: marquee.y }, viewport) : null;
 
@@ -188,6 +213,7 @@ export default function CanvasOverlays({
         {marginBox && <rect x={marginBox.x} y={marginBox.y} width={marginBox.width} height={marginBox.height} className="margin-rect" />}
         {safeBox && <rect x={safeBox.x} y={safeBox.y} width={safeBox.width} height={safeBox.height} className="safe-area-rect" />}
         {printGuideShapes}
+        {labelGuideShapes}
         {alignmentLines.vertical.map((x) => (
           <line key={`av${x}`} x1={x} y1={-50} x2={x} y2={pageHeight + 50} className={`alignment-line ${x === pageWidth / 2 ? "page-center-line" : ""}`} />
         ))}
