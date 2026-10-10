@@ -145,7 +145,11 @@ export async function buildCardPdf({ card, pages, items, projectName, watermark 
     const w = pt(sheet.pageWidthIn);
     const h = pt(sheet.pageHeightIn);
     const orientation = w > h ? "landscape" : "portrait";
-    if (!pdf) pdf = new jsPDF({ unit: "pt", format: [w, h], orientation, compress: true });
+    if (!pdf) {
+      pdf = new jsPDF({ unit: "pt", format: [w, h], orientation, compress: true });
+      // Actual size, not "fit to page" — see labelPdf.js.
+      pdf.viewerPreferences({ PrintScaling: "None" });
+    }
     else pdf.addPage([w, h], orientation);
 
     for (const slot of sheet.slots) {

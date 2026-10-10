@@ -13,6 +13,7 @@ import {
   isRichText,
   MAX_LIST_LEVEL,
   richTextToHTML,
+  withItemRunDefaults,
 } from "../richText";
 import { usePointerCapability } from "../usePointerCapability";
 import { useFontLoader } from "../useFontLoader";
@@ -234,9 +235,9 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   const serializeAndSync = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
-    const richText = domToRichText(root, fontSizeScale);
+    const richText = withItemRunDefaults(domToRichText(root, fontSizeScale), item);
     onLiveUpdate(richText);
-  }, [fontSizeScale, onLiveUpdate]);
+  }, [fontSizeScale, onLiveUpdate, item]);
 
   // Mount-once: build initial HTML from the committed richText and place
   // the caret. Deliberately has an empty dependency array — this must
@@ -253,7 +254,19 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
     }
 
     let range = null;
-    if (initialClientPoint) {
+    // An empty box (e.g. a new Standard Document) has only an empty styled
+    // span, which browsers won't put the caret inside — typing then landed
+    // outside it as unstyled text next to a leftover empty line. Seed the
+    // span with the zero-width caret placeholder (stripped on save, see
+    // walkInline) and start the caret inside it.
+    const emptySpan = root.textContent === "" ? root.querySelector("span") : null;
+    if (emptySpan) {
+      emptySpan.textContent = "\u200B";
+      range = document.createRange();
+      range.setStart(emptySpan.firstChild, 1);
+      range.collapse(true);
+    }
+    if (!range && initialClientPoint) {
       range = caretRangeFromClientPoint(initialClientPoint.x, initialClientPoint.y);
     }
     if (!range) {
@@ -635,7 +648,10 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   // toolbar marker lets users click Bold/Color/etc. without losing the
   // active edit session. Capture-phase so it sees the click before Konva
   // Stage handlers / other click-outside listeners (color popovers etc.)
-  // process and potentially stop propagation.
+  // process and potentially stop propagation. Listens for pointerdown, not
+  // mousedown: on phones/tablets a finger tap on the Konva canvas never
+  // produces the compatibility mousedown (Konva preventDefaults the touch),
+  // so a tap outside left the box stuck in edit mode.
   useEffect(() => {
     function handlePointerDown(event) {
       const target = event.target;
@@ -643,8 +659,8 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
       if (target.closest?.("[data-text-toolbar-safe]")) return;
       onRequestExit();
     }
-    window.addEventListener("mousedown", handlePointerDown, true);
-    return () => window.removeEventListener("mousedown", handlePointerDown, true);
+    window.addEventListener("pointerdown", handlePointerDown, true);
+    return () => window.removeEventListener("pointerdown", handlePointerDown, true);
   }, [onRequestExit]);
 
   const overlayLeft = contentToScreen({ x: item.x, y: item.y }, viewport).x;

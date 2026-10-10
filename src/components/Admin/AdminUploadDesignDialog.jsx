@@ -38,7 +38,7 @@ function readImageDimensionsAndThumbnail(file, maxSize = ASSET_THUMB_SIZE) {
 // (one page sized to the image, one image object filling it), which then
 // flows through the exact same createTemplate/publishTemplate pipeline as
 // any editor-built template, so it shows up in the end-user Designs panel
-// (App.jsx's DesignPanel) and the admin dashboard grid identically.
+// and the admin dashboard grid identically.
 export default function AdminUploadDesignDialog({ isOpen, onClose, onUploaded }) {
   const { language } = useLanguage();
   const t = MISC_STRINGS[language].adminUploadDesignDialog;

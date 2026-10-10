@@ -7,10 +7,9 @@ import { clamp } from "../../viewport";
 import { isMobileDevice } from "../../canvasPixelBudget";
 import { usePageThumbnails } from "../LeftSidebar/panels/usePageThumbnails";
 import ThumbnailStage from "../LeftSidebar/panels/ThumbnailStage";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useLanguage } from "../../languageContext";
 import { STATUS_BAR_STRINGS } from "../../i18n/statusBarAndMenus";
-import { PANEL_STRINGS } from "../../i18n/panels";
 import {
   BUTTON_ZOOM_STEP,
   MAX_SCALE,
@@ -62,7 +61,6 @@ const Workspace = forwardRef(function Workspace(
     onManualInteraction,
     isSpaceDown,
     renderActivePage,
-    onAddPageAfter,
     pageNumbers,
     showRulers = false,
     unit = "px",
@@ -83,7 +81,6 @@ const Workspace = forwardRef(function Workspace(
   isMobileRef.current = isMobile;
   const { language } = useLanguage();
   const pagerText = STATUS_BAR_STRINGS[language].statusBar;
-  const pagesText = PANEL_STRINGS[language].pages;
   const isMobileDeviceOnce = useMemo(() => isMobileDevice(), []);
   const iosStaticPreviews = isMobileDeviceOnce && !isMobile;
   const { thumbnails: iosPagePreviews, renderingPageId: iosPreviewRenderingId, handleCapture: handleIosPreviewCapture } = usePageThumbnails(pages, items, {
@@ -646,51 +643,66 @@ const Workspace = forwardRef(function Workspace(
             })}
           </div>
         </div>
-        {/* The page's name and "add page after" button float at the
-            bottom of the workspace rather than sitting under the page, so
-            they stay reachable while a fitting page can't be scrolled. */}
-        {activePage && (() => {
+        {/* On phones the previous/next page buttons float centered under
+            the canvas within thumb reach, instead of at the right edge. */}
+        {activePage && isMobile && pages.length > 1 && (() => {
           const activeIndex = pages.findIndex((p) => p.id === activePage.id);
-          const pageName = activePage.name || pagesText.pageDefaultName(activeIndex + 1);
+          const prevPage = activeIndex > 0 ? pages[activeIndex - 1] : null;
+          const nextPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
+          const phoneArrowClass =
+            "pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-700 transition-opacity hover:bg-gray-100 active:scale-95 disabled:pointer-events-none disabled:opacity-30";
           return (
-            <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-200 bg-white/90 py-1 pl-3 pr-1 shadow-sm">
-              <span className={`text-xs font-medium text-gray-500 ${onAddPageAfter ? "" : "pr-2"}`}>{pageName}</span>
-              {onAddPageAfter && (
-                <button
-                  type="button"
-                  className="pointer-events-auto flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-500 transition-colors hover:border-amber-400 hover:text-amber-600 active:scale-95"
-                  onClick={() => onAddPageAfter(activePage.id)}
-                  title={pagesText.addPage}
-                  aria-label={pagesText.addPageAfterAria(pageName)}
-                >
-                  <Plus size={16} />
-                </button>
-              )}
+            <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-200 bg-white/90 p-1 shadow-sm">
+              <button
+                type="button"
+                className={phoneArrowClass}
+                aria-label={pagerText.previousPage}
+                title={pagerText.previousPage}
+                disabled={!prevPage}
+                onClick={() => prevPage && onActivatePage(prevPage.id)}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                type="button"
+                className={phoneArrowClass}
+                aria-label={pagerText.nextPage}
+                title={pagerText.nextPage}
+                disabled={!nextPage}
+                onClick={() => nextPage && onActivatePage(nextPage.id)}
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           );
         })()}
-        {/* Previous/next page buttons, one beside each side of the page:
-            just outside its left/right border when there's room, else at
-            the workspace edges (a phone page touches the screen edges, and a
-            zoomed-in page overflows the workspace). Both are always shown
-            once there's another page; the one with nowhere to go is dimmed. */}
-        {pages.length > 1 && (() => {
+        {/* Previous/next page buttons, side by side to the right of the
+            page: just outside its right border when there's room, else at
+            the workspace's right edge (a phone page touches the screen
+            edges, and a zoomed-in page overflows the workspace). Both are
+            always shown once there's another page; the one with nowhere to
+            go is dimmed. */}
+        {pages.length > 1 && !isMobile && (() => {
           const activeIndex = pages.findIndex((p) => p.id === activePageId);
           const prevPage = activeIndex > 0 ? pages[activeIndex - 1] : null;
           const nextPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
           const ARROW_SIZE = 36;
           const ARROW_GAP = 8;
+          const PAIR_SPACING = 6;
+          const pairWidth = ARROW_SIZE * 2 + PAIR_SPACING;
           const sideSpace = lockX && activePage ? (containerSize.width - activePage.width * scale) / 2 : 0;
-          const inset = Math.max(ARROW_GAP, sideSpace - ARROW_GAP - ARROW_SIZE);
+          const inset = Math.max(ARROW_GAP, sideSpace - ARROW_GAP - pairWidth);
           const rulerOffset = showRulers ? RULER_THICKNESS : 0;
           const arrowClass =
-            "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-md transition-opacity hover:bg-white active:scale-95 disabled:pointer-events-none disabled:opacity-30";
+            "flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-md transition-opacity hover:bg-white active:scale-95 disabled:pointer-events-none disabled:opacity-30";
           return (
-            <>
+            <div
+              className="absolute top-1/2 z-10 flex -translate-y-1/2 items-center"
+              style={{ right: rulerOffset + inset, gap: PAIR_SPACING }}
+            >
               <button
                 type="button"
                 className={arrowClass}
-                style={{ left: rulerOffset + inset }}
                 aria-label={pagerText.previousPage}
                 title={pagerText.previousPage}
                 disabled={!prevPage}
@@ -701,7 +713,6 @@ const Workspace = forwardRef(function Workspace(
               <button
                 type="button"
                 className={arrowClass}
-                style={{ right: rulerOffset + inset }}
                 aria-label={pagerText.nextPage}
                 title={pagerText.nextPage}
                 disabled={!nextPage}
@@ -709,7 +720,7 @@ const Workspace = forwardRef(function Workspace(
               >
                 <ChevronRight size={20} />
               </button>
-            </>
+            </div>
           );
         })()}
         {/* iOS-only: mounts exactly one offscreen Stage at a time to

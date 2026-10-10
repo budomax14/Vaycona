@@ -1,28 +1,26 @@
 import React from "react";
 import {
-  AppWindow,
-  BarChart3,
   Blocks,
   Camera,
   Files,
   Folder,
   Images,
   Layers as LayersIcon,
-  LayoutDashboard,
   LayoutTemplate,
   Paintbrush,
   Palette,
   Sparkles,
   Sticker,
-  Table2,
   Type,
   Upload,
+  Wrench,
   X,
 } from "lucide-react";
 import { useLanguage } from "../../languageContext";
 import { PANEL_STRINGS } from "../../i18n/panels";
 import { MOBILE_STRINGS } from "../../i18n/mobile";
 import MobileSheet from "../Mobile/MobileSheet";
+import { isMobileDevice } from "../../canvasPixelBudget";
 
 // `label` here stays the fixed English identifier used by other modules
 // (e.g. App.jsx passes SECTIONS.find(...).label straight into
@@ -32,19 +30,16 @@ import MobileSheet from "../Mobile/MobileSheet";
 export const SECTIONS = [
   { key: "illustrations", label: "Illustrations", icon: Images },
   { key: "text", label: "Text", icon: Type },
+  { key: "uploads", label: "Uploads", icon: Upload },
   { key: "elements", label: "Elements", icon: Blocks },
   { key: "icons", label: "Icons", icon: Sticker },
   { key: "brush", label: "Brush", icon: Paintbrush },
-  { key: "uploads", label: "Uploads", icon: Upload },
-  { key: "design", label: "Design", icon: LayoutDashboard },
+  { key: "tools", label: "Tools", icon: Wrench },
   { key: "photos", label: "Photos", icon: Camera },
-  { key: "chart", label: "Chart", icon: BarChart3 },
-  { key: "table", label: "Table", icon: Table2 },
   { key: "layers", label: "Layers", icon: LayersIcon },
   { key: "pages", label: "Pages", icon: Files },
   { key: "brand", label: "Brand Assets", icon: Sparkles },
   { key: "projects", label: "Projects", icon: Folder },
-  { key: "apps", label: "Apps", icon: AppWindow },
 ];
 
 // Phone layout: the rail is replaced by an "Add" launcher (a grid of these
@@ -94,7 +89,7 @@ export default function LeftSidebar({ activeSection, onSectionChange, tier = "de
                   className="flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-1 py-2 text-[11px] font-medium text-gray-600 active:bg-amber-50 active:text-amber-700"
                   onClick={() => onSectionChange(section.key)}
                 >
-                  <Icon size={22} />
+                  <Icon size={26} />
                   <span className="max-w-full truncate leading-none">{label}</span>
                 </button>
               );
@@ -129,7 +124,7 @@ export default function LeftSidebar({ activeSection, onSectionChange, tier = "de
               aria-label={label}
               aria-pressed={active}
             >
-              <Icon size={19} />
+              <Icon size={isCompact || isMobileDevice() ? 28 : 19} />
               <span className="leading-none">{label.split(" ")[0]}</span>
             </button>
           );

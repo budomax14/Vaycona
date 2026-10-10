@@ -39,6 +39,36 @@ export function baseRunFromItem(item) {
   };
 }
 
+// Text typed straight into a box (no formatting applied yet) comes back
+// from the editor as runs with no style of their own — they inherit the
+// box's look there. Fill any missing run style from the box itself so the
+// canvas draws them at the box's own font/size/color instead of falling
+// back to a default size (which made a Standard Document's letters change
+// size the moment editing ended).
+export function withItemRunDefaults(richText, item) {
+  if (!Array.isArray(richText)) return richText;
+  const base = baseRunFromItem(item);
+  let changed = false;
+  const next = richText.map((p) => {
+    let paraChanged = false;
+    const runs = p.runs.map((r) => {
+      if (r.break) return r;
+      const missing = Object.keys(base).filter((key) => r[key] === undefined);
+      if (!missing.length) return r;
+      paraChanged = true;
+      const filled = { ...r };
+      missing.forEach((key) => {
+        filled[key] = base[key];
+      });
+      return filled;
+    });
+    if (!paraChanged) return p;
+    changed = true;
+    return { ...p, runs };
+  });
+  return changed ? next : richText;
+}
+
 export function migrateLegacyTextToRichText(item) {
   const base = baseRunFromItem(item);
   const lines = String(item.text ?? "").split("\n");

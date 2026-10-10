@@ -11,6 +11,7 @@ import { exportRasterImages } from "./rasterExport";
 import { exportPdf } from "./pdfExport";
 import { buildSvgDocument } from "./svgExport";
 import { ExportCancelledError } from "./offscreenRenderer";
+import { saveBlob } from "../platform";
 
 export { ExportCancelledError };
 
@@ -25,12 +26,14 @@ export async function runPreflight(request, context) {
   return runExportPreflight({ pages: context.pages, items: context.items }, { pageIds: request.pageIds, pixelScale: request.scale });
 }
 
-// `context`: { pages, items, projectName }. `signal`: an AbortController
+// `context`: { pages, items, projectName, buildProjectPackage? } —
+// `buildProjectPackage()` resolves to the `.canvasproject` Blob a PDF
+// export embeds so the PDF stays editable (null/throwing skips it). `signal`: an AbortController
 // signal — cooperative cancellation, checked between every page/asset step
 // (spec §44). `onProgress(stageInfo)`: real, stage-based progress only,
 // never a fabricated percentage for work that can't be measured (spec §43).
 export async function runExport(request, context, { onProgress, signal, preflight: precomputedPreflight } = {}) {
-  const { pages: allPages, items, projectName } = context;
+  const { pages: allPages, items, projectName, buildProjectPackage } = context;
   const pages = request.pageIds.map((id) => allPages.find((p) => p.id === id)).filter(Boolean);
   if (pages.length === 0) throw new Error("No valid pages were selected for export.");
 
@@ -60,7 +63,13 @@ export async function runExport(request, context, { onProgress, signal, prefligh
     return exportRasterImages({ pages, items, request, availableAssetIds, onProgress, signal });
   }
   if (request.format === "pdf") {
-    return exportPdf({ pages, items, request, availableAssetIds, projectName, onProgress, signal });
+    let projectPackage = null;
+    try {
+      projectPackage = (await buildProjectPackage?.()) || null;
+    } catch {
+      // Best-effort — the PDF itself still exports, just not re-editable.
+    }
+    return exportPdf({ pages, items, request, availableAssetIds, projectName, projectPackage, onProgress, signal });
   }
   if (request.format === "svg") {
     onProgress?.({ stage: "rendering", pageIndex: 0, pageCount: 1, pageName: pages[0].name || "Page 1" });
@@ -82,12 +91,5 @@ export async function runExport(request, context, { onProgress, signal, prefligh
 }
 
 export function downloadExportResult(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return saveBlob(blob, filename);
 }

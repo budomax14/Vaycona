@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Group, Rect, Shape } from "react-konva";
-import { fontString, layoutRichText } from "../richText";
+import { fontString, layoutRichText, withItemRunDefaults } from "../richText";
 import { createCanvasGradient } from "../gradientFill";
 import { createImageFillPattern } from "../imageFill";
 import { getTextEffectProps } from "../textEffects";
@@ -93,7 +93,7 @@ function paintRichTextContent(ctx, { layout, padding, totalWidthFallback, item, 
 // so wrapping and sizing can never disagree with what's drawn here.
 export default function RichTextNode({ item, commonProps }) {
   const { ref, x, y, width, height, rotation, opacity, draggable, dragBoundFunc, ...handlers } = commonProps;
-  const richText = item.richText;
+  const richText = useMemo(() => withItemRunDefaults(item.richText, item), [item]);
   const fontFamilies = useMemo(
     () => Array.from(new Set(richText.flatMap((p) => p.runs.filter((r) => !r.break).map((r) => r.fontFamily)))),
     [richText]

@@ -18,6 +18,9 @@ export const PRICE_IDS = {
 
 export const TIER_RANK = { free: 0, pro: 1, business: 2 };
 
+// Mirrors functions/freeProjects.js FREE_PROJECT_LIMIT.
+export const FREE_PROJECT_LIMIT = 2;
+
 // Statuses where Stripe considers the subscription attached but not in
 // good standing (trial converted to a real charge that failed, retries
 // still in flight, etc). Firestore's `tier` field only ever resets to
@@ -69,6 +72,14 @@ export function SubscriptionProvider({ children }) {
     isTrialing,
     canEdit,
     loading: !!user && doc_ === undefined,
+    // Free-plan allowance (functions/freeProjects.js): the project keys this
+    // account has already used for watermark-free saving/printing.
+    freeProjectKeys: Array.isArray(doc_?.freeProjectKeys) ? doc_.freeProjectKeys : [],
+    claimFreeProject: async (projectKey) => {
+      const fn = httpsCallable(functions, "claimFreeProject");
+      const { data } = await fn({ projectKey });
+      return data;
+    },
     openCheckout: async (priceId) => {
       const fn = httpsCallable(functions, "createCheckoutSession");
       const { data } = await fn({ priceId, origin: window.location.origin });

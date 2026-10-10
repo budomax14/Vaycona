@@ -4,10 +4,11 @@ import { useAuth } from "../../authContext";
 import { TERMS_AND_CONDITIONS } from "../../termsContent";
 import { useLanguage } from "../../languageContext";
 import { MISC_STRINGS } from "../../i18n/misc";
+import { isMobileApp, openExternalUrl } from "../../platform";
 
-// Friendly copy for the Firebase Auth error codes users actually hit here
-// (email/password only) — everything else falls back to a generic message
-// rather than leaking raw Firebase error text.
+// Friendly copy for the Firebase Auth error codes users actually hit here.
+// Anything else shows a generic message with just the error code (never
+// the raw Firebase text), so an unexpected failure can still be diagnosed.
 function friendlyAuthError(error, t) {
   switch (error?.code) {
     case "auth/invalid-email":
@@ -30,15 +31,24 @@ function friendlyAuthError(error, t) {
       // Pop-up blockers, and in-app browsers (Instagram, Facebook, etc.)
       // that can't open Google's sign-in window.
       return t.errorGooglePopupBlocked;
+    case "auth/account-exists-with-different-credential":
+      return t.errorAccountExistsWithPassword;
+    case "auth/network-request-failed":
+      return t.errorNetwork;
+    case "auth/unauthorized-domain":
+      return t.errorDomainNotAuthorized;
+    case "auth/admin-restricted-operation":
+    case "auth/operation-not-allowed":
+      return t.errorSignUpDisabled;
     default:
-      return t.errorGeneric;
+      return error?.code ? t.errorWithCode(error.code.replace(/^auth\//, "")) : t.errorGeneric;
   }
 }
 
 export default function LoginPage({ onBack, initialMode = "signin" }) {
   const { language } = useLanguage();
   const t = MISC_STRINGS[language].loginPage;
-  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, continueAsGuest } = useAuth();
   const [mode, setMode] = useState(initialMode); // "signin" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,6 +60,20 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
 
   const isSignUp = mode === "signup";
 
+  // Guests can design right away; saving/exporting/printing asks them to
+  // create an account (App.jsx's requireAccount).
+  async function handleContinueAsGuest() {
+    setError(null);
+    setBusy(true);
+    try {
+      await continueAsGuest();
+    } catch (err) {
+      console.error("Guest sign-in failed:", err?.code, err);
+      setError(t.guestUnavailable);
+      setBusy(false);
+    }
+  }
+
   async function handleGoogleSignIn() {
     setError(null);
     setNotice(null);
@@ -57,6 +81,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
     try {
       await signInWithGoogle();
     } catch (err) {
+      console.error("Google sign-in failed:", err?.code, err);
       const message = friendlyAuthError(err, t);
       if (message) setError(message);
     } finally {
@@ -101,7 +126,7 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#07070d]">
+    <div className="flex min-h-screen bg-[#07070d] pt-[var(--safe-top)]">
       {/* Brand panel — hidden on small screens, where there's no room for
           it alongside the form (see the matching lg:flex below). */}
       <div className="relative hidden w-1/2 items-center justify-center overflow-hidden border-r border-white/5 lg:flex">
@@ -121,10 +146,14 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
           <button
             type="button"
             onClick={onBack}
-            className="mb-4 flex items-center gap-2.5"
+            className="mx-auto mb-6 flex flex-col items-center gap-2"
             disabled={!onBack}
           >
-            <img src="/logo.png" alt="Vaycona" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+            <img
+              src="/Vaycona%20orange%20fountain-pen%20V%20icon.png"
+              alt="Vaycona"
+              className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg shadow-orange-500/20"
+            />
             <span className="text-sm font-semibold text-slate-100">Vaycona</span>
           </button>
 
@@ -135,44 +164,51 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
             {isSignUp ? t.signUpSubtitle : t.welcomeBack}
           </p>
 
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={googleBusy || busy}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
-          >
-            {googleBusy ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
-                <path
-                  fill="#FFC107"
-                  d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
-                />
-                <path
-                  fill="#FF3D00"
-                  d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"
-                />
-                <path
-                  fill="#4CAF50"
-                  d="M24 44c5.1 0 9.8-2 13.3-5.2l-6.1-5.2C29.2 35.4 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"
-                />
-                <path
-                  fill="#1976D2"
-                  d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.1 5.2C40.5 36.4 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z"
-                />
-              </svg>
-            )}
-            {t.continueWithGoogle}
-          </button>
+          {/* Google's sign-in popup can't run inside the iOS/Android
+              WebViews; the apps offer email/password until native Google
+              sign-in is wired up. */}
+          {!isMobileApp && (
+            <>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleBusy || busy}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+            >
+              {googleBusy ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+                  <path
+                    fill="#FFC107"
+                    d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
+                  />
+                  <path
+                    fill="#FF3D00"
+                    d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"
+                  />
+                  <path
+                    fill="#4CAF50"
+                    d="M24 44c5.1 0 9.8-2 13.3-5.2l-6.1-5.2C29.2 35.4 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"
+                  />
+                  <path
+                    fill="#1976D2"
+                    d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.1 5.2C40.5 36.4 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z"
+                  />
+                </svg>
+              )}
+              {t.continueWithGoogle}
+            </button>
 
-          <div className="my-4 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-xs text-slate-500">{t.or}</span>
-            <div className="h-px flex-1 bg-white/10" />
-          </div>
+            <div className="my-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-xs text-slate-500">{t.or}</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+            </>
+          )}
 
-          <form className="space-y-3" onSubmit={handleSubmit}>
+          <form className={`space-y-3 ${isMobileApp ? "mt-5" : ""}`} onSubmit={handleSubmit}>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-slate-400">{t.email}</span>
               <input
@@ -243,6 +279,15 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
             </button>
           </p>
 
+          <button
+            type="button"
+            onClick={handleContinueAsGuest}
+            disabled={busy || googleBusy}
+            className="mt-4 w-full rounded-lg border border-white/15 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5 disabled:pointer-events-none disabled:opacity-40"
+          >
+            {t.continueAsGuest}
+          </button>
+
           <p className="mt-3 text-center text-xs text-slate-500">
             <button
               type="button"
@@ -250,6 +295,14 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
               onClick={() => setShowTerms(true)}
             >
               {t.termsAndConditions}
+            </button>
+            <span className="mx-2 text-slate-600">·</span>
+            <button
+              type="button"
+              className="font-medium text-slate-400 hover:text-amber-700 hover:underline"
+              onClick={() => openExternalUrl("https://vaycona.com/privacy")}
+            >
+              {t.privacyPolicy}
             </button>
           </p>
         </div>

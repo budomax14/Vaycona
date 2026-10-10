@@ -1,5 +1,5 @@
 // Translation strings for the LeftSidebar icon rail and every sidebar panel
-// (Templates/Design/Elements/Text/Brush/Uploads/Photos/Chart/Table/Icons/
+// (Templates/Tools/Elements/Text/Brush/Uploads/Photos/Chart/Table/Icons/
 // Illustrations/Layers/Pages/Brand Assets/Projects/Apps). Shaped exactly
 // like STRINGS in ../i18n.js: one top-level key per component, consumed as
 // `PANEL_STRINGS[language].<sectionKey>`.
@@ -8,7 +8,7 @@ export const PANEL_STRINGS = {
     sidebar: {
       sections: {
         templates: "Templates",
-        design: "Design",
+        tools: "Tools",
         elements: "Elements",
         text: "Text",
         brush: "Brush",
@@ -115,6 +115,13 @@ export const PANEL_STRINGS = {
       charts: "Charts",
       table: "Table",
       addTable: "Add table",
+      frames: "Frames",
+      addShapeAria: (label) => `Add ${label} shape`,
+      addOutlineShapeAria: (label) => `Add ${label} outline shape`,
+      addAria: (label) => `Add ${label}`,
+    },
+    tools: {
+      title: "Tools",
       qrCode: "QR Code",
       qrCodePlaceholder: "Enter a URL or text",
       addLogo: "Add logo (optional)",
@@ -123,17 +130,6 @@ export const PANEL_STRINGS = {
       barcode: "Barcode",
       barcodePlaceholder: "Enter a number or text",
       generateBarcode: "Generate barcode",
-      frames: "Frames",
-      addShapeAria: (label) => `Add ${label} shape`,
-      addOutlineShapeAria: (label) => `Add ${label} outline shape`,
-      addAria: (label) => `Add ${label}`,
-    },
-    design: {
-      title: "Designs",
-      searchPlaceholder: "Search designs",
-      empty: "No designs available yet.",
-      noMatches: "No designs match your search.",
-      useDesignAria: (name) => `Use design ${name}`,
     },
     icons: {
       title: "Icons",
@@ -332,7 +328,7 @@ export const PANEL_STRINGS = {
     sidebar: {
       sections: {
         templates: "Modèles",
-        design: "Design",
+        tools: "Outils",
         elements: "Éléments",
         text: "Texte",
         brush: "Pinceau",
@@ -439,6 +435,13 @@ export const PANEL_STRINGS = {
       charts: "Graphiques",
       table: "Tableau",
       addTable: "Ajouter un tableau",
+      frames: "Cadres",
+      addShapeAria: (label) => `Ajouter la forme ${label}`,
+      addOutlineShapeAria: (label) => `Ajouter la forme ${label} (contour)`,
+      addAria: (label) => `Ajouter ${label}`,
+    },
+    tools: {
+      title: "Outils",
       qrCode: "Code QR",
       qrCodePlaceholder: "Entrez une URL ou du texte",
       addLogo: "Ajouter un logo (facultatif)",
@@ -447,17 +450,6 @@ export const PANEL_STRINGS = {
       barcode: "Code-barres",
       barcodePlaceholder: "Entrez un numéro ou du texte",
       generateBarcode: "Générer le code-barres",
-      frames: "Cadres",
-      addShapeAria: (label) => `Ajouter la forme ${label}`,
-      addOutlineShapeAria: (label) => `Ajouter la forme ${label} (contour)`,
-      addAria: (label) => `Ajouter ${label}`,
-    },
-    design: {
-      title: "Designs",
-      searchPlaceholder: "Rechercher des designs",
-      empty: "Aucun design disponible pour le moment.",
-      noMatches: "Aucun design ne correspond à votre recherche.",
-      useDesignAria: (name) => `Utiliser le design ${name}`,
     },
     icons: {
       title: "Icônes",

@@ -13,14 +13,16 @@ export default function PlanStatusBanner({ canEdit, isTrialing, currentPeriodEnd
       <div className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
         <span className="flex items-center gap-2">
           <Lock size={14} className="shrink-0" />
-          {t.trialEnded}
+          {onOpenPricing ? t.trialEnded : t.trialEndedApp}
         </span>
-        <button
-          className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-          onClick={onOpenPricing}
-        >
-          {t.subscribe}
-        </button>
+        {onOpenPricing && (
+          <button
+            className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+            onClick={onOpenPricing}
+          >
+            {t.subscribe}
+          </button>
+        )}
       </div>
     );
   }
@@ -33,9 +35,11 @@ export default function PlanStatusBanner({ canEdit, isTrialing, currentPeriodEnd
         <Clock size={14} className="shrink-0" />
         {daysLeft != null ? t.daysLeft(daysLeft) : t.onFreeTrial}
       </span>
-      <button className="shrink-0 text-xs font-medium text-amber-700 hover:underline" onClick={onOpenPricing}>
-        {t.managePlan}
-      </button>
+      {onOpenPricing && (
+        <button className="shrink-0 text-xs font-medium text-amber-700 hover:underline" onClick={onOpenPricing}>
+          {t.managePlan}
+        </button>
+      )}
     </div>
   );
 }

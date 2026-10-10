@@ -11,6 +11,7 @@ import { renderPageToCanvas, ExportCancelledError, yieldToMainThread } from "./o
 import { buildExportFilename } from "./exportRequest";
 import { CROP_MARK_LENGTH_PX, CROP_MARK_OFFSET_PX, CROP_MARK_STROKE_WIDTH } from "./exportConstants";
 import { drawWatermark } from "./exportWatermark";
+import { embedProjectPackageInPdf } from "./pdfProjectEmbed";
 
 function canvasToDataUrl(canvas, mimeType, quality) {
   return canvas.toDataURL(mimeType, quality);
@@ -66,7 +67,9 @@ function pageGeometry(page, request) {
   };
 }
 
-export async function exportPdf({ pages, items, request, availableAssetIds, projectName, onProgress, signal }) {
+// `projectPackage`: optional `.canvasproject` Blob attached to the PDF so it
+// can be reopened and edited later (see pdfProjectEmbed.js).
+export async function exportPdf({ pages, items, request, availableAssetIds, projectName, projectPackage, onProgress, signal }) {
   const mimeType = request.pdfMode === "print" ? "image/png" : "image/jpeg";
   const quality = request.pdfMode === "print" ? undefined : 0.92;
 
@@ -94,12 +97,19 @@ export async function exportPdf({ pages, items, request, availableAssetIds, proj
     canvas.height = 0;
 
     const geo = pageGeometry(page, request);
+    // jsPDF silently swaps a wide page to portrait unless told otherwise,
+    // which cropped landscape designs.
+    const orientation = geo.pdfWidth > geo.pdfHeight ? "landscape" : "portrait";
     if (i === 0) {
       // "px_scaling": without it jsPDF treats 1px as 96/72 pt (not 72/96),
       // making every PDF — and so every print — 1.78x the real page size.
-      pdf = new jsPDF({ unit: "px", format: [geo.pdfWidth, geo.pdfHeight], compress: true, hotfixes: ["px_scaling"] });
+      pdf = new jsPDF({ unit: "px", format: [geo.pdfWidth, geo.pdfHeight], orientation, compress: true, hotfixes: ["px_scaling"] });
+      // Ask print dialogs for actual size instead of their usual "fit to
+      // page", which would shrink/grow the whole page — and every font size
+      // with it (same as labelPdf.js).
+      pdf.viewerPreferences({ PrintScaling: "None" });
     } else {
-      pdf.addPage([geo.pdfWidth, geo.pdfHeight]);
+      pdf.addPage([geo.pdfWidth, geo.pdfHeight], orientation);
     }
 
     pdf.addImage(dataUrl, mimeType === "image/png" ? "PNG" : "JPEG", geo.contentX, geo.contentY, page.width, page.height);
@@ -120,6 +130,7 @@ export async function exportPdf({ pages, items, request, availableAssetIds, proj
     subject: request.pdfMode === "print" ? "Print-ready design export" : "Design export",
     creator: "Personal Canva Editor",
   });
+  if (projectPackage) await embedProjectPackageInPdf(pdf, projectPackage);
 
   const blob = pdf.output("blob");
   return {

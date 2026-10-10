@@ -21,7 +21,7 @@ export default function MobileBottomBar({ activeSection, onSectionChange, editOp
   ];
 
   return (
-    <nav aria-label={t.aria} className="flex h-14 shrink-0 items-stretch border-t border-gray-200 bg-white">
+    <nav aria-label={t.aria} className="flex h-14 shrink-0 items-stretch rounded-t-2xl border-t border-gray-200 bg-white">
       {buttons.map(({ key, label, icon: Icon, active, dot, onClick }) => (
         <button
           key={key}
@@ -36,7 +36,7 @@ export default function MobileBottomBar({ activeSection, onSectionChange, editOp
               active ? "bg-amber-100/70" : "group-active:bg-gray-100"
             }`}
           >
-            <Icon size={19} />
+            <Icon size={24} />
           </span>
           <span className="leading-none">{label}</span>
           {dot && !active && <span className="absolute right-[calc(50%-1.1rem)] top-1.5 h-2 w-2 rounded-full bg-amber-500" />}

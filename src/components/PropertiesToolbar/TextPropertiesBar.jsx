@@ -10,6 +10,7 @@ import TextEffectsMenu from "./TextEffectsMenu";
 import Text3DMenu from "./Text3DMenu";
 import TextCurveMenu from "./TextCurveMenu";
 import TextMoreMenu from "./TextMoreMenu";
+import DocumentMenu from "./DocumentMenu";
 import { normalizeImageFill } from "../../imageFill";
 import { useAsset } from "../../useAsset";
 import { useLanguage } from "../../languageContext";
@@ -48,6 +49,7 @@ export default function TextPropertiesBar({
   animationPanelOpen,
   onToggleAnimationPanel,
   hasAnimations,
+  documentControls,
 }) {
   const { language } = useLanguage();
   const t = TEXT_PROPERTIES_STRINGS[language].textProperties;
@@ -145,6 +147,15 @@ export default function TextPropertiesBar({
             <TextCurveMenu item={item} onChange={onChange} />
           </>
         </OverflowToolbar.Item>
+
+        {documentControls && (
+          <OverflowToolbar.Item keepOnMobile>
+            <>
+              <ToolbarDivider />
+              <DocumentMenu documentControls={documentControls} />
+            </>
+          </OverflowToolbar.Item>
+        )}
 
         <OverflowToolbar.Item keepOnMobile>
           <>

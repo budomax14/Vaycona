@@ -5,12 +5,13 @@
 // since iOS has no script-triggered print dialog.
 
 import { isIOSWebKit } from "../canvasPixelBudget";
+import { isMobileApp } from "../platform";
 import { downloadExportResult } from "../export/exportService";
 
 // `makePdf`: async () => { blob, filename }. Must be called directly from
 // a click handler (before any await) so the new tab isn't popup-blocked.
 export async function printPdfFromClick(makePdf) {
-  if (isIOSWebKit()) {
+  if (isIOSWebKit() || isMobileApp) {
     const result = await makePdf();
     const file = new File([result.blob], result.filename, { type: "application/pdf" });
     try {

@@ -15,8 +15,6 @@ import { PANEL_STRINGS } from "./i18n/panels";
 import UploadsPanel from "./components/LeftSidebar/panels/UploadsPanel";
 import TextPanel from "./components/LeftSidebar/panels/TextPanel";
 import BrushPanel from "./components/LeftSidebar/panels/BrushPanel";
-import ChartPanel from "./components/LeftSidebar/panels/ChartPanel";
-import TablePanel from "./components/LeftSidebar/panels/TablePanel";
 import BackgroundsPanel from "./components/LeftSidebar/panels/BackgroundsPanel";
 import ElementsPanel from "./components/LeftSidebar/panels/ElementsPanel";
 import IconsPanel from "./components/LeftSidebar/panels/IconsPanel";
@@ -28,6 +26,7 @@ import StatusBar from "./components/StatusBar/StatusBar";
 import Workspace from "./components/Workspace/Workspace";
 import ResizeModal from "./components/ResizeModal";
 import PricingModal from "./components/PricingModal";
+import AccountRequiredDialog from "./components/AccountRequiredDialog";
 import BusinessInfoPage from "./components/BusinessInfoPage";
 import PlanStatusBanner from "./components/PlanStatusBanner";
 import ChartDataEditor from "./components/ChartDataEditor";
@@ -45,6 +44,7 @@ import LineEndpointHandles, { getLineEndpointsContent } from "./components/LineE
 import TableEditChrome from "./components/TableEditChrome";
 import TableCellEditOverlay from "./components/TableCellEditOverlay";
 import { getApplyMatrix, getDefaultProps, getTransforms } from "./objectRegistry";
+import { OBJECT_PROPERTIES_STRINGS } from "./i18n/objectProperties";
 import {
   computeTableLayout,
   cloneTableData,
@@ -98,6 +98,7 @@ import { borderDashProps } from "./borderStyles";
 import { getItemBounds, rectsIntersect, unionBounds } from "./bounds";
 import { screenToContent, contentToScreen } from "./viewport";
 import { applyCanvasPixelBudget, isIOSWebKit, isMobileDevice } from "./canvasPixelBudget";
+import { isMobileApp, isNativeApp } from "./platform";
 import { logCanvasDebug, isCanvasDebugEnabled, logPriorCrashDiagnostic } from "./canvasDebug";
 import { collectSnapCandidates, computeSnap, snapResizeEdge, thresholdForScale } from "./snapping";
 import { alignItems, alignToPage, distributeItems, distributeItemsWithGap, computeCurrentGap, inferDistributeAxis } from "./alignment";
@@ -153,6 +154,7 @@ import RecoveryCenter from "./components/RecoveryCenter";
 import ExportDialog from "./components/ExportDialog";
 import MockupPreviewDialog from "./components/MockupPreviewDialog";
 import PreviewDialog from "./components/PreviewDialog";
+import { isGarmentPreviewPage } from "./preview/previewProducts";
 import { hasAnyMockupPage } from "./mockup/mockupRegistry";
 import { isFontResolved, loadFont } from "./fontLibrary";
 import CardPanelBar from "./components/PrintLayout/CardPanelBar";
@@ -227,7 +229,7 @@ import {
   isSavedProjectShapeValid,
 } from "./savedProjectsService";
 import ProjectsPanel from "./components/LeftSidebar/panels/ProjectsPanel";
-import DesignPanel from "./components/LeftSidebar/panels/DesignPanel";
+import ToolsPanel from "./components/LeftSidebar/panels/ToolsPanel";
 import { cloneWorkspaceDataWithNewIds, cloneItemsForInsertion, cloneGuidesForPage, recenterItems } from "./idRemap";
 import TemplateBrowser from "./components/TemplateBrowser";
 import HomePage from "./components/HomePage";
@@ -265,7 +267,8 @@ import {
 // --- Phase 11: Brand Kit / design tokens ---
 import { DocumentColorsProvider } from "./documentColorsContext";
 import { useBrandKits } from "./brandKitContext";
-import { useSubscription } from "./subscriptionContext";
+import { useSubscription, FREE_PROJECT_LIMIT } from "./subscriptionContext";
+import { useAuth } from "./authContext";
 import {
   addResource,
   updateResource,
@@ -666,6 +669,7 @@ function buildFallbackWorkspace() {
     presentationSettings: defaultPresentationSettings(),
     projectName: null,
     savedProjectId: null,
+    projectKey: null,
   };
 }
 
@@ -699,6 +703,7 @@ function normalizeParsedWorkspace(parsed) {
     presentationSettings: clampPresentationSettings(parsed.presentationSettings),
     projectName: typeof parsed.projectName === "string" ? parsed.projectName : null,
     savedProjectId: parsed.savedProjectId ?? null,
+    projectKey: typeof parsed.projectKey === "string" ? parsed.projectKey : null,
   };
 }
 
@@ -755,7 +760,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // Phase 11 — brand kit context is provided by AppRoot.jsx (an ancestor
   // of App), so it's safe to consume it here directly.
   const { activeBrandKit, activeBrandKitId, refresh: refreshBrandKits } = useBrandKits();
-  const { tier: subscriptionTier, canEdit, isTrialing, currentPeriodEnd } = useSubscription();
+  const { tier: subscriptionTier, canEdit, isTrialing, currentPeriodEnd, freeProjectKeys, claimFreeProject } = useSubscription();
+  const { isGuest, signOut } = useAuth();
   const { language } = useLanguage();
 
   // Mirrors the itemsRef/pagesRef pattern below: several handlers that
@@ -887,7 +893,24 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // "Save project" keeps updating the SAME record across sessions instead
   // of silently starting a fresh one every reload.
   const [savedProjectId, setSavedProjectId] = useState(initialWorkspace.savedProjectId ?? null);
+  // Stable id of the design being edited, independent of whether it's been
+  // saved to My Projects — what the free plan's 2-project allowance counts
+  // (functions/freeProjects.js). New designs/templates get a fresh key;
+  // reopening a saved project or restoring a version keeps its key.
+  const [projectKey, setProjectKey] = useState(
+    () => initialWorkspace.projectKey || (initialWorkspace.savedProjectId ? `saved-${initialWorkspace.savedProjectId}` : crypto.randomUUID())
+  );
   const [savedProjects, setSavedProjects] = useState([]);
+  // Free plan: FREE_PROJECT_LIMIT projects save/print without the
+  // watermark (functions/freeProjects.js). null = paid plan or guest.
+  const freeProjectStatus =
+    subscriptionTier !== "free" || isGuest
+      ? null
+      : freeProjectKeys.includes(projectKey)
+        ? { kind: "claimed", used: freeProjectKeys.length, limit: FREE_PROJECT_LIMIT }
+        : freeProjectKeys.length < FREE_PROJECT_LIMIT
+          ? { kind: "available", used: freeProjectKeys.length, limit: FREE_PROJECT_LIMIT }
+          : { kind: "usedUp", used: freeProjectKeys.length, limit: FREE_PROJECT_LIMIT };
   const [status, setStatus] = useState("");
   // Centralized autosave's reported status (Phase 7B) — see autosaveRef
   // below, the single source of truth for what gets written to
@@ -1029,6 +1052,41 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const [isResizeOpen, setIsResizeOpen] = useState(false);
   const [isExportAnimationOpen, setIsExportAnimationOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
+  // The iOS/Android apps never offer purchases (App Store / Play rules for
+  // payments outside in-app purchase): subscriptions are bought on the
+  // website and simply unlock here after login. Every upgrade prompt goes
+  // through this, so in the apps those buttons don't render at all.
+  const [isAccountRequiredOpen, setIsAccountRequiredOpen] = useState(false);
+  const openPricing = isMobileApp ? undefined : isGuest ? () => setIsAccountRequiredOpen(true) : () => setIsPricingOpen(true);
+
+  // Guests (no account) can design but not save, export, print or share.
+  // Returns true when it blocked the action (and showed the sign-up prompt).
+  function requireAccount() {
+    if (!isGuest) return false;
+    setIsAccountRequiredOpen(true);
+    return true;
+  }
+
+  // Apps send people to the website to sign up; on the website itself the
+  // guest session ends and the sign-up screen opens (AppRoot reads ?signup).
+  async function handleGuestSignUp() {
+    if (isMobileApp) {
+      // Capacitor opens off-app navigations in the system browser.
+      window.location.href = "https://vaycona.com/?signup=1";
+    } else if (isNativeApp) {
+      window.open("https://vaycona.com/?signup=1", "_blank");
+    } else {
+      await signOut();
+      window.location.assign("/?signup=1");
+    }
+  }
+
+  async function handleGuestLogIn() {
+    setIsAccountRequiredOpen(false);
+    autosaveRef.current.flush();
+    await signOut();
+    if (!isNativeApp) window.location.assign("/?login=1");
+  }
   const [isBusinessInfoOpen, setIsBusinessInfoOpen] = useState(false);
   const [editingChartId, setEditingChartId] = useState(null);
   const [chartStyleOpenRequest, setChartStyleOpenRequest] = useState(0);
@@ -1305,6 +1363,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   const interactionModeRef = useRef(interactionMode);
   const projectNameRef = useRef(projectName);
   const savedProjectIdRef = useRef(savedProjectId);
+  const projectKeyRef = useRef(projectKey);
   // Mirrors historyState, but also updated SYNCHRONOUSLY by commit/
   // commitPages/commitBoth/undo/redo (not just after render, like the
   // mirrors above) — needed so a flush-then-undo happening in the same
@@ -1318,6 +1377,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   activePageIdRef.current = activePageId;
   projectNameRef.current = projectName;
   savedProjectIdRef.current = savedProjectId;
+  projectKeyRef.current = projectKey;
   guidesRef.current = guides;
   snapToGuidesRef.current = snapToGuides;
   pageNumbersRef.current = pageNumbers;
@@ -1538,6 +1598,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       presentationSettings: presentationSettingsRef.current,
       projectName: projectNameRef.current,
       savedProjectId: savedProjectIdRef.current,
+      projectKey: projectKeyRef.current,
     };
   }
 
@@ -1891,7 +1952,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
     autosaveRef.current.flush();
     await createRecoverySnapshotNow("before-replacement", true);
     resetWorkspaceId();
-    loadWorkspaceDataIntoEditor(data, { savedProjectId: nextSavedProjectId });
+    loadWorkspaceDataIntoEditor(data, {
+      savedProjectId: nextSavedProjectId,
+      projectKey: nextSavedProjectId ? data.projectKey || `saved-${nextSavedProjectId}` : crypto.randomUUID(),
+    });
     setProjectName(nextProjectName);
     projectNameRef.current = nextProjectName;
     autosaveRef.current.markDirty();
@@ -2041,6 +2105,98 @@ export default function App({ editorMode = "workspace", templateSession = null }
     enterTextEdit(textId);
   }
 
+  // Standard Document extras (the page bar's Header / Footer / Line
+  // spacing / word count, see CanvasPropertiesBar's `document` prop). A
+  // header or footer is a real text item — so it exports and prints like
+  // everything else — also flagged `documentBody`, which gives it the body
+  // text's "fixed on the page, never dragged or nudged" behavior
+  // everywhere, plus `documentBand` saying which one it is. Turning one on
+  // adds it to every page; editing it on one page updates it on every
+  // other page (see commitEditingText).
+  const DOCUMENT_BAND_HEIGHT = 32;
+  const DOCUMENT_BAND_EDGE = 40;
+
+  function isDocumentBodyText(item) {
+    return !!item.documentBody && !item.documentBand;
+  }
+
+  // `template` (that page's body text) lines the band up with the body's
+  // margins; `source` (an existing band) is copied — text and styling —
+  // onto `page` instead of starting from the defaults.
+  function makeDocumentBand(kind, page, template, source) {
+    const now = Date.now();
+    const strings = OBJECT_PROPERTIES_STRINGS[language].canvas;
+    const base = source || {
+      type: "text",
+      ...getDefaultProps("text"),
+      documentBody: true,
+      documentBand: kind,
+      text: kind === "header" ? strings.header : strings.footer,
+      fontFamily: template?.fontFamily || "Arial",
+      fontSize: 11,
+      fontWeight: "normal",
+      align: kind === "header" ? "left" : "center",
+      verticalAlign: kind === "header" ? "bottom" : "top",
+      lineHeight: 1.2,
+      autoSize: "fixed",
+      overflow: "show",
+      fill: "#6b7280",
+      rotation: 0,
+      opacity: 1,
+      locked: false,
+      hidden: false,
+    };
+    return {
+      ...base,
+      id: crypto.randomUUID(),
+      pageId: page.id,
+      parentId: null,
+      x: template?.x ?? 96,
+      width: template?.width ?? page.width - 192,
+      y: kind === "header" ? DOCUMENT_BAND_EDGE : page.height - DOCUMENT_BAND_EDGE - DOCUMENT_BAND_HEIGHT,
+      height: DOCUMENT_BAND_HEIGHT,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  function toggleDocumentBand(kind) {
+    const current = itemsRef.current;
+    const existingIds = new Set(current.filter((it) => it.documentBand === kind).map((it) => it.id));
+    if (existingIds.size) {
+      if (editingTextIdRef.current && existingIds.has(editingTextIdRef.current)) exitTextEdit();
+      commit((prev) => prev.filter((it) => !existingIds.has(it.id)), {
+        type: "delete-object",
+        label: kind === "header" ? "Remove header" : "Remove footer",
+        itemIds: [...existingIds],
+      });
+      setSelectedIds((prev) => prev.filter((id) => !existingIds.has(id)));
+      return;
+    }
+    const bodyByPage = new Map();
+    current.forEach((it) => {
+      if (isDocumentBodyText(it) && !bodyByPage.has(it.pageId)) bodyByPage.set(it.pageId, it);
+    });
+    const fallbackBody = current.find(isDocumentBodyText);
+    const added = pagesRef.current.map((page) => makeDocumentBand(kind, page, bodyByPage.get(page.id) || fallbackBody));
+    commit((prev) => [...prev, ...added], {
+      type: "add-object",
+      label: kind === "header" ? "Add header" : "Add footer",
+      itemIds: added.map((it) => it.id),
+    });
+  }
+
+  function setDocumentLineSpacing(lineHeight) {
+    const bodyIds = itemsRef.current.filter(isDocumentBodyText).map((it) => it.id);
+    if (!bodyIds.length) return;
+    const now = Date.now();
+    commit((prev) => prev.map((it) => (isDocumentBodyText(it) ? { ...it, lineHeight, updatedAt: now } : it)), {
+      type: "text-format",
+      label: "Line spacing",
+      itemIds: bodyIds,
+    });
+  }
+
   // A template published from a DIFFERENT browser (any admin-edited
   // template, since this browser never uploaded those pictures itself) only
   // carries `assetId` references in `data` — the actual bytes live in
@@ -2181,6 +2337,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // workspace is saved — asks for a name and creates one, linking the live
   // workspace to it (see savedProjectIdRef/buildCurrentProjectData).
   async function handleSaveProject() {
+    if (requireAccount()) return;
     autosaveRef.current.flush();
     const data = buildCurrentProjectData();
     const report = validateProject(data);
@@ -2237,8 +2394,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // re-links the live workspace to the new copy — mirrors a normal
   // file browser's "Save As."
   async function handleSaveProjectAsNew() {
+    if (requireAccount()) return;
     autosaveRef.current.flush();
+    const previousProjectKey = projectKeyRef.current;
+    projectKeyRef.current = crypto.randomUUID();
     const data = buildCurrentProjectData();
+    projectKeyRef.current = previousProjectKey;
     const report = validateProject(data);
     if (report.status === "fatal") {
       setStatus("This project has an issue and can't be saved right now.");
@@ -2266,6 +2427,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setSavedProjectId(created.id);
     projectNameRef.current = created.name;
     setProjectName(created.name);
+    projectKeyRef.current = data.projectKey;
+    setProjectKey(data.projectKey);
     autosaveRef.current.markDirty();
     autosaveRef.current.saveNow();
     setStatus(`Saved as new project "${created.name}".`);
@@ -2530,10 +2693,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // `data` payload was captured at SAVE time and may itself be stale/null,
   // while the record's own `id` is always the source of truth for "what
   // will Save-project update now."
-  function loadWorkspaceDataIntoEditor(normalized, { savedProjectId: savedProjectIdOverride } = {}) {
+  function loadWorkspaceDataIntoEditor(normalized, { savedProjectId: savedProjectIdOverride, projectKey: projectKeyOverride } = {}) {
     const nextSavedProjectId = savedProjectIdOverride !== undefined ? savedProjectIdOverride : normalized.savedProjectId ?? null;
     setSavedProjectId(nextSavedProjectId);
     savedProjectIdRef.current = nextSavedProjectId;
+    const nextProjectKey = projectKeyOverride || normalized.projectKey || projectKeyRef.current || crypto.randomUUID();
+    setProjectKey(nextProjectKey);
+    projectKeyRef.current = nextProjectKey;
     setPages(normalized.pages);
     pagesRef.current = normalized.pages;
     setItems(normalized.items);
@@ -2647,6 +2813,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // --- Phase 7D: editable project file export ---
 
   async function exportProject() {
+    if (requireAccount()) return;
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode(); // commit any active compatible edit (spec §6)
     autosaveRef.current.flush();
@@ -2678,6 +2845,17 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setExportDialogStage("done");
     // The open project is left completely unchanged (spec §6 step 13) —
     // nothing above touched items/pages/history.
+  }
+
+  // The `.canvasproject` archive a PDF export attaches, so that PDF can be
+  // opened back in the editor via File > Import (see pdfProjectEmbed.js).
+  async function buildEditablePdfPackage() {
+    const result = await exportProjectPackage({
+      data: buildCurrentProjectData(),
+      projectName: projectNameRef.current,
+      workspaceId: getWorkspaceId(),
+    });
+    return result.ok ? result.blob : null;
   }
 
   // --- Phase 7D: editable project file import ---
@@ -2716,6 +2894,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
       exportedAt: inspection.manifest.exportedAt,
       migrationRequired: inspection.migrationRequired,
       missingAssetCount: (inspection.manifest.missingAssetIds || []).length,
+      fromFlatPdf: inspection.manifest.fromFlatPdf === true,
+      truncatedPageCount: inspection.manifest.truncatedPageCount || null,
       warnings: [],
     });
     setImportStage("preview");
@@ -3842,7 +4022,21 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // Updater form (see commit() above) — guarantees this reads whatever
     // richText the immediately-preceding updateEditingTextLive() call just
     // queued, even called synchronously right after it in the same tick.
-    commit((prevItems) => prevItems, { type: "text-edit", label: "Edit text", itemIds: editingTextIdRef.current ? [editingTextIdRef.current] : [] });
+    // A Standard Document header/footer reads the same on every page, so
+    // its text is copied onto the matching band of every other page.
+    commit(
+      (prevItems) => {
+        const edited = prevItems.find((it) => it.id === editingTextIdRef.current);
+        if (!edited?.documentBand) return prevItems;
+        const now = Date.now();
+        return prevItems.map((it) =>
+          it.documentBand === edited.documentBand && it.id !== edited.id && (it.richText !== edited.richText || it.text !== edited.text)
+            ? { ...it, richText: edited.richText, text: edited.text, updatedAt: now }
+            : it
+        );
+      },
+      { type: "text-edit", label: "Edit text", itemIds: editingTextIdRef.current ? [editingTextIdRef.current] : [] }
+    );
   }
 
   // Lets TextEditOverlay's own drag-margin frame reposition the object
@@ -5900,7 +6094,21 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // ExportDialog.jsx / exportService.js). `format` is only an initial
   // preset (from a specific File-menu item) — the dialog lets the user
   // change it before exporting.
+  // Called right before a save/print renders: claims this project against
+  // the free allowance if needed and says whether to watermark. Fails closed
+  // (watermarked) when the allowance can't be checked, e.g. offline.
+  async function resolveWatermark() {
+    if (subscriptionTier !== "free") return false;
+    try {
+      return (await claimFreeProject(projectKeyRef.current)).watermark;
+    } catch (err) {
+      console.warn("Free project check failed:", err?.code || err);
+      return true;
+    }
+  }
+
   function openExportDialog(format = null) {
+    if (requireAccount()) return;
     setExportDialogFormat(format);
     setIsExportDialogOpen(true);
   }
@@ -5912,6 +6120,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // whatever's registered. Falls back to a normal download if the browser
   // doesn't support sharing files (e.g. desktop Firefox).
   async function shareDesign() {
+    if (requireAccount()) return;
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
     const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName };
@@ -5926,7 +6135,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     }
     setStatus("Preparing to share…");
     try {
-      const result = await runExport(request, context);
+      const result = await runExport({ ...request, watermark: await resolveWatermark() }, context);
       const file = new File([result.blob], result.filename, { type: result.blob.type });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: projectName });
@@ -5959,6 +6168,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // which case the tab is left open with its own print button as a
   // fallback the user can click themselves.
   async function handlePrint() {
+    if (requireAccount()) return;
     if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
     // A card has to be imposed onto the sheet (and printed double-sided),
@@ -5982,7 +6192,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // printing goes through the Share Sheet (AirPrint lives inside it),
     // reached here via the Web Share API with the PDF as a real File — no
     // new tab, no window.print(). Desktop/Android are untouched below.
-    if (isIOSWebKit()) {
+    if (isIOSWebKit() || isMobileApp) {
       const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName };
       const { request, errors } = buildExportRequest(
         { format: "pdf", pageSelection: "all", pdfMode: "standard", filenameBase: projectName },
@@ -5995,7 +6205,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }
       setStatus("Preparing to print…");
       try {
-        const result = await runExport(request, context);
+        const result = await runExport({ ...request, watermark: await resolveWatermark() }, context);
         const file = new File([result.blob], result.filename, { type: "application/pdf" });
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({ files: [file], title: result.filename });
@@ -6038,7 +6248,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     }
     setStatus("Preparing to print…");
     try {
-      const result = await runExport(request, context);
+      const result = await runExport({ ...request, watermark: await resolveWatermark() }, context);
       const url = URL.createObjectURL(result.blob);
       if (printWindow) {
         printWindow.location.href = url;
@@ -7639,6 +7849,29 @@ export default function App({ editorMode = "workspace", templateSession = null }
     };
     const index = pages.findIndex((page) => page.id === pageId);
     const insertAt = direction === "before" ? index : index + 1;
+    // Standard Document: a new page is a fresh page to write on — its own
+    // body text box (same margins/font/spacing as the page it was added
+    // from) plus the document's header/footer, if those are on.
+    const sourceBody = items.find((it) => it.pageId === source.id && isDocumentBodyText(it)) || items.find(isDocumentBodyText);
+    if (sourceBody) {
+      const now = Date.now();
+      const newBody = { ...sourceBody, id: crypto.randomUUID(), pageId: newPage.id, parentId: null, text: "", richText: undefined, createdAt: now, updatedAt: now };
+      const bands = ["header", "footer"]
+        .map((kind) => items.find((it) => it.documentBand === kind && it.pageId === source.id) || items.find((it) => it.documentBand === kind))
+        .filter(Boolean)
+        .map((band) => makeDocumentBand(band.documentBand, newPage, sourceBody, band));
+      const nextPages = renumberAutoPageNames([...pages.slice(0, insertAt), newPage, ...pages.slice(insertAt)]);
+      const added = [newBody, ...bands];
+      commitBoth([...items, ...added], nextPages, {
+        type: "add-page",
+        label: "Add page",
+        pageIds: [newPage.id],
+        itemIds: added.map((it) => it.id),
+      });
+      activatePage(newPage.id);
+      enterTextEdit(newBody.id);
+      return;
+    }
     commitPages((prev) => renumberAutoPageNames([...prev.slice(0, insertAt), newPage, ...prev.slice(insertAt)]), {
       type: "add-page",
       label: "Add page",
@@ -8712,13 +8945,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
                 viewport={KONVA_VIEWPORT}
                 frameSize={{ width: konvaWidth, height: konvaHeight }}
                 isLocked={isSelectionLocked}
-                phoneScale={isPhone ? displayScale : null}
+                displayScale={displayScale}
                 onCopy={copySelection}
                 onPaste={clipboardRef.current.length > 0 ? pasteFromSystemClipboard : undefined}
                 onDuplicate={duplicateSelection}
                 onDelete={removeSelection}
-                onForward={() => reorderSelection("forward")}
-                onBackward={() => reorderSelection("backward")}
                 onToggleLock={toggleLockSelection}
                 onOpenShapeFill={
                   selectedItems.length === 1 && selectedItems[0].type === "shape"
@@ -9010,6 +9241,19 @@ export default function App({ editorMode = "workspace", templateSession = null }
     };
   }
 
+  const documentBodies = items.filter(isDocumentBodyText);
+  const documentControls = documentBodies.length
+    ? {
+        hasHeader: items.some((it) => it.documentBand === "header"),
+        hasFooter: items.some((it) => it.documentBand === "footer"),
+        onToggleHeader: () => toggleDocumentBand("header"),
+        onToggleFooter: () => toggleDocumentBand("footer"),
+        lineSpacing: documentBodies[0].lineHeight || 1.2,
+        onLineSpacingChange: setDocumentLineSpacing,
+        wordCount: documentBodies.reduce((sum, it) => sum + (String(it.text || "").match(/\S+/g)?.length || 0), 0),
+      }
+    : undefined;
+
   const propertiesToolbarElement = (
       <PropertiesToolbar
         selectedItems={selectedItems}
@@ -9017,6 +9261,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onBackgroundChange={(color) => updatePageBackground(activePageId, color)}
         pageBorder={activePage?.border}
         onPageBorderChange={(patch) => updatePageBorder(activePageId, patch)}
+        documentControls={documentControls}
         onUpdateItem={updateItem}
         onUpdateItems={updateItems}
         onReplaceImage={replaceImageSrc}
@@ -9176,6 +9421,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onOpenExport={() => openExportDialog(null)}
         showMockupPreview={hasAnyMockupPage(pages)}
         onOpenMockupPreview={() => setIsMockupPreviewOpen(true)}
+        showPreview={isGarmentPreviewPage(activePage)}
         onOpenPreview={() => setIsPreviewOpen(true)}
         onShareDesign={shareDesign}
         onOpenHome={() => setShowHomePage(true)}
@@ -9184,7 +9430,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onExportJpeg={() => openExportDialog("jpeg")}
         onExportPdf={() => openExportDialog("pdf")}
         onExportSvg={() => openExportDialog("svg")}
-        onOpenExportAnimation={() => setIsExportAnimationOpen(true)}
+        onOpenExportAnimation={() => !requireAccount() && setIsExportAnimationOpen(true)}
         onCopy={copySelection}
         onPaste={pasteFromSystemClipboard}
         onDuplicate={duplicateSelection}
@@ -9225,7 +9471,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onZoomOut={() => workspaceRef.current?.zoomOut()}
         onResetZoom={handleFitToScreen}
         onOpenResize={() => setIsResizeOpen(true)}
-        onOpenPricing={() => setIsPricingOpen(true)}
+        onOpenPricing={openPricing}
       />
       )}
 
@@ -9234,7 +9480,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           canEdit={canEdit}
           isTrialing={isTrialing}
           currentPeriodEnd={currentPeriodEnd}
-          onOpenPricing={() => setIsPricingOpen(true)}
+          onOpenPricing={openPricing}
         />
       )}
 
@@ -9267,8 +9513,6 @@ export default function App({ editorMode = "workspace", templateSession = null }
               isPicking={isEyedropperActive}
             />
           )}
-          {activeSidebarSection === "chart" && <ChartPanel onAddChart={addAndCloseIfCompact(addChart)} />}
-          {activeSidebarSection === "table" && <TablePanel onAddTable={addAndCloseIfCompact(addTable)} />}
           {activeSidebarSection === "elements" && (
             <ElementsPanel
               onAddShape={addAndCloseIfCompact(addShape)}
@@ -9276,8 +9520,6 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onAddFrame={addAndCloseIfCompact(addFrame)}
               onAddChart={addAndCloseIfCompact(addChart)}
               onAddTable={addAndCloseIfCompact(addTable)}
-              onAddQrCode={addAndCloseIfCompact(addQrCode)}
-              onAddBarcode={addAndCloseIfCompact(addBarcode)}
             />
           )}
           {activeSidebarSection === "icons" && <IconsPanel onAddIcon={addAndCloseIfCompact(addIcon)} />}
@@ -9399,9 +9641,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onDelete={handleDeleteSavedProjectAction}
             />
           )}
-          {activeSidebarSection === "design" && <DesignPanel templates={templateSummaries} onSelectTemplate={handleSelectTemplate} />}
+          {activeSidebarSection === "tools" && (
+            <ToolsPanel
+              onAddChart={addAndCloseIfCompact(addChart)}
+              onAddTable={addAndCloseIfCompact(addTable)}
+              onAddQrCode={addAndCloseIfCompact(addQrCode)}
+              onAddBarcode={addAndCloseIfCompact(addBarcode)}
+            />
+          )}
           {activeSidebarSection &&
-            !["uploads", "text", "brush", "chart", "table", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand", "design", MOBILE_ADD_KEY].includes(
+            !["uploads", "text", "brush", "elements", "icons", "illustrations", "backgrounds", "layers", "pages", "brand", "tools", MOBILE_ADD_KEY].includes(
               activeSidebarSection
             ) &&
             !(activeSidebarSection === "projects" && editorMode === "workspace") && (
@@ -9451,7 +9700,6 @@ export default function App({ editorMode = "workspace", templateSession = null }
               onManualInteraction={() => setHasManualZoomOrPan(true)}
               isSpaceDown={isSpaceDown}
               renderActivePage={renderActivePage}
-              onAddPageAfter={labelSheet ? undefined : addPage}
               pageNumbers={pageNumbers}
               // Rulers are editor chrome, not part of the page/canvas-frame —
               // Workspace positions them around the workspace viewport itself.
@@ -9682,6 +9930,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
 
       <BusinessInfoPage isOpen={isBusinessInfoOpen} onClose={() => setIsBusinessInfoOpen(false)} />
 
+      <AccountRequiredDialog
+        isOpen={isAccountRequiredOpen}
+        onClose={() => setIsAccountRequiredOpen(false)}
+        onSignUp={handleGuestSignUp}
+        onLogIn={handleGuestLogIn}
+      />
+
       <ChartDataEditor
         isOpen={!!editingChartId}
         item={items.find((it) => it.id === editingChartId) || null}
@@ -9758,13 +10013,16 @@ export default function App({ editorMode = "workspace", templateSession = null }
         items={items}
         projectName={projectName}
         initialFormat={exportDialogFormat}
-        watermark={subscriptionTier === "free"}
+        resolveWatermark={resolveWatermark}
+        freeProjectStatus={freeProjectStatus}
+        onUpgrade={openPricing}
         onFlushBeforeExport={() => {
           if (editingTextIdRef.current) exitTextEdit();
     if (editingTableIdRef.current) exitTableEditMode();
           autosaveRef.current.flush();
         }}
         onCreateVersionBeforeExport={() => createAutoMilestone("before-export")}
+        buildProjectPackage={buildEditablePdfPackage}
       />
 
       <MockupPreviewDialog
@@ -9781,7 +10039,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
         pages={pages}
         items={cardDialogItems || items}
         projectName={projectName}
-        watermark={subscriptionTier === "free"}
+        resolveWatermark={resolveWatermark}
+        freeProjectStatus={freeProjectStatus}
+        onUpgrade={openPricing}
         onUpdateSettings={updateCardSettings}
         onBeforeExport={() => {
           if (editingTextIdRef.current) exitTextEdit();
@@ -9797,7 +10057,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
         pages={pages}
         items={labelDialogItems || items}
         projectName={projectName}
-        watermark={subscriptionTier === "free"}
+        resolveWatermark={resolveWatermark}
+        freeProjectStatus={freeProjectStatus}
+        onUpgrade={openPricing}
         onUpdateSettings={updateLabelSettings}
         onBeforeExport={() => {
           if (editingTextIdRef.current) exitTextEdit();
@@ -9816,7 +10078,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       />
 
       <PreviewDialog
-        isOpen={isPreviewOpen}
+        isOpen={isPreviewOpen && isGarmentPreviewPage(activePage)}
         onClose={() => setIsPreviewOpen(false)}
         pages={pages}
         items={items}
@@ -9889,7 +10151,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onInsertSection={insertReusableSection}
         onDeleteSection={handleDeleteReusableSection}
         userTier={subscriptionTier}
-        onRequireUpgrade={() => setIsPricingOpen(true)}
+        onRequireUpgrade={openPricing}
         unit={activeUnit}
         onUnitChange={setPreferredUnit}
       />

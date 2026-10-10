@@ -24,6 +24,7 @@ import { prepareExportRequest, runExport, runPreflight, downloadExportResult, Ex
 import { resolveStaticExportItems } from "../animation/animationService";
 import { useLanguage } from "../languageContext";
 import { DIALOG_STRINGS } from "../i18n/dialogs";
+import FreeProjectNotice from "./FreeProjectNotice";
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "—";
@@ -60,7 +61,10 @@ export default function ExportDialog({
   onFlushBeforeExport,
   onCreateVersionBeforeExport,
   initialFormat,
-  watermark = false,
+  resolveWatermark,
+  freeProjectStatus,
+  onUpgrade,
+  buildProjectPackage,
 }) {
   const { language } = useLanguage();
   const t = DIALOG_STRINGS[language].exportDialog;
@@ -212,7 +216,6 @@ export default function ExportDialog({
       cropMarks,
       filenameBase,
       createVersionBeforeExport,
-      watermark,
     };
   }
 
@@ -220,7 +223,7 @@ export default function ExportDialog({
   // visible "final design state" (every entrance finished, no exit yet
   // started), never a raw mid-entrance frame. A no-op for any page with no
   // animations, so pre-Phase-12 projects export byte-for-byte the same.
-  const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName };
+  const context = { pages, activePageId, items: resolveStaticExportItems(items, pages), projectName, buildProjectPackage };
   const { request: livePreviewRequest } = prepareExportRequest(buildRawRequest(), context);
   const previewPage = pages.find((p) => p.id === (livePreviewRequest.pageIds[0] || activePageId)) || pages[0];
   const outputDims = previewPage ? estimatedOutputDimensions(previewPage, livePreviewRequest) : null;
@@ -283,7 +286,8 @@ export default function ExportDialog({
     setStep("progress");
     setProgress({ stage: "preparing" });
     try {
-      const result = await runExport(request, context, {
+      const watermark = resolveWatermark ? await resolveWatermark() : false;
+      const result = await runExport({ ...request, watermark }, context, {
         signal: controller.signal,
         preflight,
         onProgress: (info) => setProgress(info),
@@ -347,11 +351,7 @@ export default function ExportDialog({
               </div>
             )}
 
-            {watermark && (
-              <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                {t.watermarkNotice}
-              </div>
-            )}
+            <FreeProjectNotice status={freeProjectStatus} onUpgrade={onUpgrade} className="mb-4" />
 
             <fieldset className="mb-5">
               <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t.fileType}</legend>

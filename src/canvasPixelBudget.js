@@ -42,17 +42,23 @@ import Konva from "konva";
    CONFIG
    ========================================================= */
 
-// Cut hard from the original crash-safety budget: phones don't just need to
-// avoid the iOS canvas ceiling, they need the whole editor to feel light —
-// fewer backing-store pixels to rasterize and composite on every
-// edit/drag/zoom, at the cost of some sharpness.
-export const MOBILE_MAX_SCENE_PIXELS = 900_000;
+// Well under the iOS canvas ceiling (~12MB per backing store) but enough
+// for text and images to draw at roughly the screen's real density on
+// phones and tablets — the old 900k budget left a typical page at ~0.7
+// device pixels per screen pixel, so text looked soft. Dragging still drops
+// to MOBILE_DRAG_MAX_SCENE_PIXELS below. Tablets show the page much larger
+// (and have the memory for it), so they get a bigger budget.
+const IS_TABLET_SCREEN =
+  typeof window !== "undefined" && Math.min(window.screen?.width || 0, window.screen?.height || 0) >= 700;
+export const MOBILE_MAX_SCENE_PIXELS = IS_TABLET_SCREEN ? 6_500_000 : 3_000_000;
 
-export const MOBILE_MAX_CACHE_PIXELS = 600_000;
+export const MOBILE_MAX_CACHE_PIXELS = 1_500_000;
 
-export const MOBILE_MAX_IMAGE_PIXELS = 1_200_000;
+// Uploaded photos keep enough resolution to stay sharp on screen and in
+// saved/printed output (exports reuse the decoded image).
+export const MOBILE_MAX_IMAGE_PIXELS = 3_000_000;
 
-export const MOBILE_MAX_IMAGE_SIDE = 1280;
+export const MOBILE_MAX_IMAGE_SIDE = 2048;
 
 // While a drag gesture is actually in progress, cut further still: this is
 // the exact moment the "A problem repeatedly occurred" crash hits, because
@@ -560,15 +566,13 @@ export function downscaleForMobile(img) {
     }
 
     /*
-     * Scaling quality. Phones get "medium": a lighter/faster resample
-     * than "high" for a one-time decode that already targets a smaller
-     * MOBILE_MAX_IMAGE_SIDE/PIXELS budget, so the extra sharpness "high"
-     * buys isn't worth its CPU cost on underpowered hardware.
+     * Scaling quality: "high" — this is a one-time decode per image, so
+     * the sharper resample is worth its small CPU cost.
      */
     ctx.imageSmoothingEnabled = true;
 
     if ("imageSmoothingQuality" in ctx) {
-      ctx.imageSmoothingQuality = "medium";
+      ctx.imageSmoothingQuality = "high";
     }
 
     ctx.drawImage(

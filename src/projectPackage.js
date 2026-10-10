@@ -31,6 +31,9 @@ import {
 import { getAssetBlob, getAssetMeta, putAssetWithId, computeChecksum } from "./assetStore";
 import { validateHierarchy, repairHierarchy } from "./hierarchy";
 import { isValidRichText } from "./richText";
+import { isPdfFile, extractProjectPackageFromPdf } from "./export/pdfProjectEmbed";
+import { buildProjectPackageFromFlatPdf } from "./export/pdfPageImport";
+import { saveBlob } from "./platform";
 
 const MIME_TO_EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
 
@@ -43,15 +46,7 @@ export function sanitizeProjectFilename(name) {
 }
 
 export function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  // Released once the download has had a moment to start, per spec §13.
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return saveBlob(blob, filename);
 }
 
 function usedAssetIdsFromItems(items) {
@@ -200,6 +195,7 @@ export const IMPORT_ERROR = Object.freeze({
   UNSUPPORTED_PACKAGE_FORMAT: "unsupported-package-format",
   UNSUPPORTED_SCHEMA: "unsupported-schema",
   INVALID_STRUCTURE: "invalid-structure",
+  BAD_PDF: "bad-pdf",
 });
 
 function fail(code, message) {
@@ -209,8 +205,16 @@ function fail(code, message) {
 // Reads only the manifest (+ enough of project.json to validate schema),
 // never extracts/decodes assets — safe to call just to show a preview
 // (spec §19/§42).
-export async function inspectProjectPackage(file) {
-  if (!file) return fail(IMPORT_ERROR.BAD_ARCHIVE, "No file was provided.");
+export async function inspectProjectPackage(selectedFile) {
+  if (!selectedFile) return fail(IMPORT_ERROR.BAD_ARCHIVE, "No file was provided.");
+  // A PDF exported from this app carries its project archive as an
+  // attachment (see pdfProjectEmbed.js) — inspect that archive instead.
+  // Any other PDF gets its pages imported as images (pdfPageImport.js).
+  let file = selectedFile;
+  if (await isPdfFile(selectedFile)) {
+    file = (await extractProjectPackageFromPdf(selectedFile)) || (await buildProjectPackageFromFlatPdf(selectedFile));
+    if (!file) return fail(IMPORT_ERROR.BAD_PDF, "This PDF couldn't be read. It may be damaged or password-protected.");
+  }
   if (file.size > IMPORT_MAX_PACKAGE_BYTES) {
     return fail(IMPORT_ERROR.TOO_LARGE, `This file is too large (max ${Math.round(IMPORT_MAX_PACKAGE_BYTES / 1024 / 1024)}MB).`);
   }
@@ -309,7 +313,7 @@ export async function inspectProjectPackage(file) {
     zip,
     manifest,
     projectJson,
-    fileSize: file.size,
+    fileSize: selectedFile.size,
     migrationRequired: manifest.projectSchemaVersion < PROJECT_SCHEMA_VERSION,
   };
 }

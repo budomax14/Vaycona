@@ -5,6 +5,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import AppRoot from "./AppRoot";
 import "./index.css";
+import { installNativeShare, lockNativePageZoom } from "./platform";
+
+installNativeShare();
+lockNativePageZoom();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

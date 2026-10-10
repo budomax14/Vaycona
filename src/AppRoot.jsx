@@ -14,6 +14,7 @@ import { ThemeProvider } from "./themeContext";
 import { LanguageProvider } from "./languageContext";
 import LoginPage from "./components/Auth/LoginPage";
 import LandingPage from "./components/LandingPage";
+import { isMobileApp } from "./platform";
 
 // Wraps the editor in a top-level error boundary (Phase 7C). Kept as its
 // own component (rather than folded into App) specifically so it still
@@ -41,7 +42,24 @@ export default function AppRoot() {
 // LoginPage once they click "Log in" or "Get started".
 function Gate() {
   const { user, loading } = useAuth();
-  const [authView, setAuthView] = useState({ screen: "landing", mode: "signin" });
+  // The apps open straight on login: the landing page is website marketing,
+  // including plan prices the stores don't allow outside in-app purchase.
+  // ?signup=1 / ?login=1 open those screens directly — the apps' "Sign up
+  // on vaycona.com" button links to ?signup=1 (App.jsx handleGuestSignUp).
+  const [authView, setAuthView] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("signup")) return { screen: "login", mode: "signup" };
+    if (params.has("login") || isMobileApp) return { screen: "login", mode: "signin" };
+    return { screen: "landing", mode: "signin" };
+  });
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("signup") && !url.searchParams.has("login")) return;
+    url.searchParams.delete("signup");
+    url.searchParams.delete("login");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, []);
 
   if (loading) {
     return (
@@ -56,7 +74,7 @@ function Gate() {
       return (
         <LoginPage
           initialMode={authView.mode}
-          onBack={() => setAuthView({ screen: "landing", mode: "signin" })}
+          onBack={isMobileApp ? undefined : () => setAuthView({ screen: "landing", mode: "signin" })}
         />
       );
     }

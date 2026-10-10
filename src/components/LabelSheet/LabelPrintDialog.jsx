@@ -12,6 +12,7 @@ import { downloadExportResult } from "../../export/exportService";
 import { isMobileDevice } from "../../canvasPixelBudget";
 import { useLabelImages } from "./useLabelImages";
 import LabelSheetView from "./LabelSheetView";
+import FreeProjectNotice from "../FreeProjectNotice";
 
 function Segmented({ value, options, onChange, label }) {
   return (
@@ -74,7 +75,7 @@ function isBlankPage(page, items) {
 // The label sheet's print preview + print-ready PDF. The preview is drawn
 // from the same plan and the same label renderer as the PDF, so it shows
 // exactly where every label lands on the paper (printer nudge included).
-export default function LabelPrintDialog({ isOpen, onClose, sheet, pages, items, projectName, watermark, onUpdateSettings, onBeforeExport }) {
+export default function LabelPrintDialog({ isOpen, onClose, sheet, pages, items, projectName, resolveWatermark, freeProjectStatus, onUpgrade, onUpdateSettings, onBeforeExport }) {
   const { language } = useLanguage();
   const t = LABEL_STRINGS[language].print;
   const [job, setJob] = useState({ status: "idle", message: null });
@@ -127,11 +128,12 @@ export default function LabelPrintDialog({ isOpen, onClose, sheet, pages, items,
   const emptyCount = plan.slots.filter((slot) => !slot.page || isBlankPage(slot.page, items)).length;
   const hasOffset = settings.offsetXIn !== 0 || settings.offsetYIn !== 0;
 
-  function makePdf() {
+  async function makePdf() {
     onBeforeExport?.();
     const controller = new AbortController();
     abortRef.current = controller;
     setJob({ status: "working", message: t.working });
+    const watermark = await resolveWatermark();
     return buildLabelSheetPdf({
       sheet,
       pages,
@@ -290,6 +292,11 @@ export default function LabelPrintDialog({ isOpen, onClose, sheet, pages, items,
           </div>
         </div>
 
+        {freeProjectStatus && (
+          <div className="border-t border-gray-200 px-5 pt-3">
+            <FreeProjectNotice status={freeProjectStatus} onUpgrade={onUpgrade} />
+          </div>
+        )}
         <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-h-[1.25rem] text-xs text-gray-500" aria-live="polite">
             {working ? (

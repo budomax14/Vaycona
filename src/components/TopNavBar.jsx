@@ -1,17 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Crown, Download, Home, Image, LogOut, Loader2, Menu, Redo2, Save, Scaling, Settings, Share2, ShieldCheck, Undo2, User } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Crown, Download, Home, Image, LogOut, Loader2, Menu, Redo2, Scaling, Settings, Share2, ShieldCheck, Trash2, Undo2, User } from "lucide-react";
 import { useAuth } from "../authContext";
 import { useSubscription } from "../subscriptionContext";
 import { useLanguage } from "../languageContext";
 import { STRINGS } from "../i18n";
 import { MOBILE_STRINGS } from "../i18n/mobile";
 import { useBreakpoint } from "../useBreakpoint";
+import { isMobileDevice } from "../canvasPixelBudget";
 import MobileSheet from "./Mobile/MobileSheet";
 import { navigateTo } from "../adminRoute";
 import ToolbarPopover from "./PropertiesToolbar/ToolbarPopover";
 import ThemeToggle from "./ThemeToggle";
 import LanguageToggle from "./LanguageToggle";
 import OverflowToolbar from "./OverflowToolbar/OverflowToolbar";
+import { isMobileApp } from "../platform";
+import DeleteAccountDialog from "./DeleteAccountDialog";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 
 // Tailwind's built-in `md:` variant only reads viewport WIDTH — a landscape
 // phone is wide (>768px) but short (~375-440px tall), so `md:` alone can't
@@ -233,6 +237,7 @@ export default function TopNavBar({
   onOpenExport,
   onOpenMockupPreview,
   onOpenPreview,
+  showPreview = false,
   showMockupPreview,
   onShareDesign,
   onOpenHome,
@@ -282,9 +287,12 @@ export default function TopNavBar({
   const { language } = useLanguage();
   const { isAdmin } = useAuth();
   const { tier, openBillingPortal } = useSubscription();
-  const { user, signOut } = useAuth();
-  const { isMobile } = useBreakpoint();
+  const { user, signOut, isGuest } = useAuth();
+  const { isMobile, isTablet } = useBreakpoint();
+  // Tablets (incl. large iPads that get the desktop layout) get bigger icons.
+  const largeIcons = isTablet || (!isMobile && isMobileDevice());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
   const t = STRINGS[language].topNav;
   const m = MOBILE_STRINGS[language];
 
@@ -297,12 +305,6 @@ export default function TopNavBar({
   }, []);
 
   const saveLabel = saveStatusLabel(t, saveStatus, lastSavedAt);
-  const saveTitle =
-    saveStatus === "error"
-      ? t.couldntSaveWithError(saveError)
-      : storageWarning
-        ? t.storageWarning(saveLabel)
-        : t.saveNowTitle(saveLabel);
 
   const fileMenuItems = (
     <>
@@ -429,16 +431,16 @@ export default function TopNavBar({
   if (isMobile) {
     const iconButton = "toolbar-hit-target flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-30";
     return (
-      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-gray-200 bg-white px-2 shadow-sm">
+      <header className="flex h-12 shrink-0 items-center gap-1 rounded-b-2xl border-b border-gray-200 bg-white px-2 shadow-sm">
         <button className={iconButton} onClick={onOpenHome} title={t.backToHome} aria-label={t.backToHome}>
-          <Home size={18} />
+          <Home size={22} />
         </button>
         <div className="flex-1" />
         <button className={iconButton} onClick={onUndo} disabled={!canUndo} title={t.undo} aria-label={t.undo}>
-          <Undo2 size={18} />
+          <Undo2 size={22} />
         </button>
         <button className={iconButton} onClick={onRedo} disabled={!canRedo} title={t.redo} aria-label={t.redo}>
-          <Redo2 size={18} />
+          <Redo2 size={22} />
         </button>
         <button
           className="toolbar-hit-target flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-white shadow-sm hover:bg-amber-700"
@@ -446,10 +448,10 @@ export default function TopNavBar({
           title={t.exportTitle}
           aria-label={t.exportAriaLabel}
         >
-          <Download size={18} />
+          <Download size={22} />
         </button>
         <button className={iconButton} onClick={() => setMobileMenuOpen(true)} title={m.menu.button} aria-label={m.menu.button}>
-          <Menu size={20} />
+          <Menu size={24} />
         </button>
 
         <MobileSheet isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} title={m.menu.title}>
@@ -458,10 +460,10 @@ export default function TopNavBar({
             <MobileMenuGroup label={t.editMenu}>{editMenuItems}</MobileMenuGroup>
             <MobileMenuGroup label={t.viewMenu}>{viewMenuItems}</MobileMenuGroup>
             <MenuItem label={t.print} onClick={onPrint} />
-            <MenuItem label={t.previewMenu} onClick={onOpenPreview} />
+            {showPreview && <MenuItem label={t.previewMenu} onClick={onOpenPreview} />}
             <MobileMenuGroup label={t.helpMenu}>{helpMenuItems}</MobileMenuGroup>
             <MobileMenuGroup label={m.menu.settings}>
-              {tier === "free" && <MenuItem label={t.upgrade} onClick={onOpenPricing} />}
+              {tier === "free" && onOpenPricing && <MenuItem label={t.upgrade} onClick={onOpenPricing} />}
               {/* Toggles change in place — tapping them must not close the sheet. */}
               <div className="px-3 py-2" onClick={(event) => event.stopPropagation()}>
                 <div className="mb-3 flex items-center justify-between">
@@ -480,19 +482,21 @@ export default function TopNavBar({
             {isAdmin && <MenuItem label={t.adminPanel} onClick={() => navigateTo("#/admin")} />}
             <MenuDivider />
             <div className="px-3 py-2">
-              <div className="truncate text-xs text-gray-500">{user?.email}</div>
-              <div className="mt-0.5 text-xs font-medium text-amber-700">{PLAN_LABEL[tier]}</div>
+              <div className="truncate text-xs text-gray-500">{isGuest ? "Guest — no account" : user?.email}</div>
+              {!isGuest && <div className="mt-0.5 text-xs font-medium text-amber-700">{PLAN_LABEL[tier]}</div>}
             </div>
-            {tier !== "free" && <MenuItem label="Manage billing" onClick={() => openBillingPortal().catch(() => {})} />}
+            {tier !== "free" && !isMobileApp && <MenuItem label="Manage billing" onClick={() => openBillingPortal().catch(() => {})} />}
             <MenuItem label={t.logOut} onClick={signOut} />
+            {!isGuest && <MenuItem label={DIALOG_STRINGS[language].deleteAccount.menuItem} onClick={() => setIsDeleteAccountOpen(true)} />}
           </div>
         </MobileSheet>
+        <DeleteAccountDialog isOpen={isDeleteAccountOpen} onClose={() => setIsDeleteAccountOpen(false)} />
       </header>
     );
   }
 
   return (
-    <header className="flex h-16 items-center gap-2 overflow-x-auto border-b border-gray-200 bg-white px-3 shadow-sm md:gap-3 md:px-4">
+    <header className={`flex h-16 items-center gap-2 overflow-x-auto border-b border-gray-200 bg-white px-3 shadow-sm md:gap-3 md:px-4 ${largeIcons ? "[&_button>svg]:h-6 [&_button>svg]:w-6" : ""}`}>
       <button
         className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100"
         onClick={onOpenHome}
@@ -515,12 +519,14 @@ export default function TopNavBar({
           {viewMenuItems}
         </MenuDropdown>
 
-        <button
-          className="shrink-0 rounded-lg px-1.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 lg:px-2.5"
-          onClick={onOpenPreview}
-        >
-          {t.previewMenu}
-        </button>
+        {showPreview && (
+          <button
+            className="shrink-0 rounded-lg px-1.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 lg:px-2.5"
+            onClick={onOpenPreview}
+          >
+            {t.previewMenu}
+          </button>
+        )}
 
         <MenuDropdown label={t.helpMenu}>
           {helpMenuItems}
@@ -567,26 +573,6 @@ export default function TopNavBar({
             <Redo2 size={17} />
           </button>
         </OverflowToolbar.Item>
-        <OverflowToolbar.Item keepOnMobile>
-          <button
-            className={`toolbar-hit-target flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium hover:bg-gray-100 md:px-3 ${
-              saveStatus === "error" ? "text-red-600" : "text-gray-600"
-            }`}
-            onClick={saveStatus === "error" ? onRetrySave : onSave}
-            title={saveTitle}
-            aria-label={saveTitle}
-            aria-live="polite"
-          >
-            {saveStatus === "saving" ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : saveStatus === "error" ? (
-              <AlertTriangle size={16} />
-            ) : (
-              <Save size={16} />
-            )}
-            <span className="hidden whitespace-nowrap lg:inline">{saveStatus === "error" ? t.retrySave : saveLabel}</span>
-          </button>
-        </OverflowToolbar.Item>
         {showMockupPreview && (
           <OverflowToolbar.Item>
             <button
@@ -619,7 +605,7 @@ export default function TopNavBar({
             <Share2 size={17} />
           </button>
         </OverflowToolbar.Item>
-        {tier === "free" && (
+        {tier === "free" && onOpenPricing && (
           <OverflowToolbar.Item>
             <button
               className="toolbar-hit-target flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 md:px-3"
@@ -692,19 +678,20 @@ function SettingsMenu() {
 const PLAN_LABEL = { free: "Free plan", pro: "Pro plan", business: "Business plan" };
 
 function AccountMenu() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isGuest } = useAuth();
   const { tier, openBillingPortal } = useSubscription();
   const { language } = useLanguage();
   const t = STRINGS[language].topNav;
   const [open, setOpen] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
   const anchorRef = useRef(null);
 
   return (
     <div className="relative shrink-0">
       <div ref={anchorRef} className="inline-flex">
         <button
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white transition-colors hover:bg-amber-400"
           title={user?.email || "Account"}
           aria-label={t.accountMenu}
           onClick={() => setOpen((v) => !v)}
@@ -715,11 +702,11 @@ function AccountMenu() {
       <ToolbarPopover isOpen={open} anchorRef={anchorRef} onClose={() => setOpen(false)} align="right">
         <div className="min-w-[220px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
           <div className="px-3 py-2">
-            <div className="truncate text-xs text-gray-500">{user?.email}</div>
-            <div className="mt-0.5 text-xs font-medium text-amber-700">{PLAN_LABEL[tier]}</div>
+            <div className="truncate text-xs text-gray-500">{isGuest ? "Guest — no account" : user?.email}</div>
+            {!isGuest && <div className="mt-0.5 text-xs font-medium text-amber-700">{PLAN_LABEL[tier]}</div>}
           </div>
           <div className="my-1 h-px bg-gray-100" />
-          {tier !== "free" && (
+          {tier !== "free" && !isMobileApp && (
             <button
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 disabled:pointer-events-none disabled:opacity-60"
               disabled={portalLoading}
@@ -746,8 +733,21 @@ function AccountMenu() {
             <LogOut size={14} />
             {t.logOut}
           </button>
+          {!isGuest && (
+            <button
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              onClick={() => {
+                setOpen(false);
+                setIsDeleteAccountOpen(true);
+              }}
+            >
+              <Trash2 size={14} />
+              {DIALOG_STRINGS[language].deleteAccount.menuItem}
+            </button>
+          )}
         </div>
       </ToolbarPopover>
+      <DeleteAccountDialog isOpen={isDeleteAccountOpen} onClose={() => setIsDeleteAccountOpen(false)} />
     </div>
   );
 }

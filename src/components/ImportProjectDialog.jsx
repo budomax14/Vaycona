@@ -110,7 +110,7 @@ export default function ImportProjectDialog({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept={PROJECT_FILE_EXTENSION}
+                  accept={`${PROJECT_FILE_EXTENSION},.pdf,application/pdf`}
                   className="sr-only"
                   aria-label={t.fileInputAria}
                   onChange={(event) => handleFiles(event.target.files)}
@@ -152,6 +152,12 @@ export default function ImportProjectDialog({
               {preview.migrationRequired && (
                 <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
                   {t.migrationNote}
+                </p>
+              )}
+              {preview.fromFlatPdf && (
+                <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  {t.flatPdfNote}
+                  {preview.truncatedPageCount ? ` ${t.flatPdfTruncated(preview.pageCount, preview.truncatedPageCount)}` : ""}
                 </p>
               )}
               {preview.missingAssetCount > 0 && (

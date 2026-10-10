@@ -21,6 +21,7 @@ import { useAsset } from "../../../useAsset";
 import { getAssetBlob } from "../../../assetStore";
 import { useLanguage } from "../../../languageContext";
 import { PANEL_STRINGS } from "../../../i18n/panels";
+import { saveBlob } from "../../../platform";
 
 // Converts a generated image (currently always a data: URI — see
 // functions/providers/openai.js) into a File so it can go through the same
@@ -251,12 +252,7 @@ export default function IllustrationsPanel({ onRegisterAsset, onAddToCanvas, onS
   async function handleDownload(entry) {
     const blob = await getAssetBlob(entry.assetId);
     if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${slugFromPrompt(entry.prompt)}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
+    saveBlob(blob, `${slugFromPrompt(entry.prompt)}.png`);
   }
 
   function handleAddToCanvas(entry) {

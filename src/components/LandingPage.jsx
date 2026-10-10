@@ -222,7 +222,7 @@ export default function LandingPage({ onLogin, onGetStarted }) {
   return (
     <div className="vaycona-page min-h-screen bg-white text-slate-900">
       {/* Top nav */}
-      <header className="sticky top-0 z-20 border-b border-white/15 bg-[#df5b0c]/90 backdrop-blur-md">
+      <header className="sticky top-0 z-20 border-b border-white/15 bg-[#df5b0c]/90 pt-[var(--safe-top)] backdrop-blur-md">
         <div className="grid grid-cols-3 items-center px-4 py-3 sm:px-8 lg:px-12">
           <div className="flex items-center justify-start">
             <NavMenu onGetStarted={onGetStarted} />

@@ -7,6 +7,8 @@ const { createCheckoutSession, createBillingPortalSession, stripeWebhook } = req
 exports.createCheckoutSession = createCheckoutSession;
 exports.createBillingPortalSession = createBillingPortalSession;
 exports.stripeWebhook = stripeWebhook;
+exports.claimFreeProject = require("./freeProjects").claimFreeProject;
+exports.deleteAccount = require("./accountDeletion").deleteAccount;
 
 // Set once via: firebase functions:secrets:set OPENAI_API_KEY
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");

@@ -164,7 +164,7 @@ export default function BusinessInfoPage({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-white" role="dialog" aria-modal="true">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/95 px-6 py-4 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/95 px-6 pb-4 pt-[calc(1rem+var(--safe-top))] backdrop-blur">
         <span className="text-sm font-semibold text-gray-900">{t.badge}</span>
         <button
           className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"

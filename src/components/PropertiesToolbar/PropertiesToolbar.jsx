@@ -24,6 +24,7 @@ export default function PropertiesToolbar({
   onBackgroundChange,
   pageBorder,
   onPageBorderChange,
+  documentControls,
   onUpdateItem,
   onUpdateItems,
   onReplaceImage,
@@ -226,6 +227,7 @@ export default function PropertiesToolbar({
           onBackgroundChange={onBackgroundChange}
           border={pageBorder}
           onBorderChange={onPageBorderChange}
+          documentControls={documentControls}
         />
       )}
 
@@ -273,6 +275,7 @@ export default function PropertiesToolbar({
               : undefined
           }
           onApplyFormat={single.type === "text" ? (key, value) => onApplyFormat(single.id, key, value) : undefined}
+          documentControls={single.type === "text" && single.documentBody ? documentControls : undefined}
           onApplyListFormat={single.type === "text" ? (listType) => onApplyListFormat(single.id, listType) : undefined}
           activeListType={single.type === "text" ? activeListType : undefined}
           onCopyTextStyle={single.type === "text" ? () => onCopyTextStyle(single.id) : undefined}

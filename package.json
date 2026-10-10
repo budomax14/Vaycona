@@ -1,14 +1,83 @@
 {
   "name": "personal-canva-editor",
+  "productName": "Vaycona",
   "private": true,
   "version": "1.0.0",
+  "description": "Vaycona design editor",
+  "author": "Vaycona",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "desktop": "vite build && electron .",
+    "desktop:dev": "VAYCONA_DEV_URL=http://localhost:9021 electron .",
+    "desktop:build:mac": "vite build && electron-builder --mac",
+    "desktop:build:win": "vite build && electron-builder --win",
+    "mobile:sync": "vite build && cap sync",
+    "ios": "npm run mobile:sync && cap open ios",
+    "android": "npm run mobile:sync && cap open android",
+    "ios:release": "npm run mobile:sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination generic/platform=iOS -archivePath release/ios/Vaycona.xcarchive CODE_SIGNING_ALLOWED=NO archive && xcodebuild -exportArchive -archivePath release/ios/Vaycona.xcarchive -exportPath release/ios -exportOptionsPlist ios/ExportOptions.plist -allowProvisioningUpdates"
+  },
+  "build": {
+    "appId": "com.vaycona.app",
+    "productName": "Vaycona",
+    "directories": {
+      "output": "release",
+      "buildResources": "electron/resources"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json",
+      "!**/node_modules/**"
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "electron/resources/entitlements.mac.plist",
+      "entitlementsInherit": "electron/resources/entitlements.mac.plist",
+      "notarize": false
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Graphics"
+    }
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/share": "^8.0.3",
     "@fontsource/alex-brush": "^5.3.0",
     "@fontsource/alfa-slab-one": "^5.3.0",
     "@fontsource/almendra": "^5.3.0",
@@ -83,6 +152,7 @@
     "jszip": "^3.10.1",
     "konva": "^9.3.18",
     "lucide-react": "^0.468.0",
+    "pdfjs-dist": "^6.3.289",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -90,8 +160,11 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
     "playwright": "^1.63.0",
     "tailwindcss": "^4.3.3",
     "vite": "^6.0.1"

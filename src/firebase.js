@@ -8,10 +8,11 @@
 // drafts, favorites) stays local per-browser via templateService.js's
 // IndexedDB store, unaffected by this.
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, indexedDBLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
+import { isMobileApp } from "./platform";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD4uDhMqJDEtEd0CzZSqduCUvYjjugOut0",
@@ -23,7 +24,12 @@ const firebaseConfig = {
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
-export const auth = getAuth(firebaseApp);
+// getAuth() pulls in the popup/redirect machinery, which never finishes
+// initializing inside the iOS/Android WebViews (auth hangs on "loading").
+// The apps sign in with email/password only, so skip it there.
+export const auth = isMobileApp
+  ? initializeAuth(firebaseApp, { persistence: indexedDBLocalPersistence })
+  : getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
 export const functions = getFunctions(firebaseApp, "us-central1");
 export const storage = getStorage(firebaseApp);

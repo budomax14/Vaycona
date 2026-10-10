@@ -2,6 +2,7 @@ import React from "react";
 import { ColorField, IconToggleButton, LabeledField, NumberField, ToolbarDivider } from "./toolbarUi";
 import OverflowToolbar from "../OverflowToolbar/OverflowToolbar";
 import { Square } from "lucide-react";
+import DocumentMenu from "./DocumentMenu";
 import { BORDER_STYLE_OPTIONS } from "../../borderStyles";
 import { useLanguage } from "../../languageContext";
 import { OBJECT_PROPERTIES_STRINGS } from "../../i18n/objectProperties";
@@ -12,7 +13,10 @@ import { useBreakpoint } from "../../useBreakpoint";
 // updatePageBorder comment): pages saved before this feature existed just
 // have no `border` key, which reads here as disabled, so nothing needs a
 // migration step to keep loading correctly.
-export default function CanvasPropertiesBar({ background, onBackgroundChange, border, onBorderChange }) {
+// `documentControls` is only passed for a Standard Document (see App.jsx's
+// documentControls) — header/footer, line spacing and a word count for
+// people writing papers. Every other design gets the bar unchanged.
+export default function CanvasPropertiesBar({ background, onBackgroundChange, border, onBorderChange, documentControls }) {
   const { language } = useLanguage();
   const t = OBJECT_PROPERTIES_STRINGS[language].canvas;
   const pageBorder = border || {};
@@ -72,6 +76,15 @@ export default function CanvasPropertiesBar({ background, onBackgroundChange, bo
           )}
         </>
       </OverflowToolbar.Item>
+
+      {documentControls && (
+        <OverflowToolbar.Item keepOnMobile>
+          <>
+            {!isMobile && <ToolbarDivider />}
+            <DocumentMenu documentControls={documentControls} />
+          </>
+        </OverflowToolbar.Item>
+      )}
 
       <OverflowToolbar.Item>
         <>

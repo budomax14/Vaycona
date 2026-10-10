@@ -6,6 +6,7 @@ import { PREVIEW_PRODUCTS, PREVIEW_COLORS, findPreviewProduct, findPreviewView }
 import { loadGarment, tintGarment, composeGarment, fitDesignToBox, designHeightFraction } from "../preview/garmentRender";
 import { useLanguage } from "../languageContext";
 import { PREVIEW_STRINGS } from "../i18n/preview";
+import { saveBlob } from "../platform";
 
 // Long side of the rendered artwork, in pixels — plenty for a design that is
 // shown on a garment at most ~1000px across.
@@ -256,12 +257,7 @@ export default function PreviewDialog({ isOpen, onClose, pages, items, activePag
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       const fileName = `${productId}-${viewId}-preview.png`;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName;
-      link.click();
-      URL.revokeObjectURL(url);
+      saveBlob(blob, fileName);
 
       if (!onSaveToUploads) return;
       setSaveState({ status: "saving", message: null });

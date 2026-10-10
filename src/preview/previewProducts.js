@@ -9,6 +9,14 @@
 // placements shows the "Whole front / Top left" style picker; a view with
 // one placement uses it silently as the design's starting position.
 
+// The garment preview is only offered for 11.25 x 11.25 in pages (the
+// blank design's default size, 1080 x 1080 px at 96 px/in).
+const GARMENT_PAGE_SIZE_PX = 11.25 * 96;
+
+export function isGarmentPreviewPage(page) {
+  return Boolean(page) && Math.abs(page.width - GARMENT_PAGE_SIZE_PX) < 1 && Math.abs(page.height - GARMENT_PAGE_SIZE_PX) < 1;
+}
+
 const FRONT_PLACEMENTS = (full, topLeft) => [
   { id: "full", box: full },
   { id: "topLeft", box: topLeft },

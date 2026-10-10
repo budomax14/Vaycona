@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { BookOpen, FileText, LogOut, Plus, Search, Settings, Tag, User, X } from "lucide-react";
+import { BookOpen, FileText, LogOut, Plus, Search, Settings, Tag, Trash2, User, X } from "lucide-react";
 import TemplateMiniPreview from "./TemplateMiniPreview";
 import { PAGE_SIZE_PRESETS, UNITS, getUnit, orientationOf } from "../pageSizes";
 import { useLanguage } from "../languageContext";
 import ThemeToggle from "./ThemeToggle";
 import LanguageToggle from "./LanguageToggle";
 import { useAuth } from "../authContext";
+import DeleteAccountDialog from "./DeleteAccountDialog";
+import { DIALOG_STRINGS } from "../i18n/dialogs";
 import { STRINGS } from "../i18n";
 import { PRINT_STRINGS } from "../i18n/print";
 import { LABEL_STRINGS } from "../i18n/labels";
@@ -32,9 +34,10 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
   const [customWidth, setCustomWidth] = useState(11.25);
   const [customHeight, setCustomHeight] = useState(11.25);
   const { language } = useLanguage();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isGuest } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
 
   const t = STRINGS[language].home;
   const c = STRINGS[language].common;
@@ -65,7 +68,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
   return (
     <div className="flex h-screen flex-col overflow-y-auto bg-gray-50 text-gray-900">
       <header
-        className="relative flex h-28 shrink-0 items-start justify-between bg-gray-900 bg-cover bg-center px-6 py-4 md:h-36"
+        className="relative flex h-[calc(7rem+var(--safe-top))] shrink-0 items-start justify-between bg-gray-900 bg-cover bg-center px-6 pb-4 pt-[calc(1rem+var(--safe-top))] md:h-[calc(9rem+var(--safe-top))]"
         style={{ backgroundImage: "url(/herob.png)" }}
       >
         <div className="relative">
@@ -109,7 +112,7 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
 
         <div className="relative">
           <button
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500 text-white transition-colors hover:bg-amber-400"
             onClick={() => setProfileOpen((v) => !v)}
             aria-label={nav.accountMenu}
             title={user?.email || nav.accountMenu}
@@ -135,9 +138,22 @@ export default function HomePage({ templates, onSelectTemplate, onCreateBlank, o
                   <LogOut size={14} />
                   {nav.logOut}
                 </button>
+                {!isGuest && (
+                  <button
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      setIsDeleteAccountOpen(true);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    {DIALOG_STRINGS[language].deleteAccount.menuItem}
+                  </button>
+                )}
               </div>
             </>
           )}
+          <DeleteAccountDialog isOpen={isDeleteAccountOpen} onClose={() => setIsDeleteAccountOpen(false)} />
         </div>
       </header>
 

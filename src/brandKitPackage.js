@@ -23,6 +23,7 @@ import {
 import { getAssetBlob, getAssetMeta, putAssetWithId, computeChecksum } from "./assetStore";
 import { validateBrandKit } from "./brandKitValidator";
 import { BRAND_RESOURCE_COLLECTIONS } from "./brandKitService";
+import { saveBlob } from "./platform";
 
 const MIME_TO_EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
 
@@ -259,12 +260,5 @@ export async function importBrandKitAsNew(zip, brandJson, manifest) {
 }
 
 export function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return saveBlob(blob, filename);
 }

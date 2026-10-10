@@ -11,6 +11,7 @@ import { runExportPreflight } from "../../export/exportPreflight";
 import { downloadExportResult } from "../../export/exportService";
 import SheetPreview from "./SheetPreview";
 import { usePanelImages } from "./usePanelImages";
+import FreeProjectNotice from "../FreeProjectNotice";
 
 function Segmented({ value, options, onChange, label }) {
   return (
@@ -51,7 +52,7 @@ function formatSize(widthIn, heightIn, paperSize) {
   return `${r(widthIn)} × ${r(heightIn)} in`;
 }
 
-export default function PrintSettingsDialog({ isOpen, onClose, card, pages, items, projectName, watermark, onUpdateSettings, onBeforeExport }) {
+export default function PrintSettingsDialog({ isOpen, onClose, card, pages, items, projectName, resolveWatermark, freeProjectStatus, onUpgrade, onUpdateSettings, onBeforeExport }) {
   const { language } = useLanguage();
   const t = PRINT_STRINGS[language];
   const s = t.settings;
@@ -107,11 +108,12 @@ export default function PrintSettingsDialog({ isOpen, onClose, card, pages, item
   const steps = [...baseSteps.slice(0, -1), ...edgeSteps, baseSteps[baseSteps.length - 1]];
   const working = job.status === "working";
 
-  function makePdf() {
+  async function makePdf() {
     onBeforeExport?.();
     const controller = new AbortController();
     abortRef.current = controller;
     setJob({ status: "working", message: s.working });
+    const watermark = await resolveWatermark();
     return buildCardPdf({
       card,
       pages,
@@ -284,6 +286,11 @@ export default function PrintSettingsDialog({ isOpen, onClose, card, pages, item
           </div>
         </div>
 
+        {freeProjectStatus && (
+          <div className="border-t border-gray-200 px-5 pt-3">
+            <FreeProjectNotice status={freeProjectStatus} onUpgrade={onUpgrade} />
+          </div>
+        )}
         <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-h-[1.25rem] text-xs text-gray-500" aria-live="polite">
             {working ? (

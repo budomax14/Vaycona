@@ -8,8 +8,14 @@
 // unmodified once deployed behind Firebase Hosting's rewrite (see
 // firebase.json). Override with VITE_AI_ILLUSTRATION_ENDPOINT for local dev
 // against the Functions emulator (e.g. when not using the Vite proxy) or a
-// different backend deployment.
-const ENDPOINT = import.meta.env.VITE_AI_ILLUSTRATION_ENDPOINT || "/api/ai/illustrations/generate";
+// different backend deployment. The iOS/Android apps have no Hosting in
+// front of them, so they call the live site's rewrite directly (the
+// function allows cross-origin calls); the desktop app proxies /api itself.
+import { isMobileApp } from "./platform";
+
+const ENDPOINT =
+  import.meta.env.VITE_AI_ILLUSTRATION_ENDPOINT ||
+  (isMobileApp ? "https://vaycona-editor.web.app/api/ai/illustrations/generate" : "/api/ai/illustrations/generate");
 
 export const ILLUSTRATION_STYLES = [
   { key: "flat", label: "Flat" },
