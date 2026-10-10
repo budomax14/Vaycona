@@ -415,7 +415,7 @@ export default function LandingPage({ onLogin, onGetStarted }) {
 
         <div className="relative mx-auto max-w-3xl px-4 sm:px-6">
             <img
-              src="/hero-editor-bear.png"
+              src="/ChatGPT%20Image%20Sep%2025,%202026%20at%2007_25_08%20PM.png"
               alt={t.hero.imageAlt}
               className="float-art image-lift w-full"
             />
