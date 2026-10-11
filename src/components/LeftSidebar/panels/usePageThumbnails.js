@@ -32,9 +32,10 @@ export function usePageThumbnails(pages, items, { enabled = true } = {}) {
     }, THUMBNAIL_DEBOUNCE_MS);
     return () => clearTimeout(debounceRef.current);
     // Re-runs whenever items or pages change — items covers content edits,
-    // pages covers background/size/add/duplicate changes.
+    // pages covers background/size/add/duplicate changes — and when a
+    // caller turns `enabled` on, so its pages render right away.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, pages]);
+  }, [items, pages, enabled]);
 
   function handleCapture(pageId, dataUrl) {
     if (dataUrl) {

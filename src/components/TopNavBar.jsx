@@ -282,6 +282,8 @@ export default function TopNavBar({
   onOpenGuideManager,
   onOpenPrecisionSettings,
   onResetPrecisionView,
+  pageNavigation = "arrows",
+  onPageNavigationChange,
   onOpenPricing,
 }) {
   const { language } = useLanguage();
@@ -364,6 +366,11 @@ export default function TopNavBar({
           <MenuItem label={t.zoomIn} onClick={onZoomIn} />
           <MenuItem label={t.zoomOut} onClick={onZoomOut} />
           <MenuItem label={t.resetZoom} onClick={onResetZoom} />
+          <MenuDivider />
+          <MenuSubmenu label={t.pageNavigation}>
+            <MenuCheckItem label={t.pageNavigationArrows} checked={pageNavigation !== "scroll"} onClick={() => onPageNavigationChange?.("arrows")} />
+            <MenuCheckItem label={t.pageNavigationScroll} checked={pageNavigation === "scroll"} onClick={() => onPageNavigationChange?.("scroll")} />
+          </MenuSubmenu>
           <MenuDivider />
           <MenuCheckItem label={t.showRulers} shortcut="Shift+R" checked={showRulers} onClick={onToggleRulers} />
           <MenuCheckItem label={t.showGuides} shortcut="Ctrl/Cmd+;" checked={showGuides} onClick={onToggleGuidesVisible} />

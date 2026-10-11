@@ -18,6 +18,10 @@ export function defaultPrecisionPrefs() {
     // Editor chrome preference (not project content) — rulers are opt-in,
     // toggled from the View menu, and persisted here rather than per-project.
     showRulers: false,
+    // How the editor moves between pages: "arrows" shows one page at a
+    // time with previous/next buttons; "scroll" stacks every page and the
+    // page scrolled into view becomes the one being edited.
+    pageNavigation: "arrows",
     showGuides: true,
     showSmartGuides: true,
     showMeasurementLabels: true,
@@ -49,6 +53,7 @@ export function normalizePrecisionPrefs(raw) {
     ...d,
     ...raw,
     defaultUnit: ["px", "in", "cm", "mm"].includes(raw.defaultUnit) ? raw.defaultUnit : d.defaultUnit,
+    pageNavigation: raw.pageNavigation === "scroll" ? "scroll" : "arrows",
     snapSensitivityPx: clampPrefNumber(raw.snapSensitivityPx, d.snapSensitivityPx, 1, 60),
     rotationSnapIncrement: clampPrefNumber(raw.rotationSnapIncrement, d.rotationSnapIncrement, 1, 90),
     nudgeStandard: clampPrefNumber(raw.nudgeStandard, d.nudgeStandard, 0.01, 500),

@@ -62,6 +62,7 @@ const Workspace = forwardRef(function Workspace(
     isSpaceDown,
     renderActivePage,
     pageNumbers,
+    pageNavigation = "arrows",
     showRulers = false,
     unit = "px",
     cursorContentPos = null,
@@ -82,7 +83,11 @@ const Workspace = forwardRef(function Workspace(
   const { language } = useLanguage();
   const pagerText = STATUS_BAR_STRINGS[language].statusBar;
   const isMobileDeviceOnce = useMemo(() => isMobileDevice(), []);
-  const iosStaticPreviews = isMobileDeviceOnce && !isMobile;
+  // Scroll navigation (View > Page navigation) stacks every page and lets
+  // the page scrolled into view become the active one; the default arrows
+  // mode shows only the active page. One page has nothing to scroll to.
+  const scrollMode = pageNavigation === "scroll" && pages.length > 1;
+  const iosStaticPreviews = isMobileDeviceOnce && (!isMobile || scrollMode);
   const { thumbnails: iosPagePreviews, renderingPageId: iosPreviewRenderingId, handleCapture: handleIosPreviewCapture } = usePageThumbnails(pages, items, {
     enabled: iosStaticPreviews,
   });
@@ -113,6 +118,10 @@ const Workspace = forwardRef(function Workspace(
   const containerSize = useResizeObserver(containerRef);
   // The page id and scale of the last automatic fit — see the effect below.
   const lastFitRef = useRef({ pageId: null, scale: null });
+  // Scroll mode: the page id activated by scrolling it into view, so the
+  // page-change fit below doesn't re-center (and snap) the scroll.
+  const scrollActivatedPageIdRef = useRef(null);
+  const scrollActivateFrameRef = useRef(0);
   const activePage = pages.find((page) => page.id === activePageId) || pages[0];
 
   const showRulersRef = useRef(showRulers);
@@ -203,7 +212,7 @@ const Workspace = forwardRef(function Workspace(
   // whole canvas slide. Lock each fitting axis (no overflow, no touch-pan)
   // and keep the page centered on it until it's zoomed past the workspace.
   const lockX = !!activePage && containerSize.width > 0 && activePage.width * scale <= containerSize.width + 0.5;
-  const lockY = !!activePage && containerSize.height > 0 && activePage.height * scale <= containerSize.height + 0.5;
+  const lockY = !scrollMode && !!activePage && containerSize.height > 0 && activePage.height * scale <= containerSize.height + 0.5;
   const lockRef = useRef({ lockX, lockY });
   lockRef.current = { lockX, lockY };
   const pinLockedAxes = useCallback(() => {
@@ -250,6 +259,13 @@ const Workspace = forwardRef(function Workspace(
       programmaticScrollRef.current = false;
     });
   }, []);
+
+  // Switching to scroll mode brings the page being edited into view.
+  useEffect(() => {
+    if (!scrollMode) return undefined;
+    const frame = requestAnimationFrame(() => scrollToActivePage());
+    return () => cancelAnimationFrame(frame);
+  }, [scrollMode, scrollToActivePage]);
 
   const fitToScreen = useCallback(
     ({ force = false } = {}) => {
@@ -299,6 +315,12 @@ const Workspace = forwardRef(function Workspace(
     if (!activePage) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
     const last = lastFitRef.current;
+    if (scrollActivatedPageIdRef.current === activePage.id) {
+      // Reached by scrolling: keep the zoom and scroll position as they are.
+      scrollActivatedPageIdRef.current = null;
+      lastFitRef.current = { pageId: activePage.id, scale: last.scale };
+      return;
+    }
     const stillAtFit = last.scale !== null && Math.abs(scale - last.scale) < 1e-6;
     if (last.pageId === activePage.id && !stillAtFit) return;
     fitToScreen({ force: true });
@@ -553,6 +575,31 @@ const Workspace = forwardRef(function Workspace(
     }
   }
 
+  // Scroll mode: the page nearest the middle of the workspace becomes the
+  // active page once the user scrolls it there.
+  function activatePageInView() {
+    const container = containerRef.current;
+    const stack = pageStackRef.current;
+    if (!container || !stack || gestureStateRef.current) return;
+    const containerRect = container.getBoundingClientRect();
+    const middle = containerRect.top + containerRect.height / 2;
+    let nearestId = null;
+    let nearestDistance = Infinity;
+    for (const el of stack.querySelectorAll("[data-page-id]")) {
+      const rect = el.getBoundingClientRect();
+      const distance = middle < rect.top ? rect.top - middle : middle > rect.bottom ? middle - rect.bottom : 0;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestId = el.getAttribute("data-page-id");
+      }
+    }
+    if (!nearestId || nearestId === activePageId) return;
+    scrollActivatedPageIdRef.current = nearestId;
+    onActivatePage(nearestId);
+  }
+
+  useEffect(() => () => cancelAnimationFrame(scrollActivateFrameRef.current), []);
+
   function handleScroll() {
     // Programmatic scrolls (focus, scrollIntoView, space-drag) can still move
     // a locked axis — snap it back; see lockX/lockY.
@@ -560,6 +607,10 @@ const Workspace = forwardRef(function Workspace(
     measurePageOrigin();
     if (programmaticScrollRef.current) return;
     onManualInteraction();
+    if (scrollMode) {
+      cancelAnimationFrame(scrollActivateFrameRef.current);
+      scrollActivateFrameRef.current = requestAnimationFrame(activatePageInView);
+    }
   }
 
   // Rulers live here (not inside the page/canvas-frame) so they're editor
@@ -619,13 +670,13 @@ const Workspace = forwardRef(function Workspace(
             style={{ gap: WORKSPACE_PAGE_GAP, alignItems: "safe center", justifyContent: "safe center" }}
           >
             {pages.map((page, index) => {
-              // Only the selected page is shown (phone and desktop alike);
-              // the others are reached through the page arrows, status bar,
-              // or Pages panel.
+              // Arrows mode shows only the selected page (phone and desktop
+              // alike); the others are reached through the page arrows,
+              // status bar, or Pages panel. Scroll mode shows them all.
               const isActive = page.id === activePageId;
-              if (!isActive) return null;
+              if (!isActive && !scrollMode) return null;
               return (
-                <div key={page.id} ref={isActive ? activePageWrapperRef : undefined}>
+                <div key={page.id} data-page-id={page.id} ref={isActive ? activePageWrapperRef : undefined}>
                   <PageSlot
                     page={page}
                     pageIndex={index}
@@ -635,6 +686,7 @@ const Workspace = forwardRef(function Workspace(
                     pageNumbers={pageNumbers}
                     onActivate={() => onActivatePage(page.id)}
                     previewImageUrl={!isActive && iosStaticPreviews ? iosPagePreviews.get(page.id) : undefined}
+                    staticPreviewOnly={isMobile && isMobileDeviceOnce}
                   >
                     {isActive ? renderActivePage(page, scale) : null}
                   </PageSlot>
@@ -645,7 +697,7 @@ const Workspace = forwardRef(function Workspace(
         </div>
         {/* On phones the previous/next page buttons float centered under
             the canvas within thumb reach, instead of at the right edge. */}
-        {activePage && isMobile && pages.length > 1 && (() => {
+        {activePage && isMobile && pages.length > 1 && !scrollMode && (() => {
           const activeIndex = pages.findIndex((p) => p.id === activePage.id);
           const prevPage = activeIndex > 0 ? pages[activeIndex - 1] : null;
           const nextPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
@@ -682,7 +734,7 @@ const Workspace = forwardRef(function Workspace(
             edges, and a zoomed-in page overflows the workspace). Both are
             always shown once there's another page; the one with nowhere to
             go is dimmed. */}
-        {pages.length > 1 && !isMobile && (() => {
+        {pages.length > 1 && !isMobile && !scrollMode && (() => {
           const activeIndex = pages.findIndex((p) => p.id === activePageId);
           const prevPage = activeIndex > 0 ? pages[activeIndex - 1] : null;
           const nextPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
@@ -733,6 +785,7 @@ const Workspace = forwardRef(function Workspace(
             return (
               <div style={{ position: "fixed", left: -9999, top: -9999 }} aria-hidden="true">
                 <ThumbnailStage
+                  key={iosPreviewRenderingPage.id}
                   page={iosPreviewRenderingPage}
                   items={items}
                   width={size.width}

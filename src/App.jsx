@@ -9467,6 +9467,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onOpenGuideManager={() => setIsGuideManagerOpen(true)}
         onOpenPrecisionSettings={() => setIsPrecisionSettingsOpen(true)}
         onResetPrecisionView={resetPrecisionView}
+        pageNavigation={precisionPrefs.pageNavigation}
+        onPageNavigationChange={(mode) => setPrecisionPrefs((prev) => ({ ...prev, pageNavigation: mode }))}
         onZoomIn={() => workspaceRef.current?.zoomIn()}
         onZoomOut={() => workspaceRef.current?.zoomOut()}
         onResetZoom={handleFitToScreen}
@@ -9701,6 +9703,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
               isSpaceDown={isSpaceDown}
               renderActivePage={renderActivePage}
               pageNumbers={pageNumbers}
+              pageNavigation={precisionPrefs.pageNavigation}
               // Rulers are editor chrome, not part of the page/canvas-frame —
               // Workspace positions them around the workspace viewport itself.
               // Phase 12 spec §46: an actively-playing preview excludes
@@ -9853,7 +9856,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           onActivatePage={activatePage}
           onPrevPage={goToPrevPage}
           onNextPage={goToNextPage}
-          onAddPage={addPage}
+          onAddPage={() => addPage()}
           onDuplicatePage={duplicatePage}
           onDeletePage={deletePage}
           onRenamePage={renamePage}

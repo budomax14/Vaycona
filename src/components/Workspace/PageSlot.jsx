@@ -3,7 +3,7 @@ import InactivePagePreview from "./InactivePagePreview";
 import { useLanguage } from "../../languageContext";
 import { PANEL_STRINGS } from "../../i18n/panels";
 
-export default function PageSlot({ page, pageIndex, isActive, scale, items, pageNumbers, onActivate, children, previewImageUrl }) {
+export default function PageSlot({ page, pageIndex, isActive, scale, items, pageNumbers, onActivate, children, previewImageUrl, staticPreviewOnly = false }) {
   const { language } = useLanguage();
   const t = PANEL_STRINGS[language].pages;
   const pageName = page.name || t.pageDefaultName(pageIndex + 1);
@@ -33,7 +33,7 @@ export default function PageSlot({ page, pageIndex, isActive, scale, items, page
               draggable={false}
               style={{ width: page.width * scale, height: page.height * scale, display: "block", objectFit: "contain" }}
             />
-          ) : (
+          ) : staticPreviewOnly ? null : (
             items && (
               <InactivePagePreview
                 page={page}
