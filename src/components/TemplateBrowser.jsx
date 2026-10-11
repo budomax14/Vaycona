@@ -141,6 +141,9 @@ export default function TemplateBrowser({
 
   const filtered = useMemo(() => {
     let list = templates;
+    // No upgrade path (the mobile apps sell nothing in-app) — hide templates
+    // the user's plan can't open rather than showing dead "Pro" cards.
+    if (!onRequireUpgrade) list = list.filter((t) => TIER_RANK[t.tier || "free"] <= TIER_RANK[userTier]);
     if (scope === "favorites") list = list.filter((t) => t.favorite);
     else if (scope === "recent") list = list.filter((t) => t.lastUsedAt);
     else if (scope === "mine") list = list.filter((t) => !t.builtIn);
@@ -158,7 +161,7 @@ export default function TemplateBrowser({
     // templateSummaries sorts by sortOrder, the admin's drag-to-reorder order
     // from the Template Admin dashboard — so no extra sort is applied here.
     return sorted;
-  }, [templates, scope, category, subcategory, orientation, debouncedQuery, sort]);
+  }, [templates, scope, category, subcategory, orientation, debouncedQuery, sort, onRequireUpgrade, userTier]);
 
   if (!isOpen) return null;
 
