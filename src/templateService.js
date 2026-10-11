@@ -16,6 +16,7 @@ import { validateProject } from "./projectValidator";
 import { publishTemplateToCloud, removeTemplateFromCloud } from "./firestoreTemplates";
 import { getAssetBlob, getAssetMeta } from "./assetStore";
 import { deleteTemplateAssets, uploadTemplateAsset } from "./templateAssetStorage";
+import { scoped } from "./storageScope";
 
 // Published "project" templates additionally mirror to Firestore (see
 // firestoreTemplates.js) so every user's browser sees admin changes live —
@@ -52,12 +53,12 @@ async function syncTemplateAssetsToCloud(template) {
   return assetUrls;
 }
 
-const TEMPLATE_DB_NAME = "personal-canva-templates-v1";
+const TEMPLATE_DB_NAME = scoped("personal-canva-templates-v1");
 const TEMPLATE_STORE = "templates";
 export const TEMPLATE_FORMAT_VERSION = 1;
 export const BUILT_IN_SEED_VERSION = 4; // v3: migrates built-in ids to the stable `builtin-${builtInKey}` form (see seedBuiltInTemplatesOnce); v4: adds the Greeting Cards set
-const SEED_FLAG_KEY = "personal-canva-templates-seed-v1";
-const RECENT_TEMPLATES_KEY = "personal-canva-recent-templates-v1";
+const SEED_FLAG_KEY = scoped("personal-canva-templates-seed-v1");
+const RECENT_TEMPLATES_KEY = scoped("personal-canva-recent-templates-v1");
 export const MAX_RECENT_TEMPLATES = 15;
 export const MAX_TEMPLATE_NAME_LENGTH = 80;
 export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 500;

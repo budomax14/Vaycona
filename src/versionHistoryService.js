@@ -10,8 +10,9 @@
 import { checksumOf } from "./autosaveService";
 import { getWorkspaceId } from "./recoveryService";
 import { PROJECT_SCHEMA_VERSION } from "./constants";
+import { scoped } from "./storageScope";
 
-const VERSION_DB_NAME = "personal-canva-versions-v1";
+const VERSION_DB_NAME = scoped("personal-canva-versions-v1");
 const VERSION_STORE = "versions";
 export const VERSION_FORMAT_VERSION = 1;
 export const AUTO_VERSION_RETENTION_LIMIT = 10;

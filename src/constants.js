@@ -1,3 +1,5 @@
+import { scoped } from "./storageScope";
+
 // Default/original page size (also the starter page used before any
 // workspace state has been persisted).
 export const CANVAS_WIDTH = 900;
@@ -29,8 +31,8 @@ export const WORKSPACE_FIT_GAP_Y = 4;
 // two always agree on layout.
 export const RULER_THICKNESS = 24;
 
-export const UPLOADS_STORAGE_KEY = "personal-canva-uploads-v1";
-export const WORKSPACE_STORAGE_KEY = "personal-canva-workspace-v1";
+export const UPLOADS_STORAGE_KEY = scoped("personal-canva-uploads-v1");
+export const WORKSPACE_STORAGE_KEY = scoped("personal-canva-workspace-v1");
 export const RECENT_COLORS_KEY = "personal-canva-recent-colors-v1";
 export const RECENT_COLORS_MAX = 10;
 
@@ -72,9 +74,9 @@ export const AUTOSAVE_DEBOUNCE_MS = 600;
 // index (name/mime/dimensions/tiny thumbnail/status) so the Uploads panel
 // and Layers previews can render instantly on boot without waiting on an
 // async IndexedDB read.
-export const ASSET_DB_NAME = "personal-canva-assets-v1";
+export const ASSET_DB_NAME = scoped("personal-canva-assets-v1");
 export const ASSET_DB_STORE = "assets";
-export const ASSET_INDEX_STORAGE_KEY = "personal-canva-asset-index-v1";
+export const ASSET_INDEX_STORAGE_KEY = scoped("personal-canva-asset-index-v1");
 
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25MB
 export const MAX_IMAGE_DIMENSION = 8000; // px, per side — guards against pathological canvas sizes
@@ -109,17 +111,17 @@ export const IMPORT_MAX_COMPRESSION_RATIO = 200;
 // editor, kept entirely separate from WORKSPACE_STORAGE_KEY so editing a
 // template can never touch the user's live personal project.
 export const ADMIN_EMAIL = "budomax1995@gmail.com";
-export const ADMIN_TEMPLATE_DRAFT_STORAGE_KEY_PREFIX = "personal-canva-admin-template-draft-v1";
+export const ADMIN_TEMPLATE_DRAFT_STORAGE_KEY_PREFIX = scoped("personal-canva-admin-template-draft-v1");
 export const ADMIN_CUSTOM_CATEGORIES_KEY = "personal-canva-admin-custom-categories-v1";
 
 // Phase 11 — Brand Kit / design tokens. Mirrors the existing per-feature
 // IndexedDB database convention (one small DB per concern) rather than a
 // single shared "everything" database.
-export const BRAND_DB_NAME = "personal-canva-brandkits-v1";
+export const BRAND_DB_NAME = scoped("personal-canva-brandkits-v1");
 export const BRAND_STORE = "brandKits";
 export const BRAND_KIT_FORMAT_VERSION = 1;
-export const ACTIVE_BRAND_KIT_KEY = "personal-canva-active-brandkit-v1";
-export const RECENT_BRAND_RESOURCES_KEY = "personal-canva-recent-brand-resources-v1";
+export const ACTIVE_BRAND_KIT_KEY = scoped("personal-canva-active-brandkit-v1");
+export const RECENT_BRAND_RESOURCES_KEY = scoped("personal-canva-recent-brand-resources-v1");
 export const MAX_RECENT_BRAND_RESOURCES = 20;
 
 export const MAX_BRAND_KIT_NAME_LENGTH = 80;

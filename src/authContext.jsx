@@ -12,6 +12,7 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { auth, functions } from "./firebase";
 import { ADMIN_EMAIL } from "./constants";
+import { enterAccountStorage } from "./storageScope";
 
 const AuthContext = createContext(null);
 
@@ -25,7 +26,12 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined); // undefined = loading, null = signed out
 
   useEffect(() => {
-    return onAuthStateChanged(auth, setUser);
+    return onAuthStateChanged(auth, (next) => {
+      // Another account's on-device data must never load — when the
+      // account changes, the page reloads into this one's storage first.
+      if (next && enterAccountStorage(next, next.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase())) return;
+      setUser(next);
+    });
   }, []);
 
   const isAdmin = !!user && user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();

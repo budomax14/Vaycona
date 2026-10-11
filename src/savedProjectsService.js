@@ -8,8 +8,9 @@
 
 import { checksumOf } from "./autosaveService";
 import { PROJECT_SCHEMA_VERSION } from "./constants";
+import { scoped } from "./storageScope";
 
-const SAVED_PROJECT_DB_NAME = "personal-canva-saved-projects-v1";
+const SAVED_PROJECT_DB_NAME = scoped("personal-canva-saved-projects-v1");
 const SAVED_PROJECT_STORE = "savedProjects";
 export const SAVED_PROJECT_FORMAT_VERSION = 1;
 export const MAX_SAVED_PROJECT_NAME_LENGTH = 80;

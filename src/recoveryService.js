@@ -18,14 +18,15 @@
 
 import { checksumOf } from "./autosaveService";
 import { PROJECT_SCHEMA_VERSION } from "./constants";
+import { scoped } from "./storageScope";
 
-const RECOVERY_DB_NAME = "personal-canva-recovery-v1";
+const RECOVERY_DB_NAME = scoped("personal-canva-recovery-v1");
 const RECOVERY_STORE = "snapshots";
 export const SNAPSHOT_FORMAT_VERSION = 1;
 export const AUTO_SNAPSHOT_RETENTION_LIMIT = 7;
 
-const WORKSPACE_ID_KEY = "personal-canva-workspace-id-v1";
-const SESSION_MARKER_KEY = "personal-canva-session-marker-v1";
+const WORKSPACE_ID_KEY = scoped("personal-canva-workspace-id-v1");
+const SESSION_MARKER_KEY = scoped("personal-canva-session-marker-v1");
 const HEARTBEAT_INTERVAL_MS = 10000;
 // Supporting evidence only (spec §8) — a heartbeat older than this with no
 // recorded close is treated as "the prior session likely didn't shut down
@@ -276,7 +277,7 @@ export async function removeObsoleteSnapshots(savedData) {
 // tab, not the render process that died). Armed on open, disarmed only by a
 // clean beforeunload, so it's still armed on the very next mount regardless
 // of how little time passed, closing the fast-crash blind spot above.
-const TAB_SESSION_KEY = "personal-canva-tab-session-active-v1";
+const TAB_SESSION_KEY = scoped("personal-canva-tab-session-active-v1");
 
 function wasThisTabSessionUnclean() {
   try {
@@ -409,8 +410,8 @@ export function getPriorSessionDiagnostic() {
 // these before reloading, and App.jsx's mount effect consumes (and clears)
 // the flag to decide how to boot. ---
 
-const SKIP_RECOVERY_ONCE_KEY = "personal-canva-skip-recovery-once";
-const FORCE_RECOVERY_ONCE_KEY = "personal-canva-force-recovery-once";
+const SKIP_RECOVERY_ONCE_KEY = scoped("personal-canva-skip-recovery-once");
+const FORCE_RECOVERY_ONCE_KEY = scoped("personal-canva-force-recovery-once");
 
 export function requestSkipRecoveryOnNextLoad() {
   trySetItem(SKIP_RECOVERY_ONCE_KEY, "1");
