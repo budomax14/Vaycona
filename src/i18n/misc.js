@@ -267,7 +267,20 @@ export const MISC_STRINGS = {
       closeMenu: "Close menu",
     },
 
+    grantPlan: {
+      title: "Grant a plan",
+      description: "Give an existing account a plan without payment, for demo accounts and testers. Choose Free to take it back.",
+      emailLabel: "Account email",
+      planLabel: "Plan",
+      tiers: { free: "Free", pro: "Pro", business: "Business" },
+      save: "Save",
+      saving: "Saving…",
+      cancel: "Cancel",
+      failed: "Couldn't change the plan.",
+      granted: (email, plan) => `${email} is now on ${plan}.`,
+    },
     adminDashboard: {
+      grantPlan: "Grant plan",
       statusFilters: { all: "All", published: "Published", draft: "Draft" },
       sortOptions: {
         custom: "My order (drag to reorder)",
@@ -692,7 +705,20 @@ export const MISC_STRINGS = {
       closeMenu: "Fermer le menu",
     },
 
+    grantPlan: {
+      title: "Attribuer un forfait",
+      description: "Donnez un forfait sans paiement à un compte existant, pour les comptes de démo et les testeurs. Choisissez Gratuit pour le retirer.",
+      emailLabel: "E-mail du compte",
+      planLabel: "Forfait",
+      tiers: { free: "Gratuit", pro: "Pro", business: "Business" },
+      save: "Enregistrer",
+      saving: "Enregistrement…",
+      cancel: "Annuler",
+      failed: "Impossible de modifier le forfait.",
+      granted: (email, plan) => `${email} est maintenant en ${plan}.`,
+    },
     adminDashboard: {
+      grantPlan: "Attribuer un forfait",
       statusFilters: { all: "Tous", published: "Publiés", draft: "Brouillons" },
       sortOptions: {
         custom: "Mon ordre (glisser pour réorganiser)",

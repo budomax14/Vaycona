@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Copy, Edit3, Eye, GripVertical, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, UploadCloud, X } from "lucide-react";
+import { Copy, Crown, Edit3, Eye, GripVertical, LayoutTemplate, LogOut, Plus, Search, Trash2, Upload, UploadCloud, X } from "lucide-react";
 import {
   ensureBuiltInTemplatesSeeded,
   listTemplateSummaries,
@@ -17,6 +17,7 @@ import TemplateMiniPreview from "../TemplateMiniPreview";
 import TemplatePreviewDialog from "../TemplatePreviewDialog";
 import ConfirmDeleteTemplateDialog from "./ConfirmDeleteTemplateDialog";
 import AdminUploadDesignDialog from "./AdminUploadDesignDialog";
+import GrantPlanDialog from "./GrantPlanDialog";
 import { orientationOf } from "../../pageSizes";
 import { useLanguage } from "../../languageContext";
 import { MISC_STRINGS } from "../../i18n/misc";
@@ -57,6 +58,7 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   const [previewTemplate, setPreviewTemplate] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isUploadDesignOpen, setIsUploadDesignOpen] = useState(false);
+  const [isGrantPlanOpen, setIsGrantPlanOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -210,6 +212,12 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
         <div className="ml-auto flex items-center gap-2">
           <button
             className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+            onClick={() => setIsGrantPlanOpen(true)}
+          >
+            <Crown size={15} /> {t.grantPlan}
+          </button>
+          <button
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
             onClick={onExitAdmin}
           >
             <LogOut size={15} /> {t.backToEditor}
@@ -355,6 +363,8 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <GrantPlanDialog isOpen={isGrantPlanOpen} onClose={() => setIsGrantPlanOpen(false)} onGranted={showToast} />
 
       <AdminUploadDesignDialog
         isOpen={isUploadDesignOpen}
