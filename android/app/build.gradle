@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Play upload key: its location and passwords live outside the repo, in
+// ~/Documents/Vaycona-signing/keystore.properties (or the file named by
+// VAYCONA_KEYSTORE_PROPERTIES). Without it, release builds are unsigned.
+def keystorePropsFile = file(System.getenv("VAYCONA_KEYSTORE_PROPERTIES") ?: "${System.getProperty('user.home')}/Documents/Vaycona-signing/keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) keystorePropsFile.withInputStream { keystoreProps.load(it) }
+
 android {
     namespace = "com.vaycona.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +23,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (keystorePropsFile.exists()) {
+            upload {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (keystorePropsFile.exists()) signingConfig signingConfigs.upload
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
