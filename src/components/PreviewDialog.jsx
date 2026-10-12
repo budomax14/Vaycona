@@ -277,12 +277,12 @@ export default function PreviewDialog({ isOpen, onClose, pages, items, activePag
   const ready = status === "done" && garment && design;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation">
+    <div className="preview-safe-pad fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="preview-dialog-title"
-        className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <h2 id="preview-dialog-title" className="text-base font-semibold text-gray-900">

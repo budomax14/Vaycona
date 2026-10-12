@@ -149,12 +149,12 @@ export default function PrintSettingsDialog({ isOpen, onClose, card, pages, item
   const handlePrint = () => finish(printPdfFromClick(makePdf));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 sm:items-center sm:p-4" role="presentation">
+    <div className="preview-safe-edges fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 sm:items-center" role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="print-settings-title"
-        className="flex h-full w-full max-w-5xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-2xl"
+        className="flex h-full w-full max-w-5xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-full sm:rounded-2xl"
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3.5">
           <h2 id="print-settings-title" className="text-base font-semibold text-gray-900">

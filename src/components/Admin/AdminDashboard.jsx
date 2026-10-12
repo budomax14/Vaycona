@@ -200,27 +200,31 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
   }
 
   return (
-    <div className="desktop-only-shell min-h-screen bg-gray-50">
-      <header className="flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-4 shadow-sm md:px-6">
+    <div className="min-h-screen bg-gray-50 pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]">
+      <header className="flex h-[calc(4rem+var(--safe-top))] items-center gap-3 border-b border-gray-200 bg-white px-4 pt-[var(--safe-top)] shadow-sm md:px-6">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-emerald-400 text-white">
           <LayoutTemplate size={18} />
         </div>
-        <div>
-          <h1 className="text-sm font-semibold text-gray-900">{t.adminTitle}</h1>
-          <p className="text-xs text-gray-400">{t.adminSubtitle}</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-sm font-semibold text-gray-900">{t.adminTitle}</h1>
+          <p className="hidden text-xs text-gray-400 sm:block">{t.adminSubtitle}</p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <button
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 sm:px-3"
             onClick={() => setIsGrantPlanOpen(true)}
+            aria-label={t.grantPlan}
+            title={t.grantPlan}
           >
-            <Crown size={15} /> {t.grantPlan}
+            <Crown size={15} /> <span className="hidden sm:inline">{t.grantPlan}</span>
           </button>
           <button
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 sm:px-3"
             onClick={onExitAdmin}
+            aria-label={t.backToEditor}
+            title={t.backToEditor}
           >
-            <LogOut size={15} /> {t.backToEditor}
+            <LogOut size={15} /> <span className="hidden sm:inline">{t.backToEditor}</span>
           </button>
         </div>
       </header>
@@ -239,7 +243,7 @@ export default function AdminDashboard({ onCreateNew, onEditTemplate, onExitAdmi
           >
             <UploadCloud size={16} /> {t.uploadDesign}
           </button>
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative min-w-[200px] flex-1 basis-full sm:basis-auto">
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="search"

@@ -30,7 +30,7 @@ export default function AdminApp() {
 
   if (!isAdmin) {
     return (
-      <div className="desktop-only-shell flex min-h-screen flex-col items-center justify-center gap-3 bg-gray-50 p-4 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-gray-50 p-4 text-center">
         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-600">
           <ShieldAlert size={22} />
         </div>
@@ -94,7 +94,7 @@ function AdminCreateTemplateScreen() {
   }
 
   return (
-    <div className="desktop-only-shell min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <AdminTemplateFormDialog
         isOpen
         mode="create"
@@ -127,11 +127,11 @@ function AdminTemplateEditorRoute({ templateId }) {
   }
 
   if (template === undefined) {
-    return <div className="desktop-only-shell flex min-h-screen items-center justify-center text-sm text-gray-400">Loading template…</div>;
+    return <div className="flex min-h-screen items-center justify-center text-sm text-gray-400">Loading template…</div>;
   }
   if (template === null) {
     return (
-      <div className="desktop-only-shell flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-gray-500">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-gray-500">
         <p>This template couldn't be found — it may have been deleted.</p>
         <button className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={() => navigateTo("#/admin")}>
           Back to dashboard

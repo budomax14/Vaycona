@@ -38,9 +38,9 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
   const missingAssetCount = template.missingAssetCount || 0;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" role="presentation">
-      <div role="dialog" aria-modal="true" aria-labelledby="template-preview-title" className="flex w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 p-6">
+    <div className="preview-safe-pad fixed inset-0 z-[60] flex items-center justify-center bg-black/40" role="presentation">
+      <div role="dialog" aria-modal="true" aria-labelledby="template-preview-title" className="flex max-h-full w-full max-w-3xl flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl sm:flex-row sm:overflow-hidden">
+        <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 p-4 sm:p-6">
           <div className="relative w-full max-w-sm">
             <TemplateMiniPreview page={page} items={template.data?.items || []} className="aspect-square w-full rounded-xl shadow" />
             {pages.length > 1 && (
@@ -71,7 +71,7 @@ export default function TemplatePreviewDialog({ isOpen, template, onClose, onUse
           )}
         </div>
 
-        <div className="flex w-72 shrink-0 flex-col border-l border-gray-200">
+        <div className="flex w-full shrink-0 flex-col border-t border-gray-200 sm:w-72 sm:border-l sm:border-t-0">
           <div className="flex items-start justify-between border-b border-gray-100 px-4 py-3">
             <div>
               <h2 id="template-preview-title" className="text-sm font-semibold text-gray-900">

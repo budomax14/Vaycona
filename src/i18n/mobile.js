@@ -21,6 +21,7 @@ export const MOBILE_STRINGS = {
       timeline: "Timeline",
       present: "Present",
     },
+    pageStrip: { toggle: "Show pages", hide: "Hide pages", aria: "Pages", goTo: (n) => `Go to page ${n}` },
   },
   fr: {
     bottomBar: { aria: "Outils de l'éditeur", add: "Ajouter", edit: "Modifier", layers: "Calques", pages: "Pages", view: "Vue" },
@@ -39,5 +40,6 @@ export const MOBILE_STRINGS = {
       timeline: "Chronologie",
       present: "Présenter",
     },
+    pageStrip: { toggle: "Afficher les pages", hide: "Masquer les pages", aria: "Pages", goTo: (n) => `Aller à la page ${n}` },
   },
 };

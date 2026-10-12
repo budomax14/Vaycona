@@ -118,6 +118,8 @@ export default function CanvasOverlays({
   unit = "px",
   printGuides = null,
   labelGuides = null,
+  areaLabels = null,
+  areaLabelScale = 1,
 }) {
   const topLeft = contentToScreen({ x: 0, y: 0 }, viewport);
   const bottomRight = contentToScreen({ x: pageWidth, y: pageHeight }, viewport);
@@ -214,6 +216,9 @@ export default function CanvasOverlays({
         {safeBox && <rect x={safeBox.x} y={safeBox.y} width={safeBox.width} height={safeBox.height} className="safe-area-rect" />}
         {printGuideShapes}
         {labelGuideShapes}
+        {(areaLabels || []).slice(1).map((area) => (
+          <line key={`area-${area.key}`} x1={area.x} y1={0} x2={area.x} y2={pageHeight} className="book-area-edge" />
+        ))}
         {alignmentLines.vertical.map((x) => (
           <line key={`av${x}`} x1={x} y1={-50} x2={x} y2={pageHeight + 50} className={`alignment-line ${x === pageWidth / 2 ? "page-center-line" : ""}`} />
         ))}
@@ -241,6 +246,30 @@ export default function CanvasOverlays({
           }}
         />
       )}
+
+      {/* Names of the areas of a whole-page book cover (back cover, spine,
+          front cover), along the top of each area. Counter-scaled by
+          `areaLabelScale` (how much the frame is shrunk on screen) so they
+          stay a readable size at any zoom; editor-only like the rest. */}
+      {(areaLabels || []).map((area) => {
+        const left = contentToScreen({ x: area.x, y: 0 }, viewport).x;
+        const right = contentToScreen({ x: area.x + area.width, y: 0 }, viewport).x;
+        const narrow = (right - left) * areaLabelScale < 70;
+        return (
+          <div
+            key={area.key}
+            className="pointer-events-none absolute flex justify-center"
+            style={{ left, width: right - left, top: topLeft.y + 6 / areaLabelScale }}
+          >
+            <span
+              className="whitespace-nowrap rounded bg-gray-900/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-4 tracking-wide text-white"
+              style={{ transform: `scale(${1 / areaLabelScale})`, transformOrigin: "top center", ...(narrow ? { writingMode: "vertical-rl" } : null) }}
+            >
+              {area.label}
+            </span>
+          </div>
+        );
+      })}
 
       {guides.map((guide) => (
         <GuideLine

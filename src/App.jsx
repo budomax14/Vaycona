@@ -24,6 +24,7 @@ import PagesPanel from "./components/LeftSidebar/panels/PagesPanel";
 import ComingSoonPanel from "./components/LeftSidebar/panels/ComingSoonPanel";
 import StatusBar from "./components/StatusBar/StatusBar";
 import Workspace from "./components/Workspace/Workspace";
+import PageStrip from "./components/Workspace/PageStrip";
 import ResizeModal from "./components/ResizeModal";
 import PricingModal from "./components/PricingModal";
 import AccountRequiredDialog from "./components/AccountRequiredDialog";
@@ -165,6 +166,9 @@ import LabelSheetBar from "./components/LabelSheet/LabelSheetBar";
 import LabelSheetNavigator from "./components/LabelSheet/LabelSheetNavigator";
 import LabelPrintDialog from "./components/LabelSheet/LabelPrintDialog";
 import LabelTemplatePicker from "./components/LabelSheet/LabelTemplatePicker";
+import BookTypePicker from "./components/BookTypePicker";
+import { bookWrapRegions, createBookCoverPages } from "./mockup/bookMockup";
+import { BOOK_STRINGS } from "./i18n/books";
 import { LABEL_STRINGS } from "./i18n/labels";
 import {
   addLabelPage,
@@ -1286,8 +1290,34 @@ export default function App({ editorMode = "workspace", templateSession = null }
   useEffect(() => {
     if (!mobileEditOpen) mobileEditForCanvasRef.current = false;
   }, [mobileEditOpen]);
+  // The "..." page-thumbnail strip under the canvas: hidden until asked for,
+  // and closed again as soon as the user starts editing the canvas.
+  const [pageStripOpen, setPageStripOpen] = useState(false);
+  const isEditingCanvas = Boolean(
+    hasSelection || mobileEditOpen || editingTextId || croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId
+  );
+  useEffect(() => {
+    if (isEditingCanvas) setPageStripOpen(false);
+  }, [isEditingCanvas]);
   // True while a phone preview drag is in flight (hides the selection pill).
   const [phoneDragging, setPhoneDragging] = useState(false);
+  // Touch screens (phone/tablet): the floating SelectionToolbar only shows
+  // after one long press on an object, not on every tap. It closes again
+  // once the selection changes. `touchToolbarIdsRef` holds the selection it
+  // was opened for (null right after opening, until that's known).
+  const [touchToolbarOpen, setTouchToolbarOpen] = useState(false);
+  const touchToolbarIdsRef = useRef(null);
+  const objectLongPressTimerRef = useRef(null);
+  const objectLongPressStartRef = useRef(null);
+  // Set when a long press opened the toolbar, so the tap that ends that
+  // same press doesn't also count as a (re)select.
+  const objectLongPressFiredRef = useRef(false);
+  useEffect(() => {
+    if (!touchToolbarOpen) return;
+    const key = selectedIds.join(",");
+    if (touchToolbarIdsRef.current === null) touchToolbarIdsRef.current = key;
+    else if (key !== touchToolbarIdsRef.current) setTouchToolbarOpen(false);
+  }, [selectedIds, touchToolbarOpen]);
   const lastPhoneDragEndRef = useRef(0);
   // Fingers currently on screen (phone) — see handleTransformStart.
   const phoneTouchCountRef = useRef(0);
@@ -1324,6 +1354,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // null. See print/labelProject.js.
   const labelSheet = useMemo(() => getLabelSheetProject(pages), [pages]);
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
+  const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
   const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
   const [isLabelMapOpen, setIsLabelMapOpen] = useState(true);
   const labelDialogItems = useMemo(
@@ -2028,6 +2059,40 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setShowHomePage(false);
     setIsLabelMapOpen(true);
     setStatus(result.status === SAVE_STATUS.SAVED ? LABEL_STRINGS[language].status.created : "Created, but saving failed.");
+    window.setTimeout(() => setStatus(""), 2500);
+  }
+
+  // Book (HomePage → book type picker): the cover pages at the chosen trim
+  // size — Front cover, Back cover and (bound books) Spine, or for the
+  // one-page layout a single back | spine | front page with locked guides
+  // at the spine — tagged with the book type so Preview shows them on that
+  // type's photo (mockup/bookMockup.js).
+  async function createBookCover(typeId, sizeId, layout) {
+    const t = BOOK_STRINGS[language];
+    const { pages: coverPages, guides: coverGuides } = createBookCoverPages({
+      typeId,
+      sizeId,
+      layout,
+      names: t.pages,
+      guideLabels: t.guides,
+      extraPageFields: defaultPagePrecision(),
+    });
+    const data = {
+      pages: coverPages,
+      activePageId: coverPages[0].id,
+      scale: 1,
+      items: [],
+      guides: coverGuides,
+      snapToGuides: true,
+      pageNumbers: { ...DEFAULT_PAGE_NUMBERS },
+      preferredUnit,
+    };
+    const result = await replaceWorkspaceWith(data, { projectName: t.projectName(t.types[typeId]) });
+    setHasManualZoomOrPan(false);
+    setIsBookPickerOpen(false);
+    setIsTemplateBrowserOpen(false);
+    setShowHomePage(false);
+    setStatus(result.status === SAVE_STATUS.SAVED ? t.created : "Created, but saving failed.");
     window.setTimeout(() => setStatus(""), 2500);
   }
 
@@ -6445,6 +6510,39 @@ export default function App({ editorMode = "workspace", templateSession = null }
     return pos.x >= box.x - pad && pos.x <= box.x + box.width + pad && pos.y >= box.y - pad && pos.y <= box.y + box.height + pad;
   }
 
+  // Touch long press on an object (or, on a phone, inside the current
+  // selection's box): after 500ms without moving more than 10px, selects it
+  // and opens the SelectionToolbar.
+  function startObjectLongPress(event) {
+    cancelObjectLongPress();
+    let itemId = null;
+    for (let node = event.target; node && !itemId; node = node.getParent?.()) {
+      for (const [id, registered] of nodesMapRef.current) {
+        if (registered === node) {
+          itemId = id;
+          break;
+        }
+      }
+    }
+    if (!itemId && isPhone && isInsidePhoneSelectionBox(stageRef.current?.getPointerPosition())) itemId = selectedIdsRef.current[0] || null;
+    if (!itemId) return;
+    objectLongPressStartRef.current = { clientX: event.evt.clientX, clientY: event.evt.clientY };
+    objectLongPressTimerRef.current = setTimeout(() => {
+      objectLongPressTimerRef.current = null;
+      objectLongPressStartRef.current = null;
+      if (!selectedIdsRef.current.includes(itemId)) handleSelect(itemId);
+      objectLongPressFiredRef.current = true;
+      touchToolbarIdsRef.current = null;
+      setTouchToolbarOpen(true);
+    }, 500);
+  }
+
+  function cancelObjectLongPress() {
+    if (objectLongPressTimerRef.current) clearTimeout(objectLongPressTimerRef.current);
+    objectLongPressTimerRef.current = null;
+    objectLongPressStartRef.current = null;
+  }
+
   function handleStageMouseDown(event) {
     if (workspaceRef.current?.isGestureActive?.()) return;
     setContextMenu(null);
@@ -6468,6 +6566,9 @@ export default function App({ editorMode = "workspace", templateSession = null }
       }
       return;
     }
+
+    objectLongPressFiredRef.current = false;
+    if (hasCoarsePointer && event.evt.pointerType !== "mouse") startObjectLongPress(event);
 
     if (!isEmptyClickTarget(event)) return;
     if (isPhone && event.evt.pointerType !== "mouse" && isInsidePhoneSelectionBox(stageRef.current?.getPointerPosition())) return;
@@ -6516,6 +6617,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
     // pinch and then applied a nonsense selection when it ended — drop it
     // the moment the gesture is detected.
     if (isPhone && workspaceRef.current?.isGestureActive?.()) {
+      cancelObjectLongPress();
       if (emptyLongPressTimerRef.current) {
         clearTimeout(emptyLongPressTimerRef.current);
         emptyLongPressTimerRef.current = null;
@@ -6534,6 +6636,12 @@ export default function App({ editorMode = "workspace", templateSession = null }
     }
     if (pointer && eraseDrawingRef.current) {
       handleEraseMove(pointer);
+    }
+
+    if (objectLongPressTimerRef.current && objectLongPressStartRef.current) {
+      const dx = event.evt.clientX - objectLongPressStartRef.current.clientX;
+      const dy = event.evt.clientY - objectLongPressStartRef.current.clientY;
+      if (Math.hypot(dx, dy) > 10) cancelObjectLongPress();
     }
 
     if (emptyLongPressTimerRef.current && emptyLongPressStartRef.current) {
@@ -6566,6 +6674,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
       finalizeErase();
     }
 
+    cancelObjectLongPress();
     if (emptyLongPressTimerRef.current) {
       clearTimeout(emptyLongPressTimerRef.current);
       emptyLongPressTimerRef.current = null;
@@ -7101,7 +7210,23 @@ export default function App({ editorMode = "workspace", templateSession = null }
     [handleSelect]
   );
 
+  // The release of a long press that opened the SelectionToolbar isn't a
+  // separate tap (it could otherwise drill into a group and close it again).
+  const handleObjectSelect = useCallback(
+    (id, options) => {
+      if (objectLongPressFiredRef.current) {
+        objectLongPressFiredRef.current = false;
+        return;
+      }
+      (isPhone ? handleItemTapSelect : handleSelect)(id, options);
+    },
+    [isPhone, handleItemTapSelect, handleSelect]
+  );
+
   const handleItemContextMenu = useCallback((id, nativeEvent) => {
+    // A touch long press on an object opens the SelectionToolbar instead
+    // (Android also fires a contextmenu for it); its "..." still opens this.
+    if (nativeEvent?.type === "contextmenu" && (objectLongPressTimerRef.current || objectLongPressFiredRef.current)) return;
     const resolved = resolveClickSelection(itemsRef.current, id, {
       ctrlKey: nativeEvent.metaKey || nativeEvent.ctrlKey,
       enteredGroupId: enteredGroupIdRef.current,
@@ -7225,6 +7350,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
   );
 
   const onItemDragStart = useCallback((id, node) => {
+    // A drag isn't a long press, even if the finger then rests (Konva's own
+    // item drag doesn't reach the Stage's pointermove that would cancel it).
+    if (objectLongPressTimerRef.current) clearTimeout(objectLongPressTimerRef.current);
+    objectLongPressTimerRef.current = null;
+    objectLongPressStartRef.current = null;
     const items = itemsRef.current;
     // Once an object belongs to a group, it can never be dragged
     // independently of it — even a child that's individually selected via
@@ -8680,7 +8810,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                         isSpaceDown={isSpaceDown || isPreviewPlaying || isPhone}
                         isEditingText={editingTextId === item.id}
                         isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById) || activeSidebarSection === "brush"}
-                        onSelect={isPhone ? handleItemTapSelect : handleSelect}
+                        onSelect={handleObjectSelect}
                         onContextMenu={handleItemContextMenu}
                         onDragStart={onItemDragStart}
                         onDragMove={onItemDragMove}
@@ -8700,7 +8830,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
                       isSpaceDown={isSpaceDown || isPreviewPlaying || isPhone}
                       isEditingText={editingTextId === item.id}
                       isLocked={isPreviewPlaying || isEffectivelyLocked(item, displayItemsById) || activeSidebarSection === "brush"}
-                      onSelect={isPhone ? handleItemTapSelect : handleSelect}
+                      onSelect={handleObjectSelect}
                       onContextMenu={handleItemContextMenu}
                       onDragStart={onItemDragStart}
                       onDragMove={onItemDragMove}
@@ -8937,9 +9067,11 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     }
                   : null
               }
+              areaLabels={bookWrapRegions(page).map((area) => ({ ...area, label: BOOK_STRINGS[language].pages[area.key] }))}
+              areaLabelScale={displayScale}
             />}
 
-            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && !(isPhone && (phoneDragging || ["dragging", "resizing", "rotating"].includes(interactionMode))) && (
+            {!isPreviewPlaying && !editingTextId && !croppingItemId && !imageFillEditItemId && !fadeEditItemId && !grabItEditItemId && !(isPhone && (phoneDragging || ["dragging", "resizing", "rotating"].includes(interactionMode))) && (!hasCoarsePointer || touchToolbarOpen) && (
               <SelectionToolbar
                 selectionBoundsContent={selectedBoundsContent}
                 viewport={KONVA_VIEWPORT}
@@ -9208,6 +9340,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           onCreateStandardDocument={createStandardDocument}
           onCreateGreetingCard={createGreetingCard}
           onCreateLabelSheet={() => setIsLabelPickerOpen(true)}
+          onCreateBook={() => setIsBookPickerOpen(true)}
           onContinue={() => setShowHomePage(false)}
           hasExistingDesign={items.length > 0 || pages.length > 1 || !!saveStatus.lastSavedAt}
           projectName={projectName}
@@ -9222,6 +9355,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
           onExport={() => previewTemplate?.id && handleExportTemplate(previewTemplate.id)}
         />
         <LabelTemplatePicker isOpen={isLabelPickerOpen} onClose={() => setIsLabelPickerOpen(false)} onCreate={createLabelSheet} />
+        <BookTypePicker isOpen={isBookPickerOpen} onClose={() => setIsBookPickerOpen(false)} onCreate={createBookCover} />
       </>
     );
   }
@@ -9722,6 +9856,26 @@ export default function App({ editorMode = "workspace", templateSession = null }
                     }
                   : null
               }
+            />
+
+            <PageStrip
+              pages={pages}
+              items={items}
+              activePageId={activePageId}
+              onActivatePage={activatePage}
+              open={pageStripOpen && !isEditingCanvas}
+              onToggle={() => {
+                if (pageStripOpen && !isEditingCanvas) {
+                  setPageStripOpen(false);
+                  return;
+                }
+                // Opening it ends a plain selection / Edit panel first, since
+                // the strip only shows while the canvas isn't being edited.
+                if (editingTextId || croppingItemId || imageFillEditItemId || fadeEditItemId || grabItEditItemId) return;
+                setSelectedIds([]);
+                setMobileEditOpen(false);
+                setPageStripOpen(true);
+              }}
             />
 
             {labelSheet && !templateSession && isLabelMapOpen && !isPhone && (

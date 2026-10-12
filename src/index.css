@@ -74,6 +74,21 @@
   --safe-left: env(safe-area-inset-left, 0px);
 }
 
+/* Full-screen preview overlays: keep their dialog clear of the notch,
+   status bar and home indicator on phones (1rem minimum elsewhere). */
+.preview-safe-pad {
+  padding: max(1rem, var(--safe-top)) max(1rem, var(--safe-right)) max(1rem, var(--safe-bottom)) max(1rem, var(--safe-left));
+}
+/* Same, for a preview that fills the whole phone screen edge to edge. */
+.preview-safe-edges {
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+@media (min-width: 640px) {
+  .preview-safe-edges {
+    padding: max(1rem, var(--safe-top)) max(1rem, var(--safe-right)) max(1rem, var(--safe-bottom)) max(1rem, var(--safe-left));
+  }
+}
+
 html,
 body {
   /* Toolbars/status bar/timeline manage their own overflow-x-auto on
@@ -307,6 +322,14 @@ a:focus-visible {
 
 .overlay-svg {
   position: absolute;
+}
+
+/* Edges between a whole-page book cover's areas (CanvasOverlays areaLabels). */
+.book-area-edge {
+  stroke: rgba(17, 24, 39, 0.45);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
 }
 
 .grid-line {

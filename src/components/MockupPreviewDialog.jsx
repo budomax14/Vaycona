@@ -20,6 +20,8 @@ export default function MockupPreviewDialog({ isOpen, onClose, pages, items }) {
   const mockup = findMockupForPages(pages);
   const frontPage = mockup?.pages[0] || null;
   const backPage = mockup?.pages[1] || mockup?.pages[0] || null;
+  // Only book covers have a third page (the spine).
+  const spinePage = mockup?.pages[2] || null;
   const variants = mockup?.variants || [];
   const variantCount = variants.length;
 
@@ -40,7 +42,7 @@ export default function MockupPreviewDialog({ isOpen, onClose, pages, items }) {
 
     (async () => {
       try {
-        const pageIds = [...new Set([frontPage.id, backPage.id])];
+        const pageIds = [...new Set([frontPage.id, backPage.id, ...(spinePage ? [spinePage.id] : [])])];
         const preflight = await runExportPreflight({ pages, items }, { pageIds, pixelScale: MOCKUP_PIXEL_SCALE });
         await preloadExportFonts(preflight.fontFamilies);
 
@@ -54,8 +56,12 @@ export default function MockupPreviewDialog({ isOpen, onClose, pages, items }) {
             signal: controller.signal,
           });
 
-        const [frontCanvas, backCanvas] = await Promise.all([renderOne(frontPage), renderOne(backPage)]);
-        const mockupCanvas = await variant.generate({ frontCanvas, backCanvas });
+        const [frontCanvas, backCanvas, spineCanvas] = await Promise.all([
+          renderOne(frontPage),
+          renderOne(backPage),
+          spinePage ? renderOne(spinePage) : null,
+        ]);
+        const mockupCanvas = await variant.generate({ frontCanvas, backCanvas, spineCanvas, pages: mockup.pages });
         if (cancelled) return;
 
         const blob = await new Promise((resolve) => mockupCanvas.toBlob(resolve, "image/png"));
@@ -77,7 +83,7 @@ export default function MockupPreviewDialog({ isOpen, onClose, pages, items }) {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, frontPage?.id, backPage?.id, variantIndex]);
+  }, [isOpen, frontPage?.id, backPage?.id, spinePage?.id, variantIndex]);
 
   useEffect(
     () => () => {
@@ -101,12 +107,12 @@ export default function MockupPreviewDialog({ isOpen, onClose, pages, items }) {
   const goNext = () => setVariantIndex((i) => (i + 1) % variantCount);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation">
+    <div className="preview-safe-pad fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="mockup-preview-title"
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <h2 id="mockup-preview-title" className="text-base font-semibold text-gray-900">

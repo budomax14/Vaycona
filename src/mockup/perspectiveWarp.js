@@ -248,12 +248,60 @@ export function drawShadingOverlay(ctx, mockupImage, quad) {
   ctx.restore();
 }
 
+// Puts the photo's own pixels back inside `polygon` where they're darker
+// than `maxLuma` (things that sit on top of the printed surface, like a
+// spiral binding's coils and punched holes) or at least `minLuma` bright
+// (the plain backdrop around a curved edge a 4-corner quad can't follow,
+// like a rounded book spine).
+function restorePhotoPixels(ctx, mockupImage, { polygon, maxLuma = -1, minLuma = Infinity }) {
+  const bbox = quadBoundingBox(
+    polygon.flatMap((p) => [{ x: p.x - 2, y: p.y - 2 }, { x: p.x + 2, y: p.y + 2 }]),
+    mockupImage.width,
+    mockupImage.height
+  );
+  if (bbox.width <= 0 || bbox.height <= 0) return;
+  const photo = document.createElement("canvas");
+  photo.width = bbox.width;
+  photo.height = bbox.height;
+  const photoCtx = photo.getContext("2d");
+  photoCtx.drawImage(mockupImage, bbox.x, bbox.y, bbox.width, bbox.height, 0, 0, bbox.width, bbox.height);
+  const imageData = photoCtx.getImageData(0, 0, bbox.width, bbox.height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    if (luma > maxLuma && luma < minLuma) data[i + 3] = 0;
+  }
+  photoCtx.putImageData(imageData, 0, 0);
+
+  // Grown by 1.5px so it also covers the warp's own ~0.75px overlap past
+  // the quad (see drawMeshTriangle), which would otherwise leave a hairline.
+  const cx = polygon.reduce((sum, p) => sum + p.x, 0) / polygon.length;
+  const cy = polygon.reduce((sum, p) => sum + p.y, 0) / polygon.length;
+  ctx.save();
+  ctx.beginPath();
+  polygon.forEach((p, index) => {
+    const len = Math.hypot(p.x - cx, p.y - cy) || 1;
+    const x = p.x + ((p.x - cx) / len) * 1.5;
+    const y = p.y + ((p.y - cy) / len) * 1.5;
+    if (index) ctx.lineTo(x, y);
+    else ctx.moveTo(x, y);
+  });
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(photo, bbox.x, bbox.y);
+  ctx.restore();
+}
+
 // Composites any number of flat design canvases onto their measured quads on
 // one base photo. `slots`: [{ quad, canvas }] — a falsy `canvas` skips that
 // slot (base photo shows through unchanged). Returns a detached canvas at
 // the mockup photo's native resolution. A slot with `projective: true`
 // (opt-in, used by greetingCardMockup.js's inside panels) uses the
-// perspective-correct mesh warp instead of the two-triangle warp.
+// perspective-correct mesh warp instead of the two-triangle warp. A slot
+// with `keepDark: { polygon, maxLuma }` (bookMockup.js's spiral bindings)
+// keeps the photo's dark pixels in that polygon on top of the design, and
+// one with `keepBackground: { polygon, minLuma }` (book spines) keeps its
+// bright backdrop pixels.
 export async function compositeMockup({ imageUrl, slots }) {
   const mockupImage = await loadMockupImage(imageUrl);
   const canvas = document.createElement("canvas");
@@ -268,6 +316,8 @@ export async function compositeMockup({ imageUrl, slots }) {
     if (slot.projective) drawQuadWarpProjective(ctx, slot.canvas, slot.quad);
     else drawQuadWarp(ctx, slot.canvas, slot.quad);
     drawShadingOverlay(ctx, mockupImage, slot.quad);
+    if (slot.keepDark) restorePhotoPixels(ctx, mockupImage, slot.keepDark);
+    if (slot.keepBackground) restorePhotoPixels(ctx, mockupImage, slot.keepBackground);
   }
 
   return canvas;

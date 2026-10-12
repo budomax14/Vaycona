@@ -173,7 +173,7 @@ export default function AdminUploadDesignDialog({ isOpen, onClose, onUploaded })
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4" role="presentation">
+    <div className="preview-safe-pad fixed inset-0 z-[60] flex items-center justify-center bg-black/30" role="presentation">
       <div
         role="dialog"
         aria-modal="true"

@@ -18,7 +18,10 @@ export default function PresentationMode({ pages, items, presentationSettings, r
   const { language } = useLanguage();
   const t = MISC_STRINGS[language].presentationMode;
   const containerRef = useRef(null);
-  const size = useResizeObserver(containerRef);
+  // The page and controls live inside the device's safe area (notch, home
+  // indicator), so that's the box the page is fitted to.
+  const safeAreaRef = useRef(null);
+  const size = useResizeObserver(safeAreaRef);
   const startIndex = Math.max(0, pages.findIndex((p) => p.id === initialPageId));
 
   const [pageIndex, setPageIndex] = useState(startIndex === -1 ? 0 : startIndex);
@@ -218,65 +221,71 @@ export default function PresentationMode({ pages, items, presentationSettings, r
       aria-label={t.presentationModeAriaLabel}
       aria-modal="true"
     >
-      <div className="relative flex items-center justify-center" style={{ width: viewportWidth, height: viewportHeight }}>
-        <div
-          className="absolute"
-          style={
-            transitionStyle
-              ? {
-                  opacity: transitionStyle.outgoing.opacity,
-                  transform: `translate(${transitionStyle.outgoing.x}px, ${transitionStyle.outgoing.y}px) scale(${transitionStyle.outgoing.scaleX}, ${transitionStyle.outgoing.scaleY})`,
-                }
-              : undefined
-          }
-        >
-          <PresentationPageStage page={page} items={items} timeMs={phase === "page" ? pageTimeMs : getPageDuration(page)} reducedMotion={reducedMotion} viewportWidth={viewportWidth} viewportHeight={viewportHeight} />
-        </div>
-        {transitionStyle && pendingPage && (
+      <div
+        ref={safeAreaRef}
+        className="absolute flex items-center justify-center"
+        style={{ top: "var(--safe-top)", right: "var(--safe-right)", bottom: "var(--safe-bottom)", left: "var(--safe-left)" }}
+      >
+        <div className="relative flex items-center justify-center" style={{ width: viewportWidth, height: viewportHeight }}>
           <div
             className="absolute"
-            style={{
-              opacity: transitionStyle.incoming.opacity,
-              transform: `translate(${transitionStyle.incoming.x}px, ${transitionStyle.incoming.y}px) scale(${transitionStyle.incoming.scaleX}, ${transitionStyle.incoming.scaleY})`,
-            }}
+            style={
+              transitionStyle
+                ? {
+                    opacity: transitionStyle.outgoing.opacity,
+                    transform: `translate(${transitionStyle.outgoing.x}px, ${transitionStyle.outgoing.y}px) scale(${transitionStyle.outgoing.scaleX}, ${transitionStyle.outgoing.scaleY})`,
+                  }
+                : undefined
+            }
           >
-            <PresentationPageStage page={pendingPage} items={items} timeMs={0} reducedMotion={reducedMotion} viewportWidth={viewportWidth} viewportHeight={viewportHeight} />
+            <PresentationPageStage page={page} items={items} timeMs={phase === "page" ? pageTimeMs : getPageDuration(page)} reducedMotion={reducedMotion} viewportWidth={viewportWidth} viewportHeight={viewportHeight} />
           </div>
+          {transitionStyle && pendingPage && (
+            <div
+              className="absolute"
+              style={{
+                opacity: transitionStyle.incoming.opacity,
+                transform: `translate(${transitionStyle.incoming.x}px, ${transitionStyle.incoming.y}px) scale(${transitionStyle.incoming.scaleX}, ${transitionStyle.incoming.scaleY})`,
+              }}
+            >
+              <PresentationPageStage page={pendingPage} items={items} timeMs={0} reducedMotion={reducedMotion} viewportWidth={viewportWidth} viewportHeight={viewportHeight} />
+            </div>
+          )}
+        </div>
+
+        {controlsVisible && (
+          <>
+            <button onClick={onExit} className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.exitPresentation}>
+              <X size={18} />
+            </button>
+
+            <button onClick={goPrev} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.previousPage}>
+              <ChevronLeft size={20} />
+            </button>
+            <button onClick={goNext} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.nextPage}>
+              <ChevronRight size={20} />
+            </button>
+
+            <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/10 px-4 py-2 text-white backdrop-blur">
+              <button onClick={togglePlayPause} aria-label={pagePlaying ? t.pause : t.play}>
+                {pagePlaying ? <Pause size={16} /> : <Play size={16} />}
+              </button>
+              <button
+                onClick={toggleAutoplay}
+                className={autoplay ? "text-emerald-400" : "text-white/70"}
+                title={t.toggleAutoplay}
+                aria-pressed={autoplay}
+              >
+                <Repeat size={16} />
+              </button>
+              <span className="text-xs tabular-nums">{pageIndex + 1} / {pages.length}</span>
+              <button onClick={toggleFullscreen} aria-label={t.toggleFullscreen}>
+                <Maximize size={16} />
+              </button>
+            </div>
+          </>
         )}
       </div>
-
-      {controlsVisible && (
-        <>
-          <button onClick={onExit} className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.exitPresentation}>
-            <X size={18} />
-          </button>
-
-          <button onClick={goPrev} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.previousPage}>
-            <ChevronLeft size={20} />
-          </button>
-          <button onClick={goNext} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label={t.nextPage}>
-            <ChevronRight size={20} />
-          </button>
-
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/10 px-4 py-2 text-white backdrop-blur">
-            <button onClick={togglePlayPause} aria-label={pagePlaying ? t.pause : t.play}>
-              {pagePlaying ? <Pause size={16} /> : <Play size={16} />}
-            </button>
-            <button
-              onClick={toggleAutoplay}
-              className={autoplay ? "text-emerald-400" : "text-white/70"}
-              title={t.toggleAutoplay}
-              aria-pressed={autoplay}
-            >
-              <Repeat size={16} />
-            </button>
-            <span className="text-xs tabular-nums">{pageIndex + 1} / {pages.length}</span>
-            <button onClick={toggleFullscreen} aria-label={t.toggleFullscreen}>
-              <Maximize size={16} />
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }

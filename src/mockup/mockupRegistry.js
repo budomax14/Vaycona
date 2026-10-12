@@ -7,10 +7,12 @@
 
 import { isBusinessCardPage, BUSINESS_CARD_MOCKUP_VARIANTS } from "./businessCardMockup";
 import { isWeddingInvitationPage, WEDDING_INVITATION_MOCKUP_VARIANTS } from "./weddingInvitationMockup";
+import { BOOK_MOCKUP_TYPES } from "./bookMockup";
 
 const MOCKUP_TYPES = [
   { id: "business-card", isPage: isBusinessCardPage, variants: BUSINESS_CARD_MOCKUP_VARIANTS },
   { id: "wedding-invitation", isPage: isWeddingInvitationPage, variants: WEDDING_INVITATION_MOCKUP_VARIANTS },
+  ...BOOK_MOCKUP_TYPES,
 ];
 
 export function hasAnyMockupPage(pages) {
@@ -18,12 +20,15 @@ export function hasAnyMockupPage(pages) {
 }
 
 // Picks the first mockup type with at least one matching page, and returns
-// its variants along with just its matching pages (in project order) — the
-// dialog maps pages[0]/pages[1] to the front/back slots.
+// its variants along with just its matching pages (in project order, or the
+// type's own `sortPages` order) — the dialog maps pages[0]/pages[1] to the
+// front/back slots.
 export function findMockupForPages(pages) {
   for (const mockupType of MOCKUP_TYPES) {
     const matchingPages = pages.filter(mockupType.isPage);
-    if (matchingPages.length > 0) return { variants: mockupType.variants, pages: matchingPages };
+    if (matchingPages.length > 0) {
+      return { variants: mockupType.variants, pages: mockupType.sortPages ? mockupType.sortPages(matchingPages) : matchingPages };
+    }
   }
   return null;
 }

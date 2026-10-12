@@ -154,8 +154,8 @@ export default function AdminTemplateFormDialog({ isOpen, mode, initialValues, o
   const canPublishNow = mode === "edit" && !publishBlockedReason;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4" role="presentation">
-      <div role="dialog" aria-modal="true" aria-labelledby="admin-template-form-title" className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="preview-safe-pad fixed inset-0 z-[60] flex items-center justify-center bg-black/30" role="presentation">
+      <div role="dialog" aria-modal="true" aria-labelledby="admin-template-form-title" className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3.5">
           <h2 id="admin-template-form-title" className="text-sm font-semibold text-gray-900">
             {mode === "create" ? t.createTitle : t.editTitle}

@@ -50,7 +50,7 @@ export default function GrantPlanDialog({ isOpen, onClose, onGranted }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" role="presentation">
+    <div className="preview-safe-pad fixed inset-0 z-[70] flex items-center justify-center bg-black/40" role="presentation">
       <form
         role="dialog"
         aria-modal="true"
