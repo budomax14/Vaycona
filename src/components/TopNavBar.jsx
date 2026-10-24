@@ -16,6 +16,7 @@ import OverflowToolbar from "./OverflowToolbar/OverflowToolbar";
 import { isMobileApp } from "../platform";
 import DeleteAccountDialog from "./DeleteAccountDialog";
 import { DIALOG_STRINGS } from "../i18n/dialogs";
+import { PERSONALIZATION_STRINGS } from "../i18n/personalization";
 
 // Tailwind's built-in `md:` variant only reads viewport WIDTH — a landscape
 // phone is wide (>768px) but short (~375-440px tall), so `md:` alone can't
@@ -285,6 +286,8 @@ export default function TopNavBar({
   pageNavigation = "arrows",
   onPageNavigationChange,
   onOpenPricing,
+  onOpenPersonalization,
+  onOpenPersonalizationDashboard,
 }) {
   const { language } = useLanguage();
   const { isAdmin } = useAuth();
@@ -324,6 +327,12 @@ export default function TopNavBar({
             <MenuItem label={t.exportAnimation} onClick={onOpenExportAnimation} />
           </MenuSubmenu>
           <MenuItem label={t.brandKits} onClick={onOpenBrandManager} />
+          {onOpenPersonalization && (
+            <MenuSubmenu label={PERSONALIZATION_STRINGS[language].panel.title}>
+              <MenuItem label={PERSONALIZATION_STRINGS[language].menu.clientPersonalization} onClick={onOpenPersonalization} />
+              <MenuItem label={PERSONALIZATION_STRINGS[language].menu.personalizationDashboard} onClick={onOpenPersonalizationDashboard} />
+            </MenuSubmenu>
+          )}
           <MenuSubmenu label={t.reusableContent}>
             <MenuItem label={t.saveSelectionAsSection} onClick={onSaveSelectionAsSection} disabled={!hasSelection} />
             <MenuItem label={t.saveCurrentPageAsReusable} onClick={onSaveActivePageAsReusable} />

@@ -2,25 +2,9 @@ import React, { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { ColorField, GroupedSliderField, IconButton } from "./toolbarUi";
 import ResponsiveSheet from "../ResponsiveSheet/ResponsiveSheet";
-import { DEFAULT_ADJUSTMENTS, FILTER_PRESETS, normalizeAdjustments } from "../../imageEffects";
+import { DEFAULT_ADJUSTMENTS, FILTER_PRESETS, adjustmentsToCssFilter, normalizeAdjustments } from "../../imageEffects";
 import { useLanguage } from "../../languageContext";
 import { TOOLBAR_MENU_STRINGS } from "../../i18n/toolbarMenus";
-
-// Cheap CSS-filter approximation used ONLY for the small preset preview
-// swatches below (not the real render, which goes through the Konva
-// filter pipeline in useImageFilters.js) — avoids any canvas/Konva work
-// for 8 small thumbnails, per the "avoid blocking, don't regenerate full-
-// resolution previews for every filter" requirement.
-function adjustmentsToCssFilter(adjustments) {
-  const a = normalizeAdjustments(adjustments);
-  const brightness = 1 + a.brightness * 0.6;
-  const contrast = 1 + a.contrast * 0.6;
-  const saturate = 1 + a.saturation;
-  const sepia = a.warmth > 0 ? a.warmth * 0.5 : 0;
-  const hueRotate = a.warmth < 0 ? a.warmth * 30 : 0;
-  const blur = a.blur * 0.5;
-  return `brightness(${brightness}) contrast(${contrast}) saturate(${Math.max(0, saturate)}) sepia(${sepia}) hue-rotate(${hueRotate}deg) blur(${blur}px)`;
-}
 
 // Only the plain numeric sliders decide whether a preset's ring should
 // light up — recolor (tint/duotone) is a separate, independent layer on

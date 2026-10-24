@@ -13,6 +13,7 @@ import {
   isRichText,
   MAX_LIST_LEVEL,
   richTextToHTML,
+  textStretch,
   withItemRunDefaults,
 } from "../richText";
 import { usePointerCapability } from "../usePointerCapability";
@@ -684,6 +685,14 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
   // resizes instead of the box growing rightward from its old left edge.
   const anchorFraction = !isFlexibleWidth ? 0 : item.align === "center" ? 0.5 : item.align === "right" ? 1 : 0;
   const DRAG_MARGIN = 14; // internal (pre-displayScale) px — see handleFrameMouseDown
+  // Heading/Subheading glyph stretch (richText.js's textStretch): the
+  // editable box is laid out at the unstretched size and CSS-scaled, so the
+  // text keeps its stretched look — and wraps exactly like the canvas —
+  // while being edited. scale() comes first so the anchor translate is
+  // measured in the stretched box's own width.
+  const { sx: stretchX, sy: stretchY } = textStretch(item);
+  const isStretched = stretchX !== 1 || stretchY !== 1;
+  const anchorTransform = anchorFraction ? `translateX(${-anchorFraction * 100}%)` : "";
 
   return (
     <>
@@ -732,10 +741,10 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
           // fit-content box would wrap wherever the editor viewport happens
           // to end — or, pinned at its center/right edge, at half the room —
           // instead of exactly at the page edge like the canvas does.
-          width: isFlexibleWidth ? "max-content" : overlayWidth,
-          maxWidth: isFlexibleWidth && Number.isFinite(flexibleMaxWidth) ? flexibleMaxWidth * viewport.scale : undefined,
+          width: isFlexibleWidth ? "max-content" : overlayWidth / stretchX,
+          maxWidth: isFlexibleWidth && Number.isFinite(flexibleMaxWidth) ? (flexibleMaxWidth * viewport.scale) / stretchX : undefined,
           minWidth: isFlexibleWidth ? 20 * viewport.scale : undefined,
-          minHeight: overlayHeight,
+          minHeight: overlayHeight / stretchY,
           padding: (item.padding ?? 4) * viewport.scale,
           // Keeps the same box the Transformer draws when selected-not-editing
           // (see App.jsx's Transformer, borderStroke default) visible for the
@@ -778,7 +787,7 @@ const TextEditOverlay = forwardRef(function TextEditOverlay(
                   : "center",
           // Temporarily un-rotated during edit (see plan rationale) —
           // item.rotation is re-applied once editing exits.
-          transform: anchorFraction ? `translateX(${-anchorFraction * 100}%)` : "none",
+          transform: isStretched ? `scale(${stretchX}, ${stretchY}) ${anchorTransform}` : anchorTransform || "none",
           transformOrigin: "0 0",
           background: item.background?.enabled ? item.background.color : "transparent",
           zIndex: 25,

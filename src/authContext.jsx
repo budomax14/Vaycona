@@ -4,17 +4,39 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithCredential,
   GoogleAuthProvider,
+  OAuthProvider,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
   signInAnonymously,
 } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { auth, functions } from "./firebase";
+import { isMobileApp } from "./platform";
 import { ADMIN_EMAIL } from "./constants";
 import { enterAccountStorage } from "./storageScope";
 
 const AuthContext = createContext(null);
+
+// The iOS/Android WebViews can't run Google's sign-in popup, so the apps show
+// the native Google / Apple sheet (skipNativeAuth in capacitor.config.json)
+// and hand its token to the JS SDK — the session then lives in `auth` exactly
+// as on the website.
+async function signInWithGoogleNatively() {
+  const result = await FirebaseAuthentication.signInWithGoogle();
+  return signInWithCredential(auth, GoogleAuthProvider.credential(result.credential?.idToken));
+}
+
+async function signInWithAppleNatively() {
+  const result = await FirebaseAuthentication.signInWithApple();
+  const credential = new OAuthProvider("apple.com").credential({
+    idToken: result.credential?.idToken,
+    rawNonce: result.credential?.nonce,
+  });
+  return signInWithCredential(auth, credential);
+}
 
 // Wraps the whole app (AppRoot.jsx) so both the normal editor and the admin
 // section sit behind one real login — the SAME login form every user goes
@@ -47,8 +69,15 @@ export function AuthProvider({ children }) {
     continueAsGuest: () => signInAnonymously(auth),
     signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
     signUp: (email, password) => createUserWithEmailAndPassword(auth, email, password),
-    signInWithGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
-    signOut: () => firebaseSignOut(auth),
+    signInWithGoogle: () =>
+      isMobileApp ? signInWithGoogleNatively() : signInWithPopup(auth, new GoogleAuthProvider()),
+    signInWithApple: signInWithAppleNatively,
+    signOut: async () => {
+      // Also drop the native Google session, or the next Google sign-in
+      // silently reuses this account instead of offering the picker.
+      if (isMobileApp) await FirebaseAuthentication.signOut().catch(() => {});
+      await firebaseSignOut(auth);
+    },
     // Server-side delete (functions/accountDeletion.js) — the Auth user is
     // gone afterwards, so just clear the local session.
     deleteAccount: async () => {

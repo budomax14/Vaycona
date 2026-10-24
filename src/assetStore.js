@@ -201,6 +201,36 @@ export const assetEvents = {
   },
 };
 
+// --- in-memory assets (Client Personalization) ---
+
+// Images a page only needs while it's open — a published personalization
+// template's pictures and a customer's photos (see
+// src/personalization/sessionAssets.js). They resolve through the same
+// getAssetMeta/getAssetBlob every renderer and exporter already uses, but
+// are never written to this browser's IndexedDB or the Uploads index, so a
+// customer's photo can't end up in whoever-is-signed-in's library.
+const memoryAssets = new Map();
+
+export function registerMemoryAsset(id, blob, meta) {
+  memoryAssets.set(id, {
+    id,
+    name: meta?.name || "Image",
+    mimeType: blob.type,
+    size: blob.size,
+    width: meta?.width,
+    height: meta?.height,
+    status: "ready",
+    errorMessage: null,
+    sourceType: "memory",
+    blob,
+  });
+  assetEvents.emit(id);
+}
+
+export function hasMemoryAsset(id) {
+  return memoryAssets.has(id);
+}
+
 // --- validation ---
 
 // Browsers frequently report an empty file.type (or omit it) for HEIC/HEIF
@@ -479,6 +509,10 @@ export async function putAssetWithId(id, file, { name, sourceType = "import" } =
 // doesn't pay for a full image download it doesn't need.
 export async function getAssetMeta(id) {
   if (!id) return null;
+  if (memoryAssets.has(id)) {
+    const { blob, ...meta } = memoryAssets.get(id);
+    return meta;
+  }
   const resolved = await getRecord(id);
   if (resolved) {
     const { blob, thumbBlob, ...meta } = resolved;
@@ -516,6 +550,7 @@ export async function getAssetMeta(id) {
 // IndexedDB is cleared, with no changes needed in either of those files.
 export async function getAssetBlob(id) {
   if (!id) return null;
+  if (memoryAssets.has(id)) return memoryAssets.get(id).blob;
   const resolved = await getRecord(id);
   if (resolved?.blob) return resolved.blob;
   const uid = auth.currentUser?.uid;

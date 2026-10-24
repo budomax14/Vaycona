@@ -4,12 +4,15 @@ import { useAuth } from "../../authContext";
 import { TERMS_AND_CONDITIONS } from "../../termsContent";
 import { useLanguage } from "../../languageContext";
 import { MISC_STRINGS } from "../../i18n/misc";
-import { isMobileApp, openExternalUrl } from "../../platform";
+import { isIOSApp, openExternalUrl } from "../../platform";
 
 // Friendly copy for the Firebase Auth error codes users actually hit here.
 // Anything else shows a generic message with just the error code (never
 // the raw Firebase text), so an unexpected failure can still be diagnosed.
 function friendlyAuthError(error, t) {
+  // The native Google/Apple sheets (mobile apps) report a dismissal as a
+  // plain error without an auth/ code — like closing the popup, not a failure.
+  if (!error?.code && /cancel|1001/i.test(error?.message || "")) return null;
   switch (error?.code) {
     case "auth/invalid-email":
       return t.errorInvalidEmail;
@@ -48,7 +51,7 @@ function friendlyAuthError(error, t) {
 export default function LoginPage({ onBack, initialMode = "signin" }) {
   const { language } = useLanguage();
   const t = MISC_STRINGS[language].loginPage;
-  const { signIn, signUp, signInWithGoogle, resetPassword, continueAsGuest } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithApple, resetPassword, continueAsGuest } = useAuth();
   const [mode, setMode] = useState(initialMode); // "signin" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,14 +77,16 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
     }
   }
 
-  async function handleGoogleSignIn() {
+  // Google everywhere; Apple only in the iOS app, where App Review requires
+  // it alongside Google (guideline 4.8).
+  async function handleProviderSignIn(signInWithProvider) {
     setError(null);
     setNotice(null);
     setGoogleBusy(true);
     try {
-      await signInWithGoogle();
+      await signInWithProvider();
     } catch (err) {
-      console.error("Google sign-in failed:", err?.code, err);
+      console.error("Provider sign-in failed:", err?.code, err);
       const message = friendlyAuthError(err, t);
       if (message) setError(message);
     } finally {
@@ -164,51 +169,62 @@ export default function LoginPage({ onBack, initialMode = "signin" }) {
             {isSignUp ? t.signUpSubtitle : t.welcomeBack}
           </p>
 
-          {/* Google's sign-in popup can't run inside the iOS/Android
-              WebViews; the apps offer email/password until native Google
-              sign-in is wired up. */}
-          {!isMobileApp && (
-            <>
+          {isIOSApp && (
             <button
               type="button"
-              onClick={handleGoogleSignIn}
+              onClick={() => handleProviderSignIn(signInWithApple)}
               disabled={googleBusy || busy}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-neutral-900 disabled:pointer-events-none disabled:opacity-40"
             >
               {googleBusy ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
-                <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
-                  <path
-                    fill="#FFC107"
-                    d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
-                  />
-                  <path
-                    fill="#FF3D00"
-                    d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"
-                  />
-                  <path
-                    fill="#4CAF50"
-                    d="M24 44c5.1 0 9.8-2 13.3-5.2l-6.1-5.2C29.2 35.4 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"
-                  />
-                  <path
-                    fill="#1976D2"
-                    d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.1 5.2C40.5 36.4 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z"
-                  />
+                <svg width="16" height="16" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true">
+                  <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
                 </svg>
               )}
-              {t.continueWithGoogle}
+              {t.continueWithApple}
             </button>
-
-            <div className="my-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs text-slate-500">{t.or}</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-            </>
           )}
 
-          <form className={`space-y-3 ${isMobileApp ? "mt-5" : ""}`} onSubmit={handleSubmit}>
+          <button
+            type="button"
+            onClick={() => handleProviderSignIn(signInWithGoogle)}
+            disabled={googleBusy || busy}
+            className={`${isIOSApp ? "mt-3" : "mt-5"} flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40`}
+          >
+            {googleBusy ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+                <path
+                  fill="#FFC107"
+                  d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
+                />
+                <path
+                  fill="#FF3D00"
+                  d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C33.9 6 29.2 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"
+                />
+                <path
+                  fill="#4CAF50"
+                  d="M24 44c5.1 0 9.8-2 13.3-5.2l-6.1-5.2C29.2 35.4 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"
+                />
+                <path
+                  fill="#1976D2"
+                  d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.1 5.2C40.5 36.4 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z"
+                />
+              </svg>
+            )}
+            {t.continueWithGoogle}
+          </button>
+
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-xs text-slate-500">{t.or}</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <form className="space-y-3" onSubmit={handleSubmit}>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-slate-400">{t.email}</span>
               <input

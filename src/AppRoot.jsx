@@ -15,6 +15,13 @@ import { LanguageProvider } from "./languageContext";
 import LoginPage from "./components/Auth/LoginPage";
 import LandingPage from "./components/LandingPage";
 import { isMobileApp } from "./platform";
+import { parsePersonalizationHash } from "./personalization/api";
+
+// The public Client Personalization page (#/p/<linkToken>/...) is for a
+// business's customers, who have no Vaycona account — it renders outside
+// the login gate, auth and subscription providers entirely, and is only
+// loaded when such a link is opened.
+const CustomerPersonalizationPage = React.lazy(() => import("./components/Personalization/CustomerPersonalizationPage"));
 
 // Wraps the editor in a top-level error boundary (Phase 7C). Kept as its
 // own component (rather than folded into App) specifically so it still
@@ -22,6 +29,23 @@ import { isMobileApp } from "./platform";
 // saved record and a newer recovery snapshot rather than reading App's
 // (possibly-broken) internal state.
 export default function AppRoot() {
+  if (parsePersonalizationHash(window.location.hash)) {
+    return (
+      <ThemeProvider>
+        <LanguageProvider>
+          <React.Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center bg-gray-50 text-gray-400">
+                <Loader2 size={24} className="animate-spin" />
+              </div>
+            }
+          >
+            <CustomerPersonalizationPage />
+          </React.Suspense>
+        </LanguageProvider>
+      </ThemeProvider>
+    );
+  }
   return (
     <ThemeProvider>
       <LanguageProvider>

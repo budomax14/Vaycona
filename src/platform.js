@@ -9,6 +9,7 @@ import { Share } from "@capacitor/share";
 
 export const isDesktopApp = typeof window !== "undefined" && !!window.vayconaDesktop;
 export const isMobileApp = Capacitor.isNativePlatform();
+export const isIOSApp = isMobileApp && Capacitor.getPlatform() === "ios";
 export const isNativeApp = isDesktopApp || isMobileApp;
 
 function blobToBase64(blob) {

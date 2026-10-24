@@ -129,6 +129,23 @@ function tintFilter(hex, amount) {
   };
 }
 
+// Cheap CSS-filter approximation used ONLY for small filter preview
+// swatches (FiltersPopover, the customer photo filter picker) — not the
+// real render, which goes through the Konva filter pipeline in
+// useImageFilters.js. Avoids any canvas/Konva work for a row of small
+// thumbnails, per the "avoid blocking, don't regenerate full-resolution
+// previews for every filter" requirement.
+export function adjustmentsToCssFilter(adjustments) {
+  const a = normalizeAdjustments(adjustments);
+  const brightness = 1 + a.brightness * 0.6;
+  const contrast = 1 + a.contrast * 0.6;
+  const saturate = 1 + a.saturation;
+  const sepia = a.warmth > 0 ? a.warmth * 0.5 : 0;
+  const hueRotate = a.warmth < 0 ? a.warmth * 30 : 0;
+  const blur = a.blur * 0.5;
+  return `brightness(${brightness}) contrast(${contrast}) saturate(${Math.max(0, saturate)}) sepia(${sepia}) hue-rotate(${hueRotate}deg) blur(${blur}px)`;
+}
+
 // Builds the Konva filter function list + the numeric attrs those filters
 // read (Konva's built-in filters read values off the node itself, set via
 // node.setAttrs before calling node.filters([...])).

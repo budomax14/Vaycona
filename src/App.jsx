@@ -92,7 +92,7 @@ import FadeOverlay from "./components/FadeOverlay";
 import GrabItOverlay from "./components/GrabItOverlay";
 import useGrabIt from "./grabIt/useGrabIt";
 import { extractGrabItRegionBlob } from "./grabIt/grabItExtraction";
-import { ensureRichText, isValidRichText as isValidRichTextShape, measureAutoHeight, measureFlexibleTextBox, plainTextOf } from "./richText";
+import { clampTextScale, ensureRichText, isValidRichText as isValidRichTextShape, measureAutoHeight, measureFlexibleTextBox, plainTextOf, textStretch } from "./richText";
 import { defaultTextEffects } from "./textEffects";
 import { getPresetByKey } from "./textStyles";
 import { borderDashProps } from "./borderStyles";
@@ -330,6 +330,8 @@ import AnimationPanel from "./components/Animation/AnimationPanel";
 import Timeline from "./components/Timeline/Timeline";
 import PresentationMode from "./components/Presentation/PresentationMode";
 import ExportAnimationDialog from "./components/ExportAnimationDialog";
+import PersonalizationPanel from "./components/Personalization/PersonalizationPanel";
+import PersonalizationDashboard from "./components/Personalization/PersonalizationDashboard";
 
 // Konva's own transform is pinned at this fixed value forever (see plan
 // notes in Workspace.jsx / constants.js) — actual zoom is a CSS transform
@@ -765,7 +767,7 @@ export default function App({ editorMode = "workspace", templateSession = null }
   // of App), so it's safe to consume it here directly.
   const { activeBrandKit, activeBrandKitId, refresh: refreshBrandKits } = useBrandKits();
   const { tier: subscriptionTier, canEdit, isTrialing, currentPeriodEnd, freeProjectKeys, claimFreeProject } = useSubscription();
-  const { isGuest, signOut } = useAuth();
+  const { user, isGuest, signOut } = useAuth();
   const { language } = useLanguage();
 
   // Mirrors the itemsRef/pagesRef pattern below: several handlers that
@@ -1092,6 +1094,13 @@ export default function App({ editorMode = "workspace", templateSession = null }
     if (!isNativeApp) window.location.assign("/?login=1");
   }
   const [isBusinessInfoOpen, setIsBusinessInfoOpen] = useState(false);
+  // Client Personalization (Business plan) — editor side panel + dashboard.
+  // The server re-checks the plan on every publish/manage call; this only
+  // decides whether to show the tools or the locked/upgrade state.
+  const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false);
+  const [isPersonalizationDashboardOpen, setIsPersonalizationDashboardOpen] = useState(false);
+  const hasBusinessPersonalization = !isGuest && subscriptionTier === "business" && canEdit;
+  const personalizationBlockedReason = isGuest ? "guest" : subscriptionTier === "business" ? "payment" : "upgrade";
   const [editingChartId, setEditingChartId] = useState(null);
   const [chartStyleOpenRequest, setChartStyleOpenRequest] = useState(0);
 
@@ -3627,6 +3636,10 @@ export default function App({ editorMode = "workspace", templateSession = null }
       autoSize: preset.autoSize,
       fontFamily: "Arial",
       fill: "#111827",
+      // Heading/Subheading only: dragging the selection handles stretches
+      // the letters themselves (textScaleX/textScaleY — see
+      // richText.js's textStretch and handleTransformEnd).
+      ...(preset.key === "heading" || preset.key === "subheading" ? { stretchText: true, textScaleX: 1, textScaleY: 1 } : {}),
     }, "Add text");
   }
 
@@ -7870,7 +7883,25 @@ export default function App({ editorMode = "workspace", templateSession = null }
         // a live-typing edit already uses) so it never clips or leaves
         // dead space — a "fixed" box just keeps the manually dragged
         // width/height as-is.
-        if (textIsFlexibleBox(sourceItem)) {
+        // Exception: Heading/Subheading boxes (stretchText) stretch the
+        // glyphs instead — the drag's own scaleX/scaleY fold into the
+        // item's textScaleX/textScaleY (font size, wrapping and the
+        // unstretched layout box stay as they were), so side handles make
+        // letters wider/skinnier or taller/shorter and corners do both
+        // independently (Shift = Transformer keepRatio, proportional).
+        if (sourceItem.stretchText && !sourceItem.curve) {
+          const { sx, sy } = textStretch(sourceItem);
+          const naturalWidth = Math.max(1, sourceItem.width / sx);
+          const naturalHeight = Math.max(1, sourceItem.height / sy);
+          update.textScaleX = clampTextScale(update.width / naturalWidth);
+          update.textScaleY = clampTextScale(update.height / naturalHeight);
+          update.width = naturalWidth * update.textScaleX;
+          if (textIsFlexibleBox(sourceItem)) {
+            update.height = measureAutoHeight({ ...sourceItem, ...update }, ensureRichText(sourceItem));
+          } else {
+            update.height = naturalHeight * update.textScaleY;
+          }
+        } else if (textIsFlexibleBox(sourceItem)) {
           update.height = measureAutoHeight({ ...sourceItem, width: update.width }, ensureRichText(sourceItem));
         }
       } else if (sourceItem?.type === "table") {
@@ -7965,6 +7996,24 @@ export default function App({ editorMode = "workspace", templateSession = null }
     setEnteredGroupId(null);
     setContextMenu(null);
     setHasManualZoomOrPan(false);
+  }
+
+  // Client Personalization: each element's customer-field settings live on
+  // the element (item.personalizationFields), so they save/undo like any
+  // other property.
+  function updatePersonalizationFields(itemId, fields) {
+    updateItem(itemId, { personalizationFields: fields.length ? fields : undefined }, true, {
+      type: "edit-property",
+      label: "Edit customer field",
+      itemIds: [itemId],
+    });
+  }
+
+  function selectPersonalizationItem(itemId) {
+    const item = itemsRef.current.find((it) => it.id === itemId);
+    if (!item) return;
+    if (item.pageId !== activePageId) activatePage(item.pageId);
+    setSelectedIds([itemId]);
   }
 
   function addPage(pageId = activePageId, direction = "after") {
@@ -9608,6 +9657,8 @@ export default function App({ editorMode = "workspace", templateSession = null }
         onResetZoom={handleFitToScreen}
         onOpenResize={() => setIsResizeOpen(true)}
         onOpenPricing={openPricing}
+        onOpenPersonalization={() => !requireAccount() && setIsPersonalizationOpen(true)}
+        onOpenPersonalizationDashboard={() => !requireAccount() && setIsPersonalizationDashboardOpen(true)}
       />
       )}
 
@@ -10086,6 +10137,34 @@ export default function App({ editorMode = "workspace", templateSession = null }
       />
 
       <BusinessInfoPage isOpen={isBusinessInfoOpen} onClose={() => setIsBusinessInfoOpen(false)} />
+
+      {!templateSession && (
+        <>
+          <PersonalizationPanel
+            isOpen={isPersonalizationOpen}
+            onClose={() => setIsPersonalizationOpen(false)}
+            uid={user?.uid}
+            isBusiness={hasBusinessPersonalization}
+            businessBlockedReason={personalizationBlockedReason}
+            onOpenPricing={openPricing}
+            items={items}
+            pages={pages}
+            selectedIds={selectedIds}
+            projectKey={projectKey}
+            projectName={projectName}
+            onUpdateItemFields={updatePersonalizationFields}
+            onSelectItem={selectPersonalizationItem}
+            onOpenDashboard={() => setIsPersonalizationDashboardOpen(true)}
+          />
+          <PersonalizationDashboard
+            isOpen={isPersonalizationDashboardOpen}
+            onClose={() => setIsPersonalizationDashboardOpen(false)}
+            uid={user?.uid}
+            isBusiness={hasBusinessPersonalization}
+            onOpenPricing={openPricing}
+          />
+        </>
+      )}
 
       <AccountRequiredDialog
         isOpen={isAccountRequiredOpen}

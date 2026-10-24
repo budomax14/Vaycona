@@ -10,6 +10,8 @@ exports.stripeWebhook = stripeWebhook;
 exports.claimFreeProject = require("./freeProjects").claimFreeProject;
 exports.deleteAccount = require("./accountDeletion").deleteAccount;
 exports.setUserPlan = require("./planGrants").setUserPlan;
+// Client Personalization (Business plan) — see personalization.js.
+Object.assign(exports, require("./personalization").functions);
 
 // Set once via: firebase functions:secrets:set OPENAI_API_KEY
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");

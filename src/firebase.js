@@ -26,7 +26,7 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 // getAuth() pulls in the popup/redirect machinery, which never finishes
 // initializing inside the iOS/Android WebViews (auth hangs on "loading").
-// The apps sign in with email/password only, so skip it there.
+// The apps sign in with Google/Apple natively (authContext.jsx), so skip it there.
 export const auth = isMobileApp
   ? initializeAuth(firebaseApp, { persistence: indexedDBLocalPersistence })
   : getAuth(firebaseApp);

@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "1085152535464",
+    "project_id": "vaycona-editor",
+    "storage_bucket": "vaycona-editor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1085152535464:android:c01010d9cdeec99852339d",
+        "android_client_info": {
+          "package_name": "com.vaycona.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1085152535464-2b30j5j7pin6858n4knm75hev04fa4b5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vaycona.app",
+            "certificate_hash": "d0df3849948801a9dcfc547974fc5f0e771be310"
+          }
+        },
+        {
+          "client_id": "1085152535464-hps314q1m1ok20qf6b2ej39so5t93mlv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vaycona.app",
+            "certificate_hash": "21f990372100cfb083b721f9f08918ce1ca70c4e"
+          }
+        },
+        {
+          "client_id": "1085152535464-v6kflif1abbclk9bje5kdmj8jfohk1v6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXoBWson9Ypf46KO8z4F1AATTl1YiE2D8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1085152535464-v6kflif1abbclk9bje5kdmj8jfohk1v6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1085152535464-3hnfjoapmbi53g2ovvu4jiagrhhcqk63.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.vaycona.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

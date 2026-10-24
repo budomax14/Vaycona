@@ -23,5 +23,33 @@ service firebase.storage {
         && request.resource.size < 25 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }
+
+    // Client Personalization: a Business-plan owner uploads the design
+    // JSON + the images it uses here; pzPublishVersion copies what the
+    // design references into personalization/ and deletes the rest. The
+    // plan check reads the same users/{uid} doc the Stripe webhook writes
+    // (cross-service rules), mirroring functions/personalization.js's
+    // hasBusinessEntitlement.
+    match /personalizationStaging/{uid}/{stagingId}/{allPaths=**} {
+      allow read: if false;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && hasBusinessPlan(uid)
+        && request.resource.size < 25 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/json');
+    }
+
+    // Published designs, customer photos and previews: written only by the
+    // Cloud Functions; readable only through the per-file download-token
+    // URLs they hand to the link holder / owner.
+    match /personalization/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    function hasBusinessPlan(uid) {
+      return request.auth.token.email == 'budomax1995@gmail.com'
+        || (firestore.exists(/databases/(default)/documents/users/$(uid))
+          && firestore.get(/databases/(default)/documents/users/$(uid)).data.get('tier', 'free') == 'business'
+          && !(firestore.get(/databases/(default)/documents/users/$(uid)).data.get('status', '') in ['past_due', 'unpaid', 'incomplete', 'incomplete_expired']));
+    }
   }
 }

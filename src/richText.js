@@ -514,9 +514,26 @@ export function layoutRichText(paragraphs, opts) {
 // chosen `item.width` and only ever write back `height`. 20 matches the
 // Transformer's own boundBoxFunc minimum (App.jsx) so a just-cleared text
 // box doesn't collapse to 0.
+// Glyph stretch for Heading/Subheading text (`stretchText` items, see
+// App.jsx's addText): the content is laid out in an unstretched box of
+// width/textScaleX × height/textScaleY and drawn scaled by these factors
+// (TextNode.jsx), so item.width/height always stay the visible box that
+// selection, snapping and export already read. Every other text item (and
+// curved text, which has no box model) is always 1/1.
+export function textStretch(item) {
+  if (!item?.stretchText || item.curve) return { sx: 1, sy: 1 };
+  const valid = (n) => (typeof n === "number" && Number.isFinite(n) && n > 0 ? clampTextScale(n) : 1);
+  return { sx: valid(item.textScaleX), sy: valid(item.textScaleY) };
+}
+
+export function clampTextScale(n) {
+  return Math.min(20, Math.max(0.05, n));
+}
+
 export function measureAutoHeight(item, richText) {
   const padding = item.padding ?? 4;
-  const maxWidth = Math.max(1, (item.width || 100) - padding * 2);
+  const { sx, sy } = textStretch(item);
+  const maxWidth = Math.max(1, (item.width || 100) / sx - padding * 2);
   const { totalHeight } = layoutRichText(richText, {
     maxWidth,
     autoWidth: false,
@@ -526,7 +543,7 @@ export function measureAutoHeight(item, richText) {
     paragraphSpacing: item.paragraphSpacing || 0,
     textTransform: item.textTransform || "none",
   });
-  return Math.max(20, totalHeight + padding * 2);
+  return Math.max(20, totalHeight + padding * 2) * sy;
 }
 
 // The "flexible" text box measurement: the box keeps growing (or shrinking)
@@ -540,10 +557,13 @@ export function measureAutoHeight(item, richText) {
 // boundBoxFunc minimum so a just-cleared text box doesn't collapse to 0.
 export function measureFlexibleTextBox(item, richText, availableWidth) {
   const padding = item.padding ?? 4;
+  // Measured in the unstretched layout box, scaled back up on return (see
+  // textStretch).
+  const { sx, sy } = textStretch(item);
   // -1: the +1px headroom added to the returned width below comes out of
   // the available room, so a box that has grown to the page edge ends
   // exactly at it rather than 1px past it.
-  const maxContentWidth = Math.max(20, availableWidth - padding * 2 - 1);
+  const maxContentWidth = Math.max(20, availableWidth / sx - padding * 2 - 1);
   const layoutOpts = {
     autoWidth: true,
     lineHeight: item.lineHeight || 1,
@@ -582,8 +602,8 @@ export function measureFlexibleTextBox(item, richText, availableWidth) {
   }
   return {
     // +1px: headroom so sub-pixel rounding can never make it wrap either.
-    width: Math.max(20, contentWidth + padding * 2 + 1),
-    height: Math.max(20, height + padding * 2),
+    width: Math.max(20, contentWidth + padding * 2 + 1) * sx,
+    height: Math.max(20, height + padding * 2) * sy,
   };
 }
 
